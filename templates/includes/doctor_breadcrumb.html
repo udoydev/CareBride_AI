@@ -1,0 +1,42 @@
+{% load static tailwind_tags %}
+{% if request.resolver_match and request.resolver_match.app_name == 'doctors' %}
+  {% with request.resolver_match.url_name as url_name %}
+  <nav class="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 mb-4">
+    <a href="{% url 'doctors:dashboard' %}" class="hover:text-teal-600 dark:hover:text-teal-400">Dashboard</a>
+    {% if url_name == 'patient_list' or url_name == 'patient_detail' or url_name == 'create_prescription' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <a href="{% url 'doctors:patient_list' %}" class="hover:text-teal-600 dark:hover:text-teal-400">Patients</a>
+      {% if url_name == 'patient_detail' or url_name == 'create_prescription' %}
+        <i class="fa-solid fa-chevron-right text-[8px]"></i>
+        <span class="text-stone-700 dark:text-stone-300">Patient Detail</span>
+      {% endif %}
+    {% elif url_name == 'schedule_management' or url_name == 'delete_schedule' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Schedule</span>
+    {% elif url_name == 'appointment_list' or url_name == 'appointment_detail' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Appointments</span>
+    {% elif url_name == 'send_emergency_notification' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <a href="{% url 'doctors:appointment_list' %}" class="hover:text-teal-600 dark:hover:text-teal-400">Appointments</a>
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Emergency Alert</span>
+    {% elif url_name == 'notifications' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Notifications</span>
+    {% elif url_name == 'history' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">History</span>
+    {% elif url_name == 'profile_edit' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Profile</span>
+    {% elif url_name == 'prescription_detail' or url_name == 'download_prescription' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Prescription</span>
+    {% elif url_name == 'update_followup_status' %}
+      <i class="fa-solid fa-chevron-right text-[8px]"></i>
+      <span class="text-stone-700 dark:text-stone-300">Follow-up</span>
+    {% endif %}
+  </nav>
+  {% endwith %}
+{% endif %}

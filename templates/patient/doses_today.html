@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+  <div>
+    <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}আজ{% else %}Today{% endif %}</p>
+    <h1 class="mt-4 text-4xl font-semibold tracking-tight lg:text-5xl">{% if site_lang == 'bn' %}আজকের ডোজ{% else %}Today's Doses{% endif %}</h1>
+    <p class="mt-3 text-lg text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}প্রতিটি ডোজ নিয়েছেন নাকি বাদ দিয়েছেন তা চিহ্নিত করুন।{% else %}Mark each dose as taken or skipped.{% endif %}</p>
+
+    <article class="mt-8 rounded-3xl border border-stone-200 bg-white p-8 shadow-md dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-semibold">{% if site_lang == 'bn' %}ডোজ তালিকা{% else %}Dose checklist{% endif %}</h2>
+        <a href="{% url 'patient:custom_dose_times' %}" class="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700">
+          <i class="fa-solid fa-clock"></i>
+          {% if site_lang == 'bn' %}ডোজ টাইম সেট করুন{% else %}Set Dose Times{% endif %}
+        </a>
+      </div>
+      <div class="mt-6 space-y-4">
+        {% for schedule in schedules %}
+        <div class="flex flex-col gap-4 rounded-2xl border border-stone-100 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ schedule.prescription_item.medicine }}</p>
+              <span class="rounded-xl bg-teal-100 px-3 py-1 text-xs font-bold text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                <i class="fa-regular fa-clock mr-1"></i>
+                {% if site_lang == 'bn' %}{{ schedule.time_label.bn }}{% else %}{{ schedule.time_label.en }}{% endif %}
+                {% if schedule.reminder_time %} ({{ schedule.reminder_time|time:"h:i A" }}){% endif %}
+              </span>
+            </div>
+            <p class="text-sm text-stone-600 dark:text-stone-300 mt-1.5 font-medium">
+              <span class="font-bold text-teal-600 dark:text-teal-400">{{ schedule.prescription_item.dosage }}</span> · {{ schedule.prescription_item.get_timing_relation_to_meal_display }}
+            </p>
+            <span class="mt-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {% if schedule.status == 'taken' %}bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300{% elif schedule.status == 'skipped' %}bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300{% else %}bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300{% endif %}">
+              {{ schedule.get_status_display }}
+            </span>
+          </div>
+          <form method="post" class="flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+            <button name="status" value="taken" class="rounded-full bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700">{% if site_lang == 'bn' %}নিয়েছি{% else %}Taken{% endif %}</button>
+            <button name="status" value="skipped" class="rounded-full border border-stone-200 px-5 py-2 text-sm font-semibold text-stone-700 dark:border-slate-700 dark:text-stone-300">{% if site_lang == 'bn' %}বাদ দিয়েছি{% else %}Skipped{% endif %}</button>
+          </form>
+        </div>
+        {% empty %}
+        <p class="rounded-2xl border border-dashed border-stone-300 px-6 py-10 text-center text-stone-500 dark:border-slate-700 dark:text-stone-400">
+          {% if site_lang == 'bn' %}আজকের জন্য কোনো ডোজ নেই। AI সহকারীকে জিজ্ঞাসা করুন।{% else %}No doses due today. Ask the AI assistant if you have questions.{% endif %}
+        </p>
+        {% endfor %}
+      </div>
+    </article>
+  </div>
+</section>
+{% endblock %}

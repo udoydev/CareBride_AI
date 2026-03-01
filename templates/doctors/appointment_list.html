@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Appointments</p>
+      <h1 class="mt-1 text-3xl font-semibold tracking-tight">All Appointments</h1>
+      <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+        {% if stats.today > 0 %}You have <span class="font-bold text-teal-600 dark:text-teal-400">{{ stats.today }} appointment{{ stats.today|pluralize:"s" }}</span> today.{% endif %}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'doctors:appointment_report' %}" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+        <i class="fa-solid fa-chart-bar"></i> Appointment Report
+      </a>
+      <a href="{% url 'doctors:financial_report_export' %}" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+        <i class="fa-solid fa-file-export"></i> Export Financial Report
+      </a>
+      <a href="{% url 'doctors:send_emergency_notification' %}" class="inline-flex h-10 items-center gap-2 rounded-full bg-red-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
+        <i class="fa-solid fa-triangle-exclamation"></i> Emergency Alert
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid gap-3 sm:grid-cols-7 mb-6">
+    <div class="rounded-xl border border-stone-200 bg-white p-3 text-center dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs text-stone-500 dark:text-stone-400">Total</p>
+      <p class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ stats.total }}</p>
+    </div>
+    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-900/40 dark:bg-amber-950/30">
+      <p class="text-xs text-amber-600 dark:text-amber-400">Pending</p>
+      <p class="text-lg font-bold text-amber-900 dark:text-amber-300">{{ stats.pending }}</p>
+    </div>
+    <div class="rounded-xl border border-teal-200 bg-teal-50 p-3 text-center dark:border-teal-900/40 dark:bg-teal-950/30">
+      <p class="text-xs text-teal-600 dark:text-teal-400">Confirmed</p>
+      <p class="text-lg font-bold text-teal-900 dark:text-teal-300">{{ stats.confirmed }}</p>
+    </div>
+    <div class="rounded-xl border border-stone-200 bg-stone-50 p-3 text-center dark:border-slate-800 dark:bg-slate-800">
+      <p class="text-xs text-stone-500 dark:text-stone-400">Visited</p>
+      <p class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ stats.completed }}</p>
+    </div>
+    <div class="rounded-xl border border-red-200 bg-red-50 p-3 text-center dark:border-red-900/40 dark:bg-red-950/30">
+      <p class="text-xs text-red-600 dark:text-red-400">Missed</p>
+      <p class="text-lg font-bold text-red-900 dark:text-red-300">{{ stats.missed }}</p>
+    </div>
+    <div class="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center dark:border-orange-900/40 dark:bg-orange-950/30">
+      <p class="text-xs text-orange-600 dark:text-orange-400">Cancelled</p>
+      <p class="text-lg font-bold text-orange-900 dark:text-orange-300">{{ stats.cancelled }}</p>
+    </div>
+    <div class="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center dark:border-orange-900/40 dark:bg-orange-950/30">
+      <p class="text-xs text-orange-600 dark:text-orange-400">Pending Approval</p>
+      <p class="text-lg font-bold text-orange-900 dark:text-orange-300">{{ stats.cancellation_pending }}</p>
+    </div>
+    <div class="rounded-xl border border-teal-200 bg-teal-50 p-3 text-center dark:border-teal-900/40 dark:bg-teal-950/30">
+      <p class="text-xs text-teal-600 dark:text-teal-400">Today</p>
+      <p class="text-lg font-bold text-teal-900 dark:text-teal-300">{{ stats.today }}</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
+    <a href="?status=" class="rounded-full px-4 py-1.5 text-xs font-bold {% if not status_filter %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">All</a>
+    <a href="?status=pending" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'pending' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Pending</a>
+    <a href="?status=confirmed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'confirmed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Confirmed</a>
+    <a href="?status=completed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'completed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Visited</a>
+    <a href="?status=missed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'missed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Missed</a>
+    <a href="?status=cancelled" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'cancelled' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Cancelled</a>
+    <a href="?status=cancellation_pending" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'cancellation_pending' %}bg-orange-600 text-white{% else %}border border-orange-200 text-orange-700 dark:border-orange-900/40 dark:text-orange-300{% endif %}">Pending Approval</a>
+    <a href="{% url 'doctors:auto_detect_missed' %}" class="rounded-full px-4 py-1.5 text-xs font-bold border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/30">
+      <i class="fa-solid fa-robot mr-1"></i> Auto-Detect Missed
+    </a>
+  </div>
+
+  <!-- Appointments grouped by date -->
+  {% if appointments %}
+    {% regroup appointments by appointment_date as date_groups %}
+    {% for date_group in date_groups %}
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <h3 class="text-sm font-bold text-stone-900 dark:text-stone-100">
+            {{ date_group.grouper|date:"d M Y (l)" }}
+          </h3>
+          {% if date_group.grouper == today %}
+            <span class="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">Today</span>
+          {% endif %}
+          <span class="text-xs text-stone-400">{{ date_group.list|length }} appointment{{ date_group.list|pluralize:"s" }}</span>
+        </div>
+        <div class="space-y-3">
+          {% for apt in date_group.list %}
+            <div class="rounded-2xl border {% if apt.appointment_date == today %}border-teal-300 bg-teal-50/50 dark:border-teal-700 dark:bg-teal-950/20{% else %}border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900{% endif %} p-5 shadow-sm transition hover:shadow-md">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    {{ apt.patient.user.get_full_name|default:apt.patient.user.email }}
+                  </p>
+                  <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.patient.district|default:"N/A" }} • {{ apt.patient.phone_number|default:"N/A" }}</p>
+                  <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">
+                    <i class="fa-regular fa-clock mr-1"></i> {{ apt.start_time|time:"H:i" }} - {{ apt.end_time|time:"H:i" }}
+                    <span class="mx-1">•</span>
+                    {{ apt.get_consultation_type_display }}
+                  </p>
+                   {% if apt.chief_complaint %}
+                     <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 italic">"{{ apt.chief_complaint|truncatechars:80 }}"</p>
+                   {% endif %}
+                   {% if apt.edit_count > 0 %}
+                     <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                       <i class="fa-solid fa-pen mr-1"></i> Rescheduled {{ apt.edit_count }} time{{ apt.edit_count|pluralize:"s" }} by patient
+                     </p>
+                   {% endif %}
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="rounded-full px-3 py-1 text-xs font-bold
+                    {% if apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
+                    {% elif apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+                    {% elif apt.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
+                    {% elif apt.status == 'missed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300
+                    {% elif apt.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
+                    {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+                    {{ apt.get_status_display }}
+                  </span>
+                  {% if apt.status != 'completed' and apt.status != 'missed' and apt.status != 'cancelled' %}
+                  <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline" onsubmit="return confirm('Mark as visited?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="visited">
+                    <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                      <i class="fa-solid fa-check"></i> Visited
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline" onsubmit="return confirm('Mark as missed? A notification will be sent to the patient.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="missed">
+                    <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-800 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                      <i class="fa-solid fa-xmark"></i> Missed
+                    </button>
+                  </form>
+                  {% endif %}
+                  <a href="{% url 'doctors:appointment_detail' apt.pk %}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
+                    Manage
+                  </a>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="rounded-2xl border border-stone-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <span class="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-stone-500 mx-auto mb-3">
+        <i class="fa-regular fa-calendar-xmark text-lg"></i>
+      </span>
+      <p class="text-sm text-stone-500 dark:text-stone-400">No appointments found.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center gap-5 mb-8">
+    <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-3 border-teal-500 bg-stone-100 shadow-md dark:bg-slate-800" oncontextmenu="return false;">
+      {% if doctor.avatar %}
+        <img src="{{ doctor.avatar.url }}" alt="Dr. {{ doctor.user.get_full_name }}" class="h-full w-full object-cover pointer-events-none select-none" draggable="false">
+      {% else %}
+        <div class="flex h-full w-full items-center justify-center bg-teal-100 text-teal-700 font-bold text-2xl dark:bg-teal-900 dark:text-teal-300">
+          <i class="fa-solid fa-user-doctor"></i>
+        </div>
+      {% endif %}
+    </div>
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Edit appointment</p>
+      <h1 class="mt-1 text-3xl font-semibold tracking-tight">Dr. {{ doctor.user.get_full_name }}</h1>
+      <p class="mt-0.5 text-teal-600 dark:text-teal-400">{{ doctor.specialty|default:"General practice" }} • {{ doctor.clinic_name|default:"CareBridge Clinic" }}</p>
+      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Edits used: {{ edit_count }}/3</p>
+    </div>
+  </div>
+
+  {% if schedules %}
+    <div class="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4">Weekly Availability</h2>
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {% for sch in schedules %}
+          <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800">
+            <p class="text-sm font-semibold capitalize text-stone-900 dark:text-stone-100">{{ sch.get_day_of_week_display }}</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"H:i" }} - {{ sch.end_time|time:"H:i" }}</p>
+            <p class="text-[10px] text-stone-400 mt-1">{{ sch.slot_duration_minutes }} min per slot</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <h2 class="text-lg font-semibold mb-1">Available Time Slots</h2>
+    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">Select a new date and time to reschedule.</p>
+
+    {% if available_slots %}
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+
+        {% regroup available_slots by date as date_slots %}
+        {% for date_group in date_slots %}
+          <div class="mb-4">
+            <p class="text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">
+              {{ date_group.grouper|date:"l, d M Y" }}
+            </p>
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {% for slot in date_group.list %}
+                {% if slot.available %}
+                  <label class="cursor-pointer">
+                    <input type="radio" name="selected_slot" value="{{ slot.date }} {{ slot.start }}" required class="peer sr-only">
+                    <div class="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-center text-xs font-medium text-stone-700 transition peer-checked:border-teal-500 peer-checked:bg-teal-50 peer-checked:text-teal-700 hover:border-teal-300 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:peer-checked:border-teal-600 dark:peer-checked:bg-teal-950/30 dark:peer-checked:text-teal-300">
+                      <i class="fa-regular fa-clock mr-1"></i>{{ slot.start }}
+                    </div>
+                  </label>
+                {% else %}
+                  <div class="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-center text-xs text-stone-400 line-through dark:border-slate-800 dark:bg-slate-900 dark:text-stone-500">
+                    {{ slot.start }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+
+        <input type="hidden" name="appointment_date" id="selectedDate">
+        <input type="hidden" name="start_time" id="selectedTime">
+
+        <div class="grid gap-4 sm:grid-cols-2 mt-4">
+          <div>
+            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Consultation Type</label>
+            <select name="consultation_type" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" required>
+              <option value="in_person" selected>In-Person Chamber</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 mt-4">
+          <i class="fa-solid fa-calendar-check mr-2"></i> Update Appointment
+        </button>
+      </form>
+    {% else %}
+      <div class="text-center py-8">
+        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-stone-500 mx-auto mb-3">
+          <i class="fa-regular fa-calendar-xmark text-lg"></i>
+        </span>
+        <p class="text-sm text-stone-500 dark:text-stone-400">No available slots at the moment.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('input[name="selected_slot"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      const val = this.value.split(' ');
+      document.getElementById('selectedDate').value = val[0];
+      document.getElementById('selectedTime').value = val[1];
+    });
+  });
+</script>
+{% endblock %}

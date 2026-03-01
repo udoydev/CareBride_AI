@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-[1700px] px-3 py-6 sm:px-6 md:py-8">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 pb-4 dark:border-slate-800">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Clinical Suite</p>
+      <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Dynamic Medical Prescription Writer</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'doctors:patient_detail' patient.id %}" class="inline-flex h-10 items-center justify-center rounded-full border border-stone-300 bg-white px-4 text-xs font-semibold text-stone-700 shadow-xs hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-300">
+        ← Cancel & Back
+      </a>
+      <button type="submit" form="prescription_form" class="inline-flex h-10 items-center justify-center rounded-full bg-teal-600 px-6 text-xs font-bold text-white shadow-md transition hover:bg-teal-700">
+        <i class="fa-solid fa-file-signature mr-2"></i> Save & Issue Prescription
+      </button>
+    </div>
+  </div>
+
+  <!-- 2 Column Split Layout: Left Form Inputs, Right Live Real-Life Prescription Sheet Preview -->
+  <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+
+    <!-- LEFT COLUMN: Form Control Inputs -->
+    <div class="space-y-6 lg:col-span-6 xl:col-span-6">
+      <form id="prescription_form" method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Patient Header Card -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-semibold uppercase text-stone-400">Patient File</span>
+              <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ patient_name }}</h2>
+              <p class="text-xs text-stone-500 dark:text-stone-400">Location: {{ patient.district|default:"Dhaka, Bangladesh" }}</p>
+            </div>
+            <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+              Active Session
+            </span>
+          </div>
+        </div>
+
+        <!-- Clinical Complaints & Diagnosis -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">1. Clinical Overview</h3>
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Chief Complaints (C/C)</label>
+            <textarea id="input_complaints" name="chief_complaints" rows="2" placeholder="e.g. High fever x 3 days, dry cough, body pain"
+              class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"></textarea>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Diagnosis (Dx)</label>
+            <input type="text" id="input_diagnosis" name="diagnosis" placeholder="e.g. Acute Viral Bronchitis / Essential Hypertension"
+              class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+          </div>
+        </div>
+
+        <!-- Dynamic Medicines List -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">2. Medicines & Medications (Rx)</h3>
+            <button type="button" id="add_med_btn" class="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-950 dark:text-teal-300">
+              <i class="fa-solid fa-plus text-xs"></i> Add Medicine
+            </button>
+          </div>
+
+          <div id="medicines_container" class="space-y-3">
+            <!-- First Default Row -->
+            <div class="med-row rounded-xl border border-stone-200 bg-stone-50/50 p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-800/40 space-y-2">
+              <div class="flex items-center gap-2">
+                <input type="text" name="med_name[]" placeholder="Medicine Brand/Generic Name (e.g. Napa 500mg)" required
+                  class="med-name-field flex-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100">
+                <button type="button" class="remove-med-btn text-stone-400 hover:text-red-500 px-2 py-1" title="Remove Medicine">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div>
+                  <label class="text-[10px] text-stone-500">Dosage</label>
+                  <input type="text" name="med_dosage[]" value="1+0+1" placeholder="1+0+1"
+                    class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                </div>
+                <div>
+                  <label class="text-[10px] text-stone-500">Timing</label>
+                  <select name="med_timing[]" class="med-timing-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                    <option value="after_meal" selected>After meal / খাবার পরে</option>
+                    <option value="before_meal">Before meal / খাবার আগে</option>
+                    <option value="with_meal">With meal / খাবারের সাথে</option>
+                    <option value="anytime">Any time / যেকোনো সময়</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] text-stone-500">Duration (Days)</label>
+                  <input type="number" name="med_duration[]" value="7" min="1"
+                    class="med-duration-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                </div>
+                <div>
+                  <label class="text-[10px] text-stone-500">Instructions / Notes</label>
+                  <input type="text" name="med_notes[]" placeholder="e.g. for fever"
+                    class="med-notes-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Investigations / Clinical Tests -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">3. Investigations & Tests (Inv)</h3>
+            <button type="button" id="add_test_btn" class="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-950 dark:text-teal-300">
+              <i class="fa-solid fa-plus text-xs"></i> Add Test
+            </button>
+          </div>
+          <div id="tests_container" class="space-y-2">
+            <div class="test-row flex items-center gap-2">
+              <input type="text" name="test_name[]" placeholder="e.g. CBC with ESR"
+                class="test-name-field flex-1 rounded-xl border border-stone-200 bg-white px-3.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+              <button type="button" class="remove-test-btn text-stone-400 hover:text-red-500 px-2 py-1">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Advice & Regulations -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">4. Advice & Regulations (উপদেশ)</h3>
+            <button type="button" id="add_advice_btn" class="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100 dark:bg-teal-950 dark:text-teal-300">
+              <i class="fa-solid fa-plus text-xs"></i> Add Advice
+            </button>
+          </div>
+          <div id="advice_container" class="space-y-2">
+            <div class="advice-row flex items-center gap-2">
+              <input type="text" name="advice_rule[]" placeholder="e.g. Drink 3-4 Liters of purified water daily"
+                class="advice-field flex-1 rounded-xl border border-stone-200 bg-white px-3.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+              <button type="button" class="remove-advice-btn text-stone-400 hover:text-red-500 px-2 py-1">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Follow-up Date Picker -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">5. Follow-Up / Next Visit Date</h3>
+          <div class="flex flex-wrap items-center gap-3">
+            <input type="date" id="input_followup" name="follow_up_date"
+              class="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            <button type="button" onclick="setFollowUpDays(7)" class="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200 dark:bg-slate-800 dark:text-stone-300">+7 Days</button>
+            <button type="button" onclick="setFollowUpDays(14)" class="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200 dark:bg-slate-800 dark:text-stone-300">+14 Days</button>
+            <button type="button" onclick="setFollowUpDays(30)" class="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-200 dark:bg-slate-800 dark:text-stone-300">+1 Month</button>
+          </div>
+        </div>
+
+        <!-- Doctor Private Notes -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-2">
+          <label class="text-xs font-semibold text-stone-700 dark:text-stone-300">Doctor Private Case Notes (Optional)</label>
+          <textarea name="doctor_notes" rows="2" placeholder="Private notes for clinic records..."
+            class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"></textarea>
+        </div>
+
+        <button type="submit" class="w-full rounded-full bg-teal-600 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-teal-700">
+          <i class="fa-solid fa-check-circle mr-2"></i> Confirm & Issue Medical Prescription
+        </button>
+      </form>
+    </div>
+
+    <!-- RIGHT COLUMN: Sticky Real-Life Prescription Sheet Live Preview -->
+    <div class="lg:col-span-6 xl:col-span-6">
+      <div class="sticky top-6 rounded-3xl border border-stone-300 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-white text-stone-900" id="rx_paper_preview">
+        <!-- Live Badge -->
+        <div class="mb-3 flex items-center justify-between border-b border-stone-200 pb-2.5">
+          <div class="flex items-center gap-2.5">
+            <img src="{% static 'images/logo.png' %}" alt="CareBridgeAI Logo" class="h-8 w-auto object-contain">
+            <span class="text-xs font-bold text-teal-900 tracking-tight">CareBridgeAI</span>
+          </div>
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> LIVE RX PREVIEW
+          </span>
+        </div>
+
+        <!-- Medical Prescription Paper (A4 Style) -->
+        <div class="bg-white p-6 text-stone-900 min-h-[750px] font-sans border border-stone-100 shadow-inner rounded-xl">
+
+          <!-- Prescription Header (Doctor & Clinic Info) -->
+          <div class="flex items-start justify-between border-b-2 border-teal-600 pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-teal-900">Dr. {{ doctor.user.get_full_name|default:doctor.user.username }}</h2>
+              <p class="text-xs font-bold text-teal-700">{{ doctor.specialty|default:"General Physician" }}</p>
+              <p class="text-[11px] text-stone-600 font-medium">BMDC Reg No: {{ doctor.registration_number|default:"BMDC-A1094" }}</p>
+              <p class="text-[11px] text-stone-500 mt-1">{{ doctor.bio|default:"Specialist Medical Consultant" }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-stone-900">{{ doctor.clinic_name|default:"CareBridgeAI Health Center" }}</p>
+              <p class="text-[11px] text-stone-600">{{ doctor.location_text|default:"Uttara Medical Zone, Dhaka" }}</p>
+              <p class="text-[11px] text-stone-500">Phone: {{ doctor.phone_number|default:"+880 1700-000000" }}</p>
+            </div>
+          </div>
+
+          <!-- Patient Info Bar (Blue/Teal Bar) -->
+          <div class="my-3 flex flex-wrap items-center justify-between bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 rounded-lg border border-teal-100">
+            <div>Patient: <span id="prev_patient_name" class="font-bold text-stone-900">{{ patient_name }}</span></div>
+            <div>Date: <span id="prev_date" class="font-bold">{% now "Y-m-d" %}</span></div>
+            <div>Rx ID: <span class="font-mono text-teal-700">#RX-{% now "mdHi" %}</span></div>
+          </div>
+
+          <!-- Main Prescription Content: Left Margin & Main Body -->
+          <div class="grid grid-cols-12 gap-4 mt-4 min-h-[500px]">
+
+            <!-- Left Margin: Clinical Findings (C/C, Dx, Inv) -->
+            <div class="col-span-4 border-r-2 border-stone-200 pr-3 space-y-4 text-xs">
+              <div>
+                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">C/C (Complaints)</p>
+                <p id="prev_complaints" class="text-stone-700 whitespace-pre-line leading-relaxed mt-1 italic text-[11px]">Not specified</p>
+              </div>
+
+              <div class="border-t border-stone-200 pt-3">
+                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">Dx (Diagnosis)</p>
+                <p id="prev_diagnosis" class="text-stone-900 font-semibold mt-1 text-[11px]">Under Evaluation</p>
+              </div>
+
+              <div class="border-t border-stone-200 pt-3">
+                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">Inv (Tests Required)</p>
+                <ul id="prev_tests_list" class="list-disc list-inside text-stone-700 mt-1 space-y-1 text-[11px]">
+                  <li class="text-stone-400 italic">None ordered</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Right Main Area: Rx Medicines, Advices & Signature -->
+            <div class="col-span-8 pl-3 flex flex-col justify-between">
+              <div>
+                <!-- Rx Symbol -->
+                <div class="text-3xl font-serif font-bold text-teal-800 mb-3">Rx ℞</div>
+
+                <!-- Medicines List -->
+                <div class="space-y-3">
+                  <ol id="prev_medicines_list" class="space-y-3 text-xs">
+                    <!-- Dynamic rendering via JS -->
+                  </ol>
+                </div>
+
+                <!-- Advice / Rules & Regulations -->
+                <div class="mt-6 border-t border-stone-200 pt-3">
+                  <p class="font-bold text-stone-900 text-xs uppercase tracking-wider">Advice / উপদেশ:</p>
+                  <ul id="prev_advice_list" class="list-disc list-inside text-xs text-stone-700 mt-1 space-y-1">
+                    <li>Take all medicines as prescribed with regular water.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Footer Section: Follow-up & Doctor Signature -->
+              <div class="mt-8 pt-4 border-t border-stone-200 flex items-end justify-between">
+                <div>
+                  <p class="text-[11px] font-bold text-teal-900">Next Visit / পরবর্তী সাক্ষাত:</p>
+                  <p id="prev_followup" class="text-xs font-semibold text-stone-800">As needed / প্রয়োজনবোধে</p>
+                </div>
+                <div class="text-center">
+                  <div class="w-32 border-b border-stone-400 mb-1"></div>
+                  <p class="text-[10px] font-bold text-stone-700">Doctor's Signature & Seal</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- JavaScript for Dynamic Rows & Real-Time Live Preview -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+  // Dynamic Row Addition for Medicines
+  const medContainer = document.getElementById("medicines_container");
+  const addMedBtn = document.getElementById("add_med_btn");
+
+  addMedBtn.addEventListener("click", function() {
+    const row = document.createElement("div");
+    row.className = "med-row rounded-xl border border-stone-200 bg-stone-50/50 p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-800/40 space-y-2";
+    row.innerHTML = `
+      <div class="flex items-center gap-2">
+        <input type="text" name="med_name[]" placeholder="Medicine Brand/Generic Name (e.g. Seclo 20mg)" required
+          class="med-name-field flex-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100">
+        <button type="button" class="remove-med-btn text-stone-400 hover:text-red-500 px-2 py-1" title="Remove Medicine">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div>
+          <label class="text-[10px] text-stone-500">Dosage</label>
+          <input type="text" name="med_dosage[]" value="1+0+1" placeholder="1+0+1"
+            class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Timing</label>
+          <select name="med_timing[]" class="med-timing-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            <option value="after_meal" selected>After meal / খাবার পরে</option>
+            <option value="before_meal">Before meal / খাবার আগে</option>
+            <option value="with_meal">With meal / খাবারের সাথে</option>
+            <option value="anytime">Any time / যেকোনো সময়</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Duration (Days)</label>
+          <input type="number" name="med_duration[]" value="7" min="1"
+            class="med-duration-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Instructions / Notes</label>
+          <input type="text" name="med_notes[]" placeholder="e.g. for fever"
+            class="med-notes-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+      </div>
+    `;
+    medContainer.appendChild(row);
+    attachListeners();
+    updatePreview();
+  });
+
+  // Dynamic Row Addition for Tests
+  const testsContainer = document.getElementById("tests_container");
+  const addTestBtn = document.getElementById("add_test_btn");
+
+  addTestBtn.addEventListener("click", function() {
+    const row = document.createElement("div");
+    row.className = "test-row flex items-center gap-2";
+    row.innerHTML = `
+      <input type="text" name="test_name[]" placeholder="e.g. Lipid Profile, Chest X-Ray"
+        class="test-name-field flex-1 rounded-xl border border-stone-200 bg-white px-3.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      <button type="button" class="remove-test-btn text-stone-400 hover:text-red-500 px-2 py-1">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    `;
+    testsContainer.appendChild(row);
+    attachListeners();
+    updatePreview();
+  });
+
+  // Dynamic Row Addition for Advice
+  const adviceContainer = document.getElementById("advice_container");
+  const addAdviceBtn = document.getElementById("add_advice_btn");
+
+  addAdviceBtn.addEventListener("click", function() {
+    const row = document.createElement("div");
+    row.className = "advice-row flex items-center gap-2";
+    row.innerHTML = `
+      <input type="text" name="advice_rule[]" placeholder="e.g. Avoid oily and cold food"
+        class="advice-field flex-1 rounded-xl border border-stone-200 bg-white px-3.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      <button type="button" class="remove-advice-btn text-stone-400 hover:text-red-500 px-2 py-1">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    `;
+    adviceContainer.appendChild(row);
+    attachListeners();
+    updatePreview();
+  });
+
+  // Event Delegation for Delete Buttons & Inputs
+  function attachListeners() {
+    document.querySelectorAll(".remove-med-btn").forEach(btn => {
+      btn.onclick = function() {
+        if (document.querySelectorAll(".med-row").length > 1) {
+          btn.closest(".med-row").remove();
+          updatePreview();
+        }
+      };
+    });
+
+    document.querySelectorAll(".remove-test-btn").forEach(btn => {
+      btn.onclick = function() {
+        btn.closest(".test-row").remove();
+        updatePreview();
+      };
+    });
+
+    document.querySelectorAll(".remove-advice-btn").forEach(btn => {
+      btn.onclick = function() {
+        btn.closest(".advice-row").remove();
+        updatePreview();
+      };
+    });
+  }
+
+  // Live Real-Time Preview Update Function
+  function updatePreview() {
+    // 1. Complaints & Diagnosis
+    const c = document.getElementById("input_complaints").value.trim();
+    document.getElementById("prev_complaints").innerText = c || "Not specified";
+
+    const d = document.getElementById("input_diagnosis").value.trim();
+    document.getElementById("prev_diagnosis").innerText = d || "Under Evaluation";
+
+    // 2. Follow-up
+    const fu = document.getElementById("input_followup").value;
+    document.getElementById("prev_followup").innerText = fu ? fu : "As needed / প্রয়োজনবোধে";
+
+    // 3. Medicines List
+    const medRows = document.querySelectorAll(".med-row");
+    const prevMedList = document.getElementById("prev_medicines_list");
+    prevMedList.innerHTML = "";
+
+    let count = 0;
+    medRows.forEach(row => {
+      const name = row.querySelector(".med-name-field")?.value.trim();
+      const dosage = row.querySelector(".med-dosage-field")?.value.trim() || "1+0+1";
+      const timingSelect = row.querySelector(".med-timing-field");
+      const timingText = timingSelect ? timingSelect.options[timingSelect.selectedIndex].text : "After meal";
+      const duration = row.querySelector(".med-duration-field")?.value || "7";
+      const notes = row.querySelector(".med-notes-field")?.value.trim();
+
+      if (name) {
+        count++;
+        const li = document.createElement("li");
+        li.className = "border-b border-stone-100 pb-2";
+        li.innerHTML = `
+          <div class="font-bold text-stone-900 text-sm">${count}. ${name}</div>
+          <div class="text-xs font-semibold text-teal-800 mt-0.5">
+            ${dosage} &nbsp;&bull;&nbsp; ${timingText} &nbsp;&bull;&nbsp; ${duration} Days / দিন
+          </div>
+          ${notes ? `<div class="text-[11px] text-stone-500 italic mt-0.5">* ${notes}</div>` : ""}
+        `;
+        prevMedList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      prevMedList.innerHTML = `<li class="text-stone-400 italic">No medicines added yet. Type medicine name on left form to view live.</li>`;
+    }
+
+    // 4. Tests List
+    const testFields = document.querySelectorAll(".test-name-field");
+    const prevTestsList = document.getElementById("prev_tests_list");
+    prevTestsList.innerHTML = "";
+    let testCount = 0;
+    testFields.forEach(field => {
+      const val = field.value.trim();
+      if (val) {
+        testCount++;
+        const li = document.createElement("li");
+        li.innerText = val;
+        prevTestsList.appendChild(li);
+      }
+    });
+    if (testCount === 0) {
+      prevTestsList.innerHTML = `<li class="text-stone-400 italic">None ordered</li>`;
+    }
+
+    // 5. Advice List
+    const adviceFields = document.querySelectorAll(".advice-field");
+    const prevAdviceList = document.getElementById("prev_advice_list");
+    prevAdviceList.innerHTML = "";
+    let adviceCount = 0;
+    adviceFields.forEach(field => {
+      const val = field.value.trim();
+      if (val) {
+        adviceCount++;
+        const li = document.createElement("li");
+        li.innerText = val;
+        prevAdviceList.appendChild(li);
+      }
+    });
+    if (adviceCount === 0) {
+      prevAdviceList.innerHTML = `<li>Take all medicines as prescribed with regular water.</li>`;
+    }
+  }
+
+  // Listen for input changes anywhere in form
+  document.getElementById("prescription_form").addEventListener("input", updatePreview);
+  document.getElementById("prescription_form").addEventListener("change", updatePreview);
+
+  attachListeners();
+  updatePreview();
+});
+
+// Helper for Follow-up Days Preset
+function setFollowUpDays(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const formatted = d.toISOString().split("T")[0];
+  const input = document.getElementById("input_followup");
+  input.value = formatted;
+  input.dispatchEvent(new Event("change"));
+}
+</script>
+{% endblock %}

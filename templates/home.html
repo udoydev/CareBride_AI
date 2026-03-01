@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-2 md:items-center md:py-24">
+    <div class="space-y-6">
+        <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">
+            {% if site_lang == 'bn' %}স্বাস্থ্য সহায়ক{% else %}Your Health Companion{% endif %}
+        </p>
+        <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">
+            {% if site_lang == 'bn' %}
+                প্রেসক্রিপশন, রিমাইন্ডার, ডাক্তার — সব এক প্ল্যাটফর্মে।
+            {% else %}
+                Prescriptions, reminders, and doctors — all in one place.
+            {% endif %}
+        </h1>
+        <p class="max-w-xl text-lg text-stone-700 dark:text-stone-300">
+            {% if site_lang == 'bn' %}
+                CareBridge AI প্রেসক্রিপশনকে সহজ ভাষায় অনুবাদ করে, ওষুধের সময় মনে দেয় এবং ডাক্তারের অ্যাপয়েন্টমেন্ট বুকিং করে।
+            {% else %}
+                CareBridge AI translates prescriptions into plain language, reminds you about medicines, and helps book doctor appointments.
+            {% endif %}
+        </p>
+
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'accounts:register' %}"
+                class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+                {% if site_lang == 'bn' %}রোগী হিসেবে শুরু করুন{% else %}Start as Patient{% endif %}
+            </a>
+            <a href="{% url 'accounts:register' %}"
+                class="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 bg-white px-6 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-teal-300 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                {% if site_lang == 'bn' %}ডাক্তার হিসেবে যোগ দিন{% else %}Join as Doctor{% endif %}
+            </a>
+        </div>
+
+        <div class="flex flex-wrap gap-3 text-xs uppercase tracking-widest text-stone-500 dark:text-stone-400">
+            <span>{% if site_lang == 'bn' %}বাংলা + ইংরেজি{% else %}Bangla + English{% endif %}</span>
+            <span class="hidden sm:inline">|</span>
+            <span>{% if site_lang == 'bn' %}ভয়েস সাপোর্ট{% else %}Voice Support{% endif %}</span>
+            <span class="hidden sm:inline">|</span>
+            <span>{% if site_lang == 'bn' %}ফ্রি{% else %}Free to use{% endif %}</span>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 p-5 md:p-6">
+        <div class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-950/70 shadow-sm backdrop-blur-sm p-4">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}প্রেসক্রিপশন{% else %}Prescription{% endif %}</p>
+                <img src="{% static 'images/Prescription Image.png' %}" alt="{% if site_lang == 'bn' %}প্রেসক্রিপশন প্রিভিউ{% else %}Prescription preview{% endif %}"
+                    class="mt-4 h-40 w-full rounded-2xl border border-stone-200 dark:border-stone-800 object-cover shadow-sm" loading="lazy">
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-950/70 shadow-sm backdrop-blur-sm p-4">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}রোগীর তথ্য{% else %}Patient Info{% endif %}</p>
+                <img src="{% static 'images/Patient Photo.png' %}" alt="{% if site_lang == 'bn' %}রোগীর ছবি{% else %}Patient photo{% endif %}"
+                    class="mt-4 h-40 w-full rounded-2xl border border-stone-200 dark:border-stone-800 object-cover shadow-sm" loading="lazy">
+            </div>
+            <div class="md:col-span-2 rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-950/70 shadow-sm backdrop-blur-sm p-4">
+                <p class="font-mono text-[10px] uppercase tracking-widest text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}AI পরামর্শ{% else %}AI Advice{% endif %}</p>
+                <p class="mt-3 text-sm text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        ডাক্তারের পরামর্শ, ওষুধের সময়সূচী, এবং স্বাস্থ্য ট্র্যাকিং — সব এখন আরও সহজ।
+                    {% else %}
+                        Doctor advice, medicine schedules, and health tracking — now easier than ever.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="how-it-works" class="border-t border-stone-200 dark:border-stone-800">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+        <div class="max-w-2xl space-y-4">
+            <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}কাজ করে কীভাবে{% else %}How it works{% endif %}</p>
+            <h2 class="text-3xl font-semibold tracking-tight md:text-4xl">
+                {% if site_lang == 'bn' %}
+                    ডাক্তারের পরicioner, এখন আপনার হাতে।
+                {% else %}
+                    Your prescription, now in your hands.
+                {% endif %}
+            </h2>
+        </div>
+
+        <div class="mt-12 grid gap-6 md:grid-cols-4">
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400">
+                    <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}১. নিবন্ধন করুন{% else %}1. Register{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        ফ্রি অ্যাকাউন্ট তৈরি করুন রোগী বা ডাক্তার হিসেবে।
+                    {% else %}
+                        Create a free account as a patient or doctor.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400">
+                    <i class="fa-solid fa-file-prescription" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}২. প্রেসক্রিপশন যোগ করুন{% else %}2. Add Prescription{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        ডাক্তার প্রেসক্রিপশন আপলোড করুন বা ডিজিটালি সংযোগ করুন।
+                    {% else %}
+                        Upload your doctor's prescription or connect digitally.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400">
+                    <i class="fa-solid fa-robot" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}৩. AI ব্যাখ্যা পান{% else %}3. Get AI Explanation{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        প্রেসক্রিপশনকে সহজ বাংলায় বা ইংরেজিতে শুনুন।
+                    {% else %}
+                        Hear your prescription in simple Bangla or English.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400">
+                    <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}৪. ফলো-আপ করুন{% else %}4. Follow Up{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        রিমাইন্ডার ও অ্যাপয়েন্টমেন্ট স্বয়ংক্রিয়ভাবে ট্র্যাক করুন।
+                    {% else %}
+                        Track reminders and appointments automatically.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="features" class="border-t border-stone-200 dark:border-stone-800">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+        <div class="max-w-2xl">
+            <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}ফিচার{% else %}Features{% endif %}</p>
+            <h2 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+                {% if site_lang == 'bn' %}
+                   一切都为您设计
+                {% else %}
+                    Everything you need to manage your health
+                {% endif %}
+            </h2>
+        </div>
+
+        <div class="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-language" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}সহজ ব্যাখ্যা{% else %}Plain Language{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        প্রেসক্রিপশনকে সহজ বাংলায় বা ইংরেজিতে অনুবাদ করুন।
+                    {% else %}
+                        Translate prescriptions into simple Bangla or English.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}ডোজ রিমাইন্ডার{% else %}Dose Reminders{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        ওষুধের সময় স্মরণ করুন, কোনো ডোজ মিস না করুন।
+                    {% else %}
+                        Never miss a dose with smart reminders.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট{% else %}Appointments{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        ডাক্তারের অ্যাপয়েন্টমেন্ট বুক করুন এবং ট্র্যাক করুন।
+                    {% else %}
+                        Book and track doctor appointments easily.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}ভয়েস সাপোর্ট{% else %}Voice Support{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        প্রেসক্রিপশন শুনুন এবং ভয়েস কম্যান্ড দিয়ে নেভিগেট করুন।
+                    {% else %}
+                        Listen to prescriptions and navigate with voice commands.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}ডাক্তারের জন্য{% else %}For Doctors{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        রোগীর অ্যাডহেরেন্স ট্র্যাক করুন এবং অ্যাপয়েন্টমেন্ট ম্যানেজ করুন।
+                    {% else %}
+                        Track patient adherence and manage appointments.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                </span>
+                <h3 class="mt-4 text-lg font-semibold">{% if site_lang == 'bn' %}নিরাপত্তা{% else %}Secure{% endif %}</h3>
+                <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                    {% if site_lang == 'bn' %}
+                        আপনার স্বাস্থ্য তথ্য এনক্রিপ্টেড এবং সুরক্ষিত।
+                    {% else %}
+                        Your health data is encrypted and secure.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="static-chat" class="border-t border-stone-200 dark:border-stone-800">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+        <div class="max-w-2xl mx-auto">
+            <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}সহায়তা{% else %}Help{% endif %}</p>
+            <h2 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+                {% if site_lang == 'bn' %}
+                    জিজ্ঞাসা করুন
+                {% else %}
+                    Ask Us Anything
+                {% endif %}
+            </h2>
+            <p class="mt-4 max-w-xl text-lg text-stone-700 dark:text-stone-300">
+                {% if site_lang == 'bn' %}
+                    নিচের কিছু সাধারণ প্রশ্ন এবং উত্তর দেখুন।
+                {% else %}
+                    Here are some common questions and answers.
+                {% endif %}
+            </p>
+
+            <div class="mt-8 space-y-4">
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}CareBridge AI কি?{% else %}What is CareBridge AI?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}
+                            CareBridge AI একটি স্বাস্থ্য প্ল্যাটফর্ম যা প্রেসক্রিপশনকে সহজ ভাষায় অনুবাদ করে, ওষুধের রিমাইন্ডার দেয় এবং ডাক্তারের অ্যাপয়েন্টমেন্ট বুকিং করে।
+                        {% else %}
+                            CareBridge AI is a health platform that translates prescriptions into plain language, provides medicine reminders, and helps book doctor appointments.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}কি কি সেবা আপনাকে দিতে পারে?{% else %}What services do you offer?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}
+                            প্রেসক্রিপশন অনুবাদ, ওষুধের রিমাইন্ডার, ডাক্তার বুকিং, স্বাস্থ্য রেকর্ড, এবং AI চ্যাট সেবা প্রদান করি।
+                        {% else %}
+                            We provide prescription translation, medicine reminders, doctor booking, health records, and AI chat services.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}কিভাবে শুরু করব?{% else %}How do I get started?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}
+                            নিচের "রোগী হিসেবে শুরু করুন" বা "ডাক্তার হিসেবে যোগ দিন" বাটন ক্লিক করে রেজিস্ট্রেশন করুন।
+                        {% else %}
+                            Click the "Start as Patient" or "Join as Doctor" button below to register.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-8 flex flex-wrap gap-3">
+                <a href="{% url 'accounts:register' %}"
+                    class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+                    {% if site_lang == 'bn' %}রোগী হিসেবে শুরু করুন{% else %}Start as Patient{% endif %}
+                </a>
+                <a href="{% url 'accounts:register' %}"
+                    class="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 bg-white px-6 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-teal-300 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                    {% if site_lang == 'bn' %}ডাক্তার হিসেবে যোগ দিন{% else %}Join as Doctor{% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="border-t border-stone-200 dark:border-stone-800">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+        <div class="rounded-3xl bg-teal-700 px-6 py-10 text-white md:px-10 md:py-12">
+            <div class="grid gap-8 md:grid-cols-2 md:items-center">
+                <div>
+                    <p class="font-mono text-xs uppercase tracking-widest text-white/70">{% if site_lang == 'bn' %}শুরু করুন{% else %}Get started{% endif %}</p>
+                    <h2 class="text-3xl font-semibold leading-tight md:text-4xl">
+                        {% if site_lang == 'bn' %}
+                            আপনার স্বাস্থ্য, এখন আরও সহজ।
+                        {% else %}
+                            Your health, simplified.
+                        {% endif %}
+                    </h2>
+                    <p class="mt-4 max-w-xl text-white/70">
+                        {% if site_lang == 'bn' %}
+                            রোগীদের জন্য ফ্রি। আজই অ্যাকাউন্ট তৈরি করুন।
+                        {% else %}
+                            Free for patients. Create your account today.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-3 md:justify-end">
+                    <a href="{% url 'accounts:register' %}"
+                        class="inline-flex h-11 items-center justify-center rounded-full bg-amber-500 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600">
+                        {% if site_lang == 'bn' %}অ্যাকাউন্ট তৈরি করুন{% else %}Create Account{% endif %}
+                    </a>
+                    <a href="{% url 'accounts:login' %}"
+                        class="inline-flex h-11 items-center justify-center rounded-full border border-white/40 px-6 text-sm font-semibold text-white transition hover:bg-white/10">
+                        {% if site_lang == 'bn' %}লগ ইন{% else %}Log in{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="faq" class="border-t border-stone-200 dark:border-stone-800">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+        <div class="max-w-2xl mx-auto">
+            <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}সহায়তা{% else %}Help{% endif %}</p>
+            <h2 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+                {% if site_lang == 'bn' %}জিজ্ঞাসা করুন{% else %}Ask Us Anything{% endif %}
+            </h2>
+            <p class="mt-4 max-w-xl text-lg text-stone-700 dark:text-stone-300">
+                {% if site_lang == 'bn' %}নিচের কিছু সাধারণ প্রশ্ন এবং উত্তর দেখুন।{% else %}Here are some common questions and answers.{% endif %}
+            </p>
+
+            <div class="mt-8 space-y-4">
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}CareBridge AI কি?{% else %}What is CareBridge AI?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}CareBridge AI একটি স্বাস্থ্য প্ল্যাটফর্ম যা প্রেসক্রিপশনকে সহজ ভাষায় অনুবাদ করে, ওষুধের রিমাইন্ডার দেয় এবং ডাক্তারের অ্যাপয়েন্টমেন্ট বুকিং করে।{% else %}CareBridge AI is a health platform that translates prescriptions into plain language, provides medicine reminders, and helps book doctor appointments.{% endif %}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}কি কি সেবা আপনাকে দিতে পারে?{% else %}What services do you offer?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}প্রেসক্রিপশন অনুবাদ, ওষুধের রিমাইন্ডার, ডাক্তার বুকিং, স্বাস্থ্য রেকর্ড, এবং AI চ্যাট সেবা প্রদান করি।{% else %}We provide prescription translation, medicine reminders, doctor booking, health records, and AI chat services.{% endif %}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold">{% if site_lang == 'bn' %}কিভাবে শুরু করব?{% else %}How do I get started?{% endif %}</h3>
+                    <p class="mt-3 text-sm leading-7 text-stone-600 dark:text-stone-300">
+                        {% if site_lang == 'bn' %}নিচের "রোগী হিসেবে শুরু করুন" বা "ডাক্তার হিসেবে যোগ দিন" বাটন ক্লিক করে রেজিস্ট্রেশন করুন।{% else %}Click the "Start as Patient" or "Join as Doctor" button below to register.{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-8 flex flex-wrap gap-3">
+                <a href="{% url 'accounts:register' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+                    {% if site_lang == 'bn' %}রোগী হিসেবে শুরু করুন{% else %}Start as Patient{% endif %}
+                </a>
+                <a href="{% url 'accounts:register' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 bg-white px-6 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-teal-300 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                    {% if site_lang == 'bn' %}ডাক্তার হিসেবে যোগ দিন{% else %}Join as Doctor{% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

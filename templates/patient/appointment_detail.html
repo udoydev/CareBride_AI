@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center gap-2 mb-6">
+    <a href="{% url 'patient:appointments' %}" class="text-sm font-medium text-teal-600 hover:underline dark:text-teal-400">
+      <i class="fa-solid fa-arrow-left mr-1"></i> Back to appointments
+    </a>
+  </div>
+
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Appointment #{{ appointment.id }}</p>
+        <h1 class="mt-1 text-2xl font-semibold">Dr. {{ appointment.doctor.user.get_full_name|default:appointment.doctor.user.username }}</h1>
+        <p class="text-sm text-teal-600 dark:text-teal-400">{{ appointment.doctor.specialty|default:"General" }}</p>
+      </div>
+      <div class="text-right">
+        <span class="rounded-full px-3 py-1 text-xs font-bold
+          {% if appointment.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
+          {% elif appointment.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+          {% elif appointment.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
+          {% elif appointment.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
+          {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+          {{ appointment.get_status_display }}
+        </span>
+        {% if appointment.payment_status == 'pending' %}
+        <p class="mt-1 text-xs font-bold text-red-600">Payment Required</p>
+        {% elif appointment.payment_status == 'paid' %}
+        <p class="mt-1 text-xs font-bold text-emerald-600">Paid ৳{{ appointment.paid_amount }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-6 space-y-3 text-sm">
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Date</span>
+        <span class="font-medium text-stone-900 dark:text-stone-100">{{ appointment.appointment_date|date:"d M Y" }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Time</span>
+        <span class="font-medium text-stone-900 dark:text-stone-100">{{ appointment.start_time|time:"H:i" }} - {{ appointment.end_time|time:"H:i" }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Type</span>
+        <span class="font-medium text-stone-900 dark:text-stone-100">{{ appointment.get_consultation_type_display }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Fee</span>
+        <span class="font-medium text-stone-900 dark:text-stone-100">৳{{ appointment.fee_bdt }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Platform Fee (3%)</span>
+        <span class="font-medium text-stone-900 dark:text-stone-100">৳{{ appointment.platform_fee_bdt }}</span>
+      </div>
+      {% if appointment.refund_amount > 0 %}
+      <div class="flex justify-between">
+        <span class="text-stone-500 dark:text-stone-400">Refund</span>
+        <span class="font-medium text-red-600">-৳{{ appointment.refund_amount }}</span>
+      </div>
+      {% endif %}
+      {% if appointment.chief_complaint %}
+      <div>
+        <span class="text-stone-500 dark:text-stone-400">Chief Complaint</span>
+        <p class="mt-1 text-stone-800 dark:text-stone-200">{{ appointment.chief_complaint }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if appointment.payment_status == 'pending' %}
+    <div class="mt-6">
+      <a href="{% url 'accounts:payment_process' appointment.pk %}"
+        class="inline-flex h-11 items-center gap-2 rounded-full bg-teal-600 px-6 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700">
+        <i class="fa-solid fa-credit-card"></i>
+        Pay Now — ৳{{ appointment.fee_bdt }}
+      </a>
+    </div>
+    {% endif %}
+
+    {% if appointment.status == 'pending' and appointment.payment_status == 'paid' %}
+    <div class="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/30">
+      <p class="text-xs font-bold text-amber-900 dark:text-amber-300">Waiting for doctor confirmation</p>
+      <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">The doctor will confirm your appointment shortly. You will receive a notification when confirmed.</p>
+    </div>
+    {% endif %}
+
+    {% if appointment.status in 'confirmed,completed' and appointment.payment_status == 'paid' %}
+    <div class="mt-6">
+      <a href="{% url 'prescriptions:appointment_receipt_pdf' appointment.pk %}" target="_blank"
+        class="inline-flex h-10 items-center gap-2 rounded-full bg-teal-600 px-6 text-xs font-bold text-white shadow-sm transition hover:bg-teal-500">
+        <i class="fa-solid fa-file-pdf text-sm"></i>
+        Download Receipt
+      </a>
+    </div>
+    {% endif %}
+
+    {% if appointment.status in 'pending,confirmed' and appointment.can_cancel %}
+    <div class="mt-6">
+      <a href="{% url 'patient:request_cancellation' appointment.pk %}"
+        class="inline-flex h-11 items-center gap-2 rounded-full border border-red-300 bg-red-50 px-6 text-sm font-bold text-red-700 shadow-sm transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/40">
+        <i class="fa-solid fa-xmark"></i>
+        Cancel Appointment
+      </a>
+    </div>
+    {% endif %}
+    {% if appointment.status in 'pending,confirmed' and appointment.can_edit %}
+    <div class="mt-3">
+      <a href="{% url 'patient:edit_appointment' appointment.pk %}"
+        class="inline-flex h-11 items-center gap-2 rounded-full border border-teal-300 bg-teal-50 px-6 text-sm font-bold text-teal-700 shadow-sm transition hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-950/20 dark:text-teal-300 dark:hover:bg-teal-950/40">
+        <i class="fa-solid fa-pen"></i>
+        Edit Booking ({{ appointment.edit_count }}/3 used)
+      </a>
+    </div>
+    {% endif %}
+
+    {% if appointment.status == 'cancellation_pending' %}
+    <div class="mt-6 p-4 rounded-xl bg-orange-50 border border-orange-100 dark:bg-orange-950/20 dark:border-orange-900/30">
+      <p class="text-xs font-bold text-orange-900 dark:text-orange-300">Cancellation Request Pending</p>
+      <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">Your cancellation request is being reviewed by the doctor. You will be notified once decided.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

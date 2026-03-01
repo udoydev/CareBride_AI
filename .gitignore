@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+.env.local
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Testing
+test_*.py
+check_*.py
+
+# Voice service
+voice_service/node_modules/
+voice_service/package-lock.json
+
+# Theme build
+theme/static/css/dist/
+theme/static_src/node_modules/
+
+# Temp files
+tmp/
+temp/
+create_*.py
+reduce_commits.py
+rewrite_commits.py
+setup_git.py
+commit_dates.txt
+dates_to_remove.txt
+fix_duplicate_dates.py
+cookies.txt
+proof_platform.py
+seed_data.py
+test_audio.mp3
+test_render.js
+final_*.py
+create_remaining.py

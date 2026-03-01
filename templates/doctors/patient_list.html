@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 md:py-16">
+  <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Patients</p>
+  <h1 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Search Patients</h1>
+
+  <form method="get" class="mt-6">
+    <input type="text" name="q" placeholder="Search by name or phone number"
+      class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+  </form>
+
+  <div class="mt-6 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+    {% for patient in patients %}
+    <a href="{% url 'doctors:patient_detail' patient.id %}" class="flex items-center justify-between px-6 py-4 hover:bg-stone-50 dark:hover:bg-slate-800/50">
+      <div class="flex items-center gap-4">
+        <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-stone-100 shadow-2xs dark:border-slate-700 dark:bg-slate-800" oncontextmenu="return false;">
+          {% if patient.avatar %}
+            <img src="{{ patient.avatar }}" alt="{{ patient.name }}" class="h-full w-full object-cover pointer-events-none select-none" draggable="false">
+          {% else %}
+            <div class="flex h-full w-full items-center justify-center bg-teal-100 text-teal-700 font-bold text-sm dark:bg-teal-900 dark:text-teal-300">
+              <i class="fa-solid fa-user font-bold"></i>
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          <p class="font-bold text-stone-900 dark:text-stone-100">{{ patient.name }}</p>
+          <p class="text-xs text-stone-500 dark:text-stone-400">Phone: {{ patient.phone }} &bull; District: {{ patient.district }}</p>
+        </div>
+      </div>
+      <span class="text-sm font-semibold text-teal-600 dark:text-teal-400">View File &rarr;</span>
+    </a>
+    {% empty %}
+    <p class="px-6 py-8 text-center text-stone-500 dark:text-stone-400">No patients found.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

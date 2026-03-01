@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto max-w-2xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center gap-2 mb-6">
+    <a href="{% url 'accounts:ai_provider_list' %}" class="text-sm font-medium text-teal-600 hover:underline dark:text-teal-400">
+      <i class="fa-solid fa-arrow-left mr-1"></i> Back to providers
+    </a>
+  </div>
+
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <h1 class="text-xl font-semibold mb-1">
+      {% if provider %}Edit AI Provider{% else %}Add New AI Provider{% endif %}
+    </h1>
+    <p class="text-xs text-stone-500 dark:text-stone-400 mb-6">
+      Configure an AI API endpoint. Get free keys from <a href="https://console.groq.com/" target="_blank" class="text-teal-600 underline">Groq</a>, <a href="https://aistudio.google.com/" target="_blank" class="text-teal-600 underline">Gemini</a>, <a href="https://platform.deepseek.com/" target="_blank" class="text-teal-600 underline">DeepSeek</a>, or <a href="https://platform.openai.com/" target="_blank" class="text-teal-600 underline">OpenAI</a>.
+    </p>
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Name *</label>
+        <input type="text" name="name" value="{{ provider.name|default:'' }}" required placeholder="e.g. Primary Gemini, Backup Groq"
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Provider *</label>
+          <select name="provider" required class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+            {% for val, label in providers %}
+              <option value="{{ val }}" {% if provider and provider.provider == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Model Name <span class="text-stone-400">(optional — free default will be used if empty)</span></label>
+          <input type="text" name="model_name" id="modelNameInput" value="{{ provider.model_name|default:'' }}" placeholder="Leave empty for provider default"
+            class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+          <p class="text-[10px] text-stone-400 mt-1" id="modelNameHint">
+            Default: llama-3.3-70b-versatile for Groq, gemini-2.0-flash for Gemini.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">API Key *</label>
+        <input type="text" name="api_key" value="{{ provider.api_key|default:'' }}" required placeholder="sk-... or AIza..."
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Base URL <span class="text-stone-400">(optional for most providers)</span></label>
+        <input type="text" name="base_url" id="baseUrlInput" value="{{ provider.base_url|default:'' }}" placeholder="Leave empty for auto-detection"
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        <p class="text-[10px] text-stone-400 mt-1" id="baseUrlHint">
+          Gemini: no URL needed. Groq/DeepSeek/OpenAI/OpenRouter/Custom: auto-filled if left empty.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Priority (lower = first)</label>
+          <input type="number" name="priority" value="{{ provider.priority|default:100 }}" min="1" max="1000"
+            class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Max Requests/Minute</label>
+          <input type="number" name="max_requests_per_minute" value="{{ provider.max_requests_per_minute|default:60 }}" min="1"
+            class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input type="checkbox" name="is_active" id="is_active" {% if provider.is_active|default:True %}checked{% endif %} class="rounded border-stone-300 text-teal-600 focus:ring-teal-600">
+        <label for="is_active" class="text-sm text-stone-700 dark:text-stone-300">Active (use this provider in rotation)</label>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <a href="{% url 'accounts:ai_provider_list' %}" class="rounded-full border border-stone-200 px-5 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 dark:border-slate-800 dark:text-stone-300">
+          Cancel
+        </a>
+        <button type="submit" class="rounded-full bg-teal-600 px-6 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-500">
+          {% if provider %}Update Provider{% else %}Add Provider{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+  const providerSelect = document.querySelector('select[name="provider"]');
+  const baseUrlInput = document.getElementById('baseUrlInput');
+  const baseUrlHint = document.getElementById('baseUrlHint');
+  const modelNameInput = document.getElementById('modelNameInput');
+  const modelNameHint = document.getElementById('modelNameHint');
+
+  const defaults = {
+    'gemini': { url: '', hint: 'Gemini: no base URL needed (uses official SDK).', model: 'gemini-2.0-flash', modelHint: 'Default: gemini-2.0-flash for Gemini.' },
+    'groq': { url: 'https://api.groq.com/openai/v1', hint: 'Groq: auto-filled with default endpoint. Change only if using a proxy.', model: 'llama-3.3-70b-versatile', modelHint: 'Default: llama-3.3-70b-versatile (free Groq model).' },
+    'openai': { url: 'https://api.openai.com/v1', hint: 'OpenAI: auto-filled with default endpoint.', model: 'gpt-4o-mini', modelHint: 'Default: gpt-4o-mini for OpenAI.' },
+    'deepseek': { url: 'https://api.deepseek.com/v1', hint: 'DeepSeek: auto-filled with default endpoint.', model: 'deepseek-chat', modelHint: 'Default: deepseek-chat for DeepSeek.' },
+    'openrouter': { url: 'https://openrouter.ai/api/v1', hint: 'OpenRouter: auto-filled with default endpoint.', model: 'meta-llama/llama-3.1-70b-instruct', modelHint: 'Default: meta-llama/llama-3.1-70b-instruct for OpenRouter.' },
+    'custom': { url: 'https://api.openai.com/v1', hint: 'Custom: uses OpenAI-compatible endpoint. Change to your API base URL.', model: 'gpt-4o-mini', modelHint: 'Default: gpt-4o-mini for custom OpenAI-compatible APIs.' },
+  };
+
+  function updateBaseUrlHint() {
+    const val = providerSelect ? providerSelect.value : 'gemini';
+    const cfg = defaults[val] || defaults['custom'];
+    if (baseUrlInput && !baseUrlInput.value) {
+      baseUrlInput.placeholder = cfg.url || 'Leave empty for auto-detection';
+    }
+    if (baseUrlHint) {
+      baseUrlHint.textContent = cfg.hint;
+    }
+    if (modelNameInput && !modelNameInput.value) {
+      modelNameInput.placeholder = cfg.model || '';
+    }
+    if (modelNameHint) {
+      modelNameHint.textContent = cfg.modelHint;
+    }
+  }
+
+  if (providerSelect) {
+    providerSelect.addEventListener('change', updateBaseUrlHint);
+  }
+
+  updateBaseUrlHint();
+</script>
+{% endblock %}

@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+@plugin "daisyui";
+
+@source "../../../**/*.{html,py,js}";
+
+@layer base {
+  :root {
+    --bg: #f4efe7;
+    --paper: rgba(255, 255, 255, 0.76);
+    --surface: #fffaf3;
+    --ink: #13211e;
+    --muted: rgba(19, 33, 30, 0.66);
+    --line: rgba(19, 33, 30, 0.12);
+    --teal: #0f766e;
+    --teal-dark: #0b5f58;
+    --marigold: #f0b84f;
+    --shadow: 0 24px 60px rgba(19, 33, 30, 0.12);
+    --page-top: rgba(15, 118, 110, 0.16);
+    --page-mid: rgba(240, 184, 79, 0.18);
+    --page-bottom: #fcfaf7;
+    --font-display:
+      'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+    --font-ui: 'Segoe UI', Inter, system-ui, sans-serif;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html[data-theme='dark'] {
+    --bg: #0b1210;
+    --paper: rgba(12, 19, 17, 0.78);
+    --surface: #13211e;
+    --ink: #f4f7f6;
+    --muted: rgba(244, 247, 246, 0.7);
+    --line: rgba(255, 255, 255, 0.1);
+    --teal: #2dd4bf;
+    --teal-dark: #14b8a6;
+    --marigold: #f6c66a;
+    --shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+    --page-top: rgba(45, 212, 191, 0.15);
+    --page-mid: rgba(246, 198, 106, 0.12);
+    --page-bottom: #0b1210;
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    background:
+      radial-gradient(circle at top left, var(--page-top), transparent 28%),
+      radial-gradient(circle at 85% 15%, var(--page-mid), transparent 22%),
+      linear-gradient(180deg, var(--page-bottom) 0%, var(--bg) 100%);
+  }
+
+  ::selection {
+    background: rgba(15, 118, 110, 0.18);
+    color: var(--ink);
+  }
+
+  a {
+    text-decoration: none;
+  }
+}
+
+@layer components {
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,269 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="{{ site_lang|default:'en' }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f766e">
+    <title>CareBridge AI</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="{% static 'images/logo.png' %}?v=20260727">
+    <link rel="apple-touch-icon" href="{% static 'images/logo.png' %}?v=20260727">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- High Visibility Fonts: Outfit & Hind Siliguri for English & Bangla -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}">
+    <style>
+        body {
+            font-family: 'Outfit', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+    <script>
+        (function () {
+            const saved = localStorage.getItem('carebridge-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved || (prefersDark ? 'dark' : 'light');
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            document.documentElement.dataset.theme = theme;
+        })();
+
+        // Anti-BFCache Security: Prevent showing cached pages when navigating via Browser Back button after logout
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload(true);
+            }
+        });
+
+        // Additional protection for back button: Check if current page requires auth
+        (function() {
+            const protectedPaths = ['/patient/', '/doctors/', '/admin/', '/ai-providers/', '/admin-unverified/'];
+            const currentPath = window.location.pathname;
+            const isProtectedPage = protectedPaths.some(path => currentPath.startsWith(path));
+            
+            if (isProtectedPage) {
+                // Make a lightweight request to check auth status
+                fetch(window.location.href, { method: 'HEAD', redirect: 'manual' })
+                    .then(response => {
+                        // If we get a redirect (302/301), user is not authenticated
+                        if (response.status >= 300 && response.status < 400) {
+                            window.location.href = '/';
+                        }
+                    })
+                    .catch(() => {
+                        // On error, don't do anything - let the page load normally
+                    });
+            }
+        })();
+
+        // Auto-dismiss toast messages after 3 seconds
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                const toasts = document.querySelectorAll('.toast-message');
+                toasts.forEach((toast, index) => {
+                    setTimeout(() => {
+                        toast.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                        toast.style.opacity = '0';
+                        toast.style.transform = 'translateX(100%)';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 3000 + (index * 200));
+                });
+            });
+        } else {
+            const toasts = document.querySelectorAll('.toast-message');
+            toasts.forEach((toast, index) => {
+                setTimeout(() => {
+                    toast.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000 + (index * 200));
+            });
+        }
+
+        // Force reload avatar images to prevent stale cache after upload
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                const hasSuccessMessage = document.querySelector('.toast-message') !== null;
+                if (!hasSuccessMessage) return;
+                const avatars = document.querySelectorAll('img[src*="patient_avatars"], img[src*="doctor_avatars"]');
+                avatars.forEach(function(img) {
+                    const src = img.getAttribute('src');
+                    if (src) {
+                        const separator = src.includes('?') ? '&' : '?';
+                        img.setAttribute('src', src + separator + 't=' + Date.now());
+                    }
+                });
+            });
+        } else {
+            const hasSuccessMessage = document.querySelector('.toast-message') !== null;
+            if (hasSuccessMessage) {
+                const avatars = document.querySelectorAll('img[src*="patient_avatars"], img[src*="doctor_avatars"]');
+                avatars.forEach(function(img) {
+                    const src = img.getAttribute('src');
+                    if (src) {
+                        const separator = src.includes('?') ? '&' : '?';
+                        img.setAttribute('src', src + separator + 't=' + Date.now());
+                    }
+                });
+            }
+        }
+
+        // Session Management: Auto-logout after 2 hours of inactivity
+        (function() {
+            const SESSION_TIMEOUT = 7200; // 2 hours in seconds
+            const WARNING_BEFORE = 300;   // Show warning 5 minutes before expiry
+            const PING_INTERVAL = 60000;  // Ping server every 60 seconds to keep session alive
+            
+            let lastActivity = Date.now();
+            let warningShown = false;
+            let warningTimer = null;
+            let logoutTimer = null;
+            let pingInterval = null;
+            
+            // Update last activity timestamp
+            function updateActivity() {
+                lastActivity = Date.now();
+                warningShown = false;
+                
+                // Clear existing timers
+                if (warningTimer) clearTimeout(warningTimer);
+                if (logoutTimer) clearTimeout(logoutTimer);
+                
+                // Schedule warning
+                warningTimer = setTimeout(showSessionWarning, (SESSION_TIMEOUT - WARNING_BEFORE) * 1000);
+                // Schedule logout
+                logoutTimer = setTimeout(autoLogout, SESSION_TIMEOUT * 1000);
+            }
+            
+            // Show session expiry warning
+            function showSessionWarning() {
+                if (warningShown) return;
+                warningShown = true;
+                
+                const modal = document.createElement('div');
+                modal.id = 'session-warning-modal';
+                modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm';
+                modal.innerHTML = `
+                    <div class="mx-4 max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                                <i class="fa-solid fa-clock text-lg"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-stone-900 dark:text-stone-100">
+                                {% if site_lang == 'bn' %}সেশনের সময় expires{% else %}Session Expiring Soon{% endif %}
+                            </h3>
+                        </div>
+                        <p class="text-sm text-stone-600 dark:text-stone-400 mb-6">
+                            {% if site_lang == 'bn' %}
+                                আপনি ২ ঘণ্টা নিষ্ক্রিয় wurden。অনুগ্রহপূর্বক আবার লগইন করুন।
+                            {% else %}
+                                You will be logged out soon due to inactivity. Would you like to stay signed in?
+                            {% endif %}
+                        </p>
+                        <div class="flex gap-3">
+                            <button id="stay-logged-in" class="flex-1 rounded-full bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition">
+                                {% if site_lang == 'bn' %}লগইন থাকুন{% else %}Stay Logged In{% endif %}
+                            </button>
+                            <button id="logout-now" class="flex-1 rounded-full bg-stone-200 px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-300 transition dark:bg-slate-800 dark:text-stone-300 dark:hover:bg-slate-700">
+                                {% if site_lang == 'bn' %}লগ আউট{% else %}Log Out{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Stay logged in - extend session
+                document.getElementById('stay-logged-in').addEventListener('click', function() {
+                    modal.remove();
+                    updateActivity();
+                    // Ping server to reset session
+                    fetch('/accounts/session-ping/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
+                });
+                
+                // Logout now
+                document.getElementById('logout-now').addEventListener('click', function() {
+                    modal.remove();
+                    window.location.href = '/logout/';
+                });
+            }
+            
+            // Auto logout
+            function autoLogout() {
+                window.location.href = '/logout/';
+            }
+            
+            // Get CSRF token
+            function getCookie(name) {
+                const value = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+                return value ? value[2] : '';
+            }
+            function getCsrfToken() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : getCookie('csrftoken');
+            }
+            
+            // Track user activity
+            const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+            activityEvents.forEach(function(event) {
+                document.addEventListener(event, function() {
+                    const now = Date.now();
+                    if (now - lastActivity > 60000) { // Only update if more than 1 minute since last activity
+                        updateActivity();
+                    }
+                }, { passive: true });
+            });
+            
+            // Initial setup
+            updateActivity();
+            
+            // Ping server periodically to keep session alive
+            pingInterval = setInterval(function() {
+                fetch('/accounts/session-ping/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
+            }, PING_INTERVAL);
+            
+            // Handle browser/tab close - clear session
+            window.addEventListener('beforeunload', function() {
+                // Send beacon to clear session server-side
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/accounts/session-end/', '');
+                }
+                // Clear client-side session data
+                sessionStorage.clear();
+            });
+        })();
+    </script>
+
+    <script defer src="{% static 'js/script.js' %}"></script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-emerald-50/90 via-green-200/80 to-teal-50/80 text-stone-900 font-sans antialiased dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 flex flex-col selection:bg-teal-600 selection:text-white">
+    {% include 'includes/navbar.html' %}
+
+    {% if messages %}
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
+      {% for message in messages %}
+        <div class="toast-message rounded-xl px-4 py-3 text-sm font-medium shadow-lg border {% if message.tags == 'error' %}bg-red-50 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900{% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900{% elif message.tags == 'info' %}bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900{% else %}bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-900{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <main class="flex-1 w-full">
+        {% block content %}{% endblock content %}
+    </main>
+
+    {% include 'includes/footer.html' %}
+
+    {% if request.user.is_authenticated and not request.user.doctor_profile and not '/doctors/' in request.path and not '/home/' in request.path and not request.user.is_superuser and not request.user.is_staff %}
+        {% include 'includes/patient_assistant.html' %}
+    {% endif %}
+</body>
+
+</html>

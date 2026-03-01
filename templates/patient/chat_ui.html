@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<style>
+  .chat-scroll::-webkit-scrollbar { width: 6px; }
+  .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+  .chat-scroll::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+  .chat-scroll::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+  .message-enter { animation: messageSlideIn 0.3s ease-out; }
+  @keyframes messageSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .typing-dot { animation: typingBounce 1.4s infinite ease-in-out both; }
+  .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+  .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes typingBounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+  .chat-font { font-family: 'Outfit', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, sans-serif; }
+  .message-bubble { line-height: 1.7; letter-spacing: 0.01em; }
+</style>
+
+<div class="flex h-[calc(100vh-120px)] overflow-hidden rounded-3xl border border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm chat-font">
+  
+  <!-- Sidebar -->
+  <aside class="flex w-72 flex-col border-r border-stone-200 bg-stone-50/50 dark:border-slate-800 dark:bg-slate-900/80">
+    <!-- Sidebar Header -->
+    <div class="flex items-center gap-2.5 border-b border-stone-200 px-5 py-4 dark:border-slate-800">
+      <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-600 text-white">
+        <i class="fa-solid fa-brain text-sm"></i>
+      </span>
+      <div>
+        <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">CareBridge AI</h2>
+        <p class="text-xs text-stone-500 dark:text-stone-400">
+          {% if site_lang == 'bn' %}চ্যাট সহায়ক{% else %}Chat Assistant{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- New Chat Button -->
+    <div class="border-b border-stone-200 px-4 py-3 dark:border-slate-800">
+      <button onclick="createNewChat()" class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-700 transition hover:border-teal-400 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:hover:border-teal-600">
+        <i class="fa-solid fa-plus text-[10px]"></i>
+        {% if site_lang == 'bn' %}নতুন চ্যাট{% else %}New Chat{% endif %}
+      </button>
+    </div>
+
+    <!-- Chat History -->
+    {% if sessions %}
+    <div class="border-b border-stone-200 dark:border-slate-800">
+      <p class="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+        {% if site_lang == 'bn' %}চ্যাট ইতিহাস{% else %}Chat History{% endif %}
+      </p>
+      <div class="space-y-0.5 px-2 pb-2">
+        {% for s in sessions %}
+        <a href="?session_id={{ s.id }}{% if prescription_id %}&prescription_id={{ prescription_id }}{% endif %}" 
+           class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition {% if active_session and active_session.id == s.id %}bg-teal-50 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300{% else %}text-stone-700 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-slate-800{% endif %}">
+          <i class="fa-regular fa-message text-[10px] text-stone-400"></i>
+          <span class="truncate flex-1">{{ s.title }}</span>
+          <form method="post" action="{% url 'patient:chat_api_clear' %}" class="inline" onclick="event.stopPropagation();">
+            {% csrf_token %}
+            <input type="hidden" name="session_id" value="{{ s.id }}">
+            <button type="submit" class="text-stone-400 hover:text-red-500 dark:text-stone-500">
+              <i class="fa-solid fa-trash text-[9px]"></i>
+            </button>
+          </form>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Prescription Context Selector -->
+    <div class="border-b border-stone-200 px-4 py-3 dark:border-slate-800">
+      <label class="block text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+        {% if site_lang == 'bn' %}প্রেসক্রিপশন কনটেক্সট{% else %}Prescription Context{% endif %}
+      </label>
+      <select id="prescriptionSelect" class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        <option value="">{% if site_lang == 'bn' %}সাম্প্লিক প্রশ্ন{% else %}General Questions{% endif %}</option>
+        {% for rx in patient.prescriptions.all|slice:":20" %}
+        <option value="{{ rx.pk }}" {% if prescription_id|stringformat:"s" == rx.pk|stringformat:"s" %}selected{% endif %}>
+          Rx #{{ rx.pk }} — Dr. {{ rx.doctor.user.get_full_name|default:rx.doctor.user.username }} ({{ rx.issued_at|date:"M d, Y" }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Suggested Doctors -->
+    <div class="border-b border-stone-200 px-4 py-3 dark:border-slate-800">
+      <p class="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-2">
+        {% if site_lang == 'bn' %}সুপারিশকৃত ডাক্তার{% else %}Suggested Doctors{% endif %}
+      </p>
+      <div class="space-y-2">
+        {% for doc in suggested_doctors %}
+        <a href="{% url 'patient:doctor_detail' doc.pk %}" class="flex items-center gap-2.5 rounded-xl border border-stone-100 bg-white p-2 transition hover:border-teal-300 dark:border-slate-800 dark:bg-slate-800 dark:hover:border-teal-700">
+          {% if doc.avatar %}
+          <img src="{{ doc.avatar.url }}?v={{ doc.avatar_updated_at|date:'U' }}" alt="" class="h-8 w-8 rounded-full object-cover">
+          {% else %}
+          <span class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+            <i class="fa-solid fa-user-doctor text-xs"></i>
+          </span>
+          {% endif %}
+          <div class="min-w-0">
+            <p class="truncate text-xs font-bold text-stone-900 dark:text-stone-100">Dr. {{ doc.user.get_full_name|default:doc.user.username }}</p>
+            <p class="truncate text-[11px] text-stone-500 dark:text-stone-400">{{ doc.specialty|default:"General" }}</p>
+          </div>
+        </a>
+        {% empty %}
+        <p class="text-[11px] text-stone-400 dark:text-stone-500">
+          {% if site_lang == 'bn' %}কোনো verified ডাক্তার পাওয়া যায়নি।{% else %}No verified doctors found.{% endif %}
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- User Info Footer -->
+    <div class="mt-auto border-t border-stone-200 px-4 py-3 dark:border-slate-800">
+      {% if patient %}
+      <div class="flex items-center gap-2.5">
+        {% if patient.avatar %}
+        <img src="{{ patient.avatar.url }}?v={{ patient.avatar_updated_at|date:'U' }}" alt="" class="h-9 w-9 rounded-full object-cover">
+        {% else %}
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+          <i class="fa-solid fa-user text-xs"></i>
+        </span>
+        {% endif %}
+        <div class="min-w-0">
+          <p class="truncate text-xs font-bold text-stone-900 dark:text-stone-100">{{ request.user.get_full_name|default:request.user.email }}</p>
+          <p class="text-[11px] text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}রোগী{% else %}Patient{% endif %}</p>
+        </div>
+      </div>
+      {% else %}
+      <div class="flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-stone-200 text-stone-600 dark:bg-slate-800 dark:text-stone-400">
+          <i class="fa-solid fa-user text-xs"></i>
+        </span>
+        <div>
+          <p class="text-xs font-bold text-stone-900 dark:text-stone-100">{% if site_lang == 'bn' %}অতিথি ব্যবহারকারী{% else %}Guest User{% endif %}</p>
+          <a href="{% url 'accounts:login' %}" class="text-[11px] text-teal-600 hover:underline dark:text-teal-400">{% if site_lang == 'bn' %}লগইন করুন{% else %}Login{% endif %}</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main Chat Area -->
+  <main class="flex flex-1 flex-col">
+    <!-- Chat Header -->
+    <div class="flex items-center justify-between border-b border-stone-200 px-6 py-3 dark:border-slate-800">
+      <div class="flex items-center gap-3">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+          <i class="fa-solid fa-message text-xs"></i>
+        </span>
+        <div>
+          <h3 class="text-base font-bold text-stone-900 dark:text-stone-100">
+            {% if site_lang == 'bn' %}এআই মেডিকেল সহায়ক{% else %}AI Medical Assistant{% endif %}
+          </h3>
+          <p class="text-xs text-stone-500 dark:text-stone-400">
+            {% if site_lang == 'bn' %}এআই মেডিকেল সহায়ক{% else %}AI Medical Assistant{% endif %}
+            {% if active_model %} • {{ active_model }}{% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="createNewChat()" title="{% if site_lang == 'bn' %}নতুন চ্যাট{% else %}New Chat{% endif %}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 px-3 text-[11px] font-bold text-stone-600 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-300 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+          {% if site_lang == 'bn' %}নতুন{% else %}New{% endif %}
+        </button>
+        {% if active_session %}
+        <form method="post" action="{% url 'patient:chat_api_clear' %}" class="inline" onsubmit="return confirm('{% if site_lang == "bn" %}এই চ্যাট মুছে ফেলুন?{% else %}Delete this chat?{% endif %}')">
+          {% csrf_token %}
+          <input type="hidden" name="session_id" value="{{ active_session.id }}">
+          <button type="submit" title="{% if site_lang == 'bn' %}চ্যাট মুছুন{% else %}Delete Chat{% endif %}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stone-200 px-3 text-[11px] font-bold text-stone-600 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-300 dark:hover:bg-slate-800">
+            <i class="fa-solid fa-trash text-[10px]"></i>
+            {% if site_lang == 'bn' %}মুছুন{% else %}Delete{% endif %}
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not ai_available %}
+    <div class="border-b border-amber-200 bg-amber-50/80 px-6 py-3 dark:border-amber-900/40 dark:bg-amber-950/30">
+      <div class="flex items-center gap-3">
+        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+        </span>
+        <p class="text-xs font-medium text-amber-900 dark:text-amber-300">
+          {% if site_lang == 'bn' %}এআই পরিষেবা বর্তমানে অনুপলব্ধ। আপনি সীমিত সাধারণ পরামর্শ পাচ্ছেন।{% else %}AI service is currently unavailable. You are receiving limited basic responses.{% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Messages Container -->
+    <div id="chatMessages" class="chat-scroll flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {% if not chat_messages %}
+      <!-- Welcome State -->
+      <div class="flex flex-col items-center justify-center h-full text-center px-4">
+        <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-400 mb-4">
+          <i class="fa-solid fa-brain text-2xl"></i>
+        </span>
+        <h3 class="text-lg font-bold text-stone-900 dark:text-stone-100 mb-1">
+          {% if site_lang == 'bn' %}কীভাবে সাহায্য করতে পারি?{% else %}How can I help you today?{% endif %}
+        </h3>
+        <p class="text-xs text-stone-500 dark:text-stone-400 max-w-md mb-6">
+          {% if site_lang == 'bn' %}প্রেসক্রিপশন প্রশ্ন, ওষুধের advice, ডাক্তার সুপারিশ — যেকোনো শারীরিক সমস্যা আলোচনা করুন। ছবি/নথি আপলোড করতে নিচের ক্লিপ আইকনে ক্লিক করুন।{% else %}Ask about prescriptions, medicine advice, doctor suggestions — discuss any health concern. Click the clip icon below to upload images/documents.{% endif %}
+        </p>
+        <div class="grid grid-cols-2 gap-2 max-w-lg w-full">
+          <button onclick="setQuickMessage('{% if site_lang == "bn" %}আমার প্রেসক্রিপশন সম্পর্কে পরামর্শ দিন{% else %}Give me advice about my prescription{% endif %}')" class="rounded-xl border border-stone-200 bg-white p-3 text-left text-xs font-medium text-stone-700 hover:border-teal-300 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            💊 {% if site_lang == 'bn' %}প্রেসক্রিপশন পরামর্শ{% else %}Prescription Advice{% endif %}
+          </button>
+          <button onclick="setQuickMessage('{% if site_lang == "bn" %}আজকের ওষুধের তালিকা দেখান{% else %}Show today dose list{% endif %}')" class="rounded-xl border border-stone-200 bg-white p-3 text-left text-xs font-medium text-stone-700 hover:border-teal-300 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            📋 {% if site_lang == 'bn' %}আজকের ওষুধ{% else %}Today Doses{% endif %}
+          </button>
+          <button onclick="setQuickMessage('{% if site_lang == "bn" %}আমার ফলো-আপের সময়সূচী{% else %}My follow-up schedule{% endif %}')" class="rounded-xl border border-stone-200 bg-white p-3 text-left text-xs font-medium text-stone-700 hover:border-teal-300 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            📅 {% if site_lang == 'bn' %}ফলো-আপ{% else %}Follow-ups{% endif %}
+          </button>
+          <button onclick="setQuickMessage('{% if site_lang == "bn" %}প্রেসক্রিপশন ছবি আপলোড করে বিশ্লেষণ করুন{% else %}Upload prescription image for analysis{% endif %}')" class="rounded-xl border border-stone-200 bg-white p-3 text-left text-xs font-medium text-stone-700 hover:border-teal-300 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            📄 {% if site_lang == 'bn' %}OCR স্ক্যান{% else %}OCR Scan{% endif %}
+          </button>
+        </div>
+      </div>
+      {% else %}
+      {% for msg in chat_messages %}
+      <div class="message-enter flex {% if msg.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}" data-role="{{ msg.role }}" data-text="{{ msg.text|escapejs }}">
+        <div class="max-w-[75%] rounded-2xl px-5 py-3.5 text-base shadow-sm message-bubble {% if msg.role == 'assistant' %}bg-teal-50 text-stone-800 dark:bg-teal-900/20 dark:text-stone-100{% else %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-100{% endif %}">
+          <p class="whitespace-pre-line msg-content"></p>
+          {% if msg.role == 'assistant' %}
+          <button type="button" data-speak-text="{{ msg.text|striptags }}" data-lang="{{ msg.language|default:site_lang }}" onclick="window.CareBridgeSpeech && window.CareBridgeSpeech.speakText(this.dataset.speakText, this.dataset.lang)" class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 hover:underline dark:text-teal-300">
+            <i class="fa-solid fa-volume-high"></i>
+            {% if site_lang == 'bn' %}শুনুন{% else %}Speak{% endif %}
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="typingIndicator" class="hidden px-6 pb-2">
+      <div class="flex items-center gap-1.5 text-xs text-stone-400">
+        <span class="typing-dot h-1.5 w-1.5 rounded-full bg-teal-400"></span>
+        <span class="typing-dot h-1.5 w-1.5 rounded-full bg-teal-400"></span>
+        <span class="typing-dot h-1.5 w-1.5 rounded-full bg-teal-400"></span>
+        <span class="ml-1">{% if site_lang == 'bn' %}টাইপ করছে...{% else %}Typing...{% endif %}</span>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="border-t border-stone-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+      <form id="chatForm" method="post" enctype="multipart/form-data" class="flex items-end gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="prescription_id" value="{{ prescription_id|default:'' }}">
+        <input type="hidden" name="session_id" value="{{ active_session.id|default:'' }}">
+        
+        <!-- File Upload -->
+        <label class="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:border-teal-300 hover:text-teal-600 dark:border-slate-700 dark:text-stone-400 dark:hover:border-teal-700 dark:hover:text-teal-400">
+          <i class="fa-solid fa-paperclip"></i>
+          <input type="file" name="file" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(this)">
+        </label>
+
+        <!-- Text Input -->
+        <div class="flex-1 relative">
+          <textarea id="chatInput" name="message" rows="1" placeholder="{% if site_lang == 'bn' %}প্রশ্ন লিখুন বা ফাইল আপলোড করুন...{% else %}Ask about your medicines, prescriptions, or health...{% endif %}" class="chat-font w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100 resize-none" style="min-height: 48px; max-height: 120px; font-size: 15px;"></textarea>
+        </div>
+
+        <!-- Voice Input -->
+        <button type="button" data-voice-input="true" data-voice-input-target="#chatInput" data-lang="{{ site_lang }}" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:border-teal-300 hover:text-teal-600 dark:border-slate-700 dark:text-stone-400 dark:hover:border-teal-700 dark:hover:text-teal-400">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+
+        <!-- Send Button -->
+        <button type="submit" id="sendBtn" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm transition hover:bg-teal-700">
+          <i class="fa-solid fa-paper-plane text-sm"></i>
+        </button>
+      </form>
+
+      <!-- Uploaded File Preview -->
+      <div id="filePreview" class="mt-2 hidden">
+        <div class="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-800">
+          <i class="fa-solid fa-file text-stone-400"></i>
+          <span id="fileName" class="text-stone-700 dark:text-stone-300">filename.pdf</span>
+          <button type="button" onclick="removeFile()" class="text-stone-400 hover:text-red-500">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const prescriptionSelect = document.getElementById('prescriptionSelect');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const chatMessages = document.getElementById('chatMessages');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const filePreview = document.getElementById('filePreview');
+  const fileName = document.getElementById('fileName');
+
+  let currentSessionId = '{{ active_session.id|default:"" }}';
+
+  function updateUrl(params) {
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([key, val]) => {
+      if (val) url.searchParams.set(key, val);
+      else url.searchParams.delete(key);
+    });
+    window.location.href = url.toString();
+  }
+
+  prescriptionSelect.addEventListener('change', function() {
+    const val = this.value;
+    const url = new URL(window.location.href);
+    if (val) {
+      url.searchParams.set('prescription_id', val);
+    } else {
+      url.searchParams.delete('prescription_id');
+    }
+    window.location.href = url.toString();
+  });
+
+  function createNewChat() {
+    fetch("{% url 'patient:chat_api_new_session' %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.session_id) {
+        updateUrl({session_id: data.session_id});
+      }
+    })
+    .catch(() => {
+      updateUrl({session_id: ''});
+    });
+  }
+
+  function setQuickMessage(text) {
+    chatInput.value = text;
+    chatInput.focus();
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  }
+
+  function handleFileUpload(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      fileName.textContent = file.name;
+      filePreview.classList.remove('hidden');
+    }
+  }
+
+  function removeFile() {
+    const fileInput = document.querySelector('input[name="file"]');
+    if (fileInput) fileInput.value = '';
+    filePreview.classList.add('hidden');
+  }
+
+  chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  chatForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const message = formData.get('message').trim();
+
+    if (!message && !document.querySelector('input[name="file"]').files.length) return;
+
+    // Add user message to UI immediately
+    appendMessage('user', message || '📎 [File Upload]');
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    filePreview.classList.add('hidden');
+    removeFile();
+
+    // Show typing indicator
+    typingIndicator.classList.remove('hidden');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Send to server
+    fetch("{% url 'patient:chat_api_send' %}", {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+    })
+    .then(res => res.json())
+    .then(data => {
+      typingIndicator.classList.add('hidden');
+      if (data.reply) {
+        appendMessage('assistant', data.reply);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+      if (data.error) {
+        appendMessage('assistant', 'Error: ' + data.error);
+      }
+    })
+    .catch(err => {
+      typingIndicator.classList.add('hidden');
+      appendMessage('assistant', '{% if site_lang == "bn" %}সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করুন।{% else %}Connection error. Please try again.{% endif %}');
+    });
+  });
+
+  function appendMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `message-enter flex ${role === 'assistant' ? 'justify-start' : 'justify-end'}`;
+    const displayHtml = role === 'assistant' ? renderMarkdown(text) : escapeHtml(text);
+    div.innerHTML = `
+      <div class="max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${role === 'assistant' ? 'bg-teal-50 text-stone-800 dark:bg-teal-900/20 dark:text-stone-100' : 'bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-100'}">
+        <p class="whitespace-pre-line leading-7">${displayHtml}</p>
+        ${role === 'assistant' ? `<button type="button" data-speak-text="${escapeHtml(text).replace(/"/g, '&quot;')}" data-lang="{{ site_lang|default:'en' }}" onclick="window.CareBridgeSpeech && window.CareBridgeSpeech.speakText(this.dataset.speakText, this.dataset.lang)" class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 hover:underline dark:text-teal-300"><i class="fa-solid fa-volume-high"></i> {% if site_lang == 'bn' %}শুনুন{% else %}Speak{% endif %}</button>` : ''}
+      </div>
+    `;
+    chatMessages.appendChild(div);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function renderMarkdown(text) {
+    if (!text) return '';
+    let html = escapeHtml(text);
+
+    // Bold: **text** or __text__
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+    // Italic: *text* or _text_
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+
+    // Inline code: `text`
+    html = html.replace(/`(.*?)`/g, '<code class="bg-stone-100 dark:bg-slate-800 rounded px-1 py-0.5 text-xs font-mono text-teal-700 dark:text-teal-300">$1</code>');
+
+    // Bullet lists: - item or * item
+    html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
+
+    // Numbered lists: 1. item
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li class="ml-4 list-decimal">$1</li>');
+
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+  }
+
+  // Auto-resize textarea
+  chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  // Render initial messages with markdown support
+  document.querySelectorAll('[data-role][data-text]').forEach(function(el) {
+    const role = el.getAttribute('data-role');
+    const text = el.getAttribute('data-text');
+    const contentEl = el.querySelector('.msg-content');
+    if (contentEl && text) {
+      const decoded = text.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      contentEl.innerHTML = role === 'assistant' ? renderMarkdown(decoded) : escapeHtml(decoded);
+    }
+  });
+
+  // Focus input on load
+  chatInput.focus();
+</script>
+{% endblock %}
