@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-2xl px-4 py-8 sm:px-8 lg:py-10">
+  <div class="space-y-6">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}ডোজ টাইম{% else %}Dose Settings{% endif %}</p>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tight">{% if site_lang == 'bn' %}কাস্টম ডোজ টাইম সেট করুন{% else %}Custom Dose Times{% endif %}</h1>
+      <p class="mt-2 text-sm text-stone-600 dark:text-stone-400">
+        {% if site_lang == 'bn' %}আপনার ওষুধের সময় সেট করুন। যদি কাস্টম টাইম না সেট করেন, ডিফল্ট টাইম ব্যবহার হবে (সকাল ৯, দুপুর ২, বিকাল ৬, রাত ১০)।{% else %}Set your preferred dose times. If you don't set custom times, the default times will be used (9 AM, 2 PM, 6 PM, 10 PM).{% endif %}
+      </p>
+    </div>
+
+    <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        <div>
+          <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-2">
+            {% if site_lang == 'bn' %}আপনার ডোজ টাইম (HH:MM ফরম্যাট){% else %}Your Dose Times (HH:MM format){% endif %}
+          </label>
+          <div id="doseTimesContainer" class="space-y-3">
+            {% if current_times %}
+              {% for t in current_times %}
+              <div class="flex items-center gap-3">
+                <input type="time" name="dose_times" value="{{ t }}" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="flex items-center gap-3">
+                <input type="time" name="dose_times" value="09:00" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="time" name="dose_times" value="14:00" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="time" name="dose_times" value="18:00" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="time" name="dose_times" value="22:00" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+                  <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+            {% endif %}
+          </div>
+
+          <button type="button" onclick="addTime()" class="mt-3 inline-flex items-center gap-2 rounded-full border border-dashed border-stone-300 px-4 py-2 text-xs font-bold text-stone-600 hover:border-teal-400 hover:text-teal-700 dark:border-slate-700 dark:text-stone-400 dark:hover:border-teal-600">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            {% if site_lang == 'bn' %}টাইম যোগ করুন{% else %}Add Time{% endif %}
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <button type="submit" class="rounded-full bg-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-500">
+            {% if site_lang == 'bn' %}সেভ করুন{% else %}Save Times{% endif %}
+          </button>
+          <a href="{% url 'patient:doses_today' %}" class="rounded-full border border-stone-200 px-6 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-300 dark:hover:bg-slate-800">
+            {% if site_lang == 'bn' %}বাতিল{% else %}Cancel{% endif %}
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+      <p class="text-xs font-medium text-amber-800 dark:text-amber-300">
+        {% if site_lang == 'bn' %}টিপ: কাস্টম টাইম সেট করলে প্রতিদিনের রিমাইন্ডার সেই সময়ে আসবে। ডাক্তার prescribed ফ্রিকোয়েন্সি অনুযায়ী স্লট সংখ্যা ঠিক থাকবে।{% else %}Tip: Custom times will be used for daily reminders. The number of dose slots will match your doctor-prescribed frequency.{% endif %}
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  function addTime() {
+    const container = document.getElementById('doseTimesContainer');
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-3';
+    div.innerHTML = `
+      <input type="time" name="dose_times" value="12:00" class="flex-1 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+      <button type="button" onclick="removeTime(this)" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-950/30">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    `;
+    container.appendChild(div);
+  }
+
+  function removeTime(btn) {
+    const container = document.getElementById('doseTimesContainer');
+    if (container.children.length > 1) {
+      btn.parentElement.remove();
+    } else {
+      alert('{% if site_lang == "bn" %}অন্তত একটি ডোজ টাইম থাকতে হবে।{% else %}At least one dose time is required.{% endif %}');
+    }
+  }
+</script>
+{% endblock %}

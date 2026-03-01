@@ -1,0 +1,200 @@
+{% load static tailwind_tags %}
+<header class="sticky top-0 z-50 border-b border-slate-200/80 bg-slate-950/95 text-white backdrop-blur">
+  <div class="mx-auto flex h-16 max-w-[1600px] w-full items-center justify-between gap-4 px-4 sm:px-8 lg:px-12">
+    <a href="{% if dashboard_url %}{{ dashboard_url }}{% else %}{% url 'home' %}{% endif %}" class="flex items-center gap-3">
+      <img src="{% static 'images/logo.png' %}?v=20260727" alt="CareBridge AI logo" class="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 object-contain shadow-sm">
+      <div class="leading-tight">
+        <span class="block text-lg font-semibold tracking-tight">CareBridge</span>
+        <span class="block text-xs uppercase tracking-[0.24em] text-teal-300">AI</span>
+      </div>
+    </a>
+
+    <nav class="hidden items-center gap-2 lg:flex">
+      {% if request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">Admin Dashboard</a>
+        <a href="{% url 'accounts:ai_provider_list' %}" class="rounded-full px-4 py-2 text-sm font-medium text-teal-300 transition hover:bg-white/8 hover:text-white font-bold">AI Providers</a>
+        <a href="{% url 'accounts:admin_analytics' %}" class="rounded-full px-4 py-2 text-sm font-medium text-purple-300 transition hover:bg-white/8 hover:text-white font-bold">Platform Analytics</a>
+      {% elif request.user.is_authenticated and request.user.patient_profile and request.path != '/' and request.path != '/home/' %}
+        <a href="{% url 'patient:dashboard' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ড্যাশ{% else %}Dashboard{% endif %}</a>
+        <a href="{% url 'patient:doses_today' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ওষুধ{% else %}Doses{% endif %}</a>
+        <a href="{% url 'patient:health_record' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-teal-300 transition hover:bg-white/8 hover:text-white font-bold"><i class="fa-solid fa-notes-medical mr-0.5 text-[10px]"></i>{% if site_lang == 'bn' %}রেকর্ড{% else %}Records{% endif %}</a>
+        <a href="{% url 'patient:follow_ups' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ফলো-আপ{% else %}Follow-up{% endif %}</a>
+        <a href="{% url 'patient:appointments' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট{% else %}Appointments{% endif %}</a>
+        <a href="{% url 'patient:analytics' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-teal-300 transition hover:bg-white/8 hover:text-white font-bold">{% if site_lang == 'bn' %}অ্যানালিটিক্স{% else %}Analytics{% endif %}</a>
+        <a href="{% url 'patient:doctor_list' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ডাক্তার{% else %}Doctors{% endif %}</a>
+      {% elif request.user.is_authenticated and request.user.doctor_profile and request.path != '/' and request.path != '/home/' %}
+        <a href="{% url 'doctors:dashboard' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ড্যাশবোর্ড{% else %}Dashboard{% endif %}</a>
+        <a href="{% url 'doctors:patient_list' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}রোগীদের তালিকা{% else %}Patient List{% endif %}</a>
+        <a href="{% url 'doctors:schedule_management' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}সময় স্লট{% else %}Schedule{% endif %}</a>
+        <a href="{% url 'doctors:appointment_list' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট{% else %}Appointments{% endif %}</a>
+        <a href="{% url 'doctors:history' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ইতিহাস{% else %}History{% endif %}</a>
+        <a href="{% url 'accounts:doctor_analytics' %}" class="rounded-full px-4 py-2 text-sm font-medium text-teal-300 transition hover:bg-white/8 hover:text-white font-bold">{% if site_lang == 'bn' %}অ্যানালিটিক্স{% else %}Analytics{% endif %}</a>
+        <a href="{% url 'doctors:notifications' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}নোটিফিকেশন{% else %}Notifications{% endif %}</a>
+      {% else %}
+        <a href="{% url 'home' %}#how-it-works" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}কাজ করে কীভাবে{% else %}How it works{% endif %}</a>
+        <a href="{% url 'home' %}#features" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ফিচার{% else %}Features{% endif %}</a>
+        <a href="{% url 'home' %}#for-doctors" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}ডাক্তারের জন্য{% else %}For doctors{% endif %}</a>
+        <a href="{% url 'home' %}#faq" class="rounded-full px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white">{% if site_lang == 'bn' %}সাহায্য{% else %}About{% endif %}</a>
+      {% endif %}
+    </nav>
+
+    <div class="hidden items-center gap-2 md:flex">
+      {% if request.user.is_authenticated and request.user.patient_profile %}
+      <!-- Voice Navigation Button Desktop -->
+      <button type="button" data-voice-nav="true" data-lang="{{ site_lang|default:'en' }}" title="{% if site_lang == 'bn' %}ভয়েস নেভিগেশন (বলুন: ড্যাশবোর্ড, ওষুধ, রেকর্ড...){% else %}Voice Navigation (Say: dashboard, doses, records...){% endif %}"
+        class="inline-flex h-11 items-center gap-2 rounded-full border border-teal-400/30 bg-teal-500/10 px-4 text-xs font-bold text-teal-300 transition hover:bg-teal-500/20 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        <i class="fa-solid fa-microphone-lines text-sm animate-pulse text-teal-400"></i>
+        <span>{% if site_lang == 'bn' %}ভয়েস কমান্ড{% else %}Voice Command{% endif %}</span>
+      </button>
+      {% endif %}
+
+      <div class="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 text-xs font-semibold">
+        <a href="{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}" class="rounded-full px-3 py-1 {% if site_lang != 'bn' %}bg-teal-500 text-white{% else %}text-slate-300{% endif %}">EN</a>
+        <a href="{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}" class="rounded-full px-3 py-1 {% if site_lang == 'bn' %}bg-teal-500 text-white{% else %}text-slate-300{% endif %}">{% if site_lang == 'bn' %}বাংলা{% else %}BN{% endif %}</a>
+      </div>
+      <button id="themeBtnDesktop" type="button" aria-label="{% if site_lang == 'bn' %}থিম বদলান{% else %}Switch theme{% endif %}"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
+        <i class="fa-solid fa-moon" aria-hidden="true"></i>
+      </button>
+
+      {% if request.user.is_authenticated and not request.user.is_superuser and not request.user.is_staff %}
+      <!-- Notifications Bell Icon -->
+      <a href="{% if request.user.doctor_profile %}{% url 'doctors:notifications' %}{% else %}{% url 'patient:notifications' %}{% endif %}" class="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10" title="Notifications">
+        <i class="fa-solid fa-bell text-sm"></i>
+        {% if unread_notifications_count > 0 %}
+          <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-xs animate-pulse">
+            {{ unread_notifications_count }}
+          </span>
+        {% endif %}
+      </a>
+      {% endif %}
+
+      {% if request.user.is_authenticated and request.user.patient_profile and request.path != '/' and request.path != '/home/' %}
+        <a href="{% url 'accounts:profile' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 text-sm font-semibold text-white transition hover:bg-white/10">
+          {% if request.user.patient_profile.avatar %}
+            <img src="{{ request.user.patient_profile.avatar.url }}?v={{ request.user.patient_profile.avatar_updated_at|date:'U' }}" alt="{% if site_lang == 'bn' %}রোগীর ছবি{% else %}Patient photo{% endif %}" class="h-8 w-8 rounded-full object-cover">
+          {% else %}
+            <img src="{% static 'images/Patient Photo.png' %}" alt="{% if site_lang == 'bn' %}রোগীর ছবি{% else %}Patient photo{% endif %}" class="h-8 w-8 rounded-full object-cover">
+          {% endif %}
+          <span class="ml-2 hidden sm:inline">{% if site_lang == 'bn' %}প্রোফাইল{% else %}Profile{% endif %}</span>
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+      {% elif request.user.is_authenticated and request.user.doctor_profile and request.path != '/' and request.path != '/home/' %}
+        <a href="{% url 'doctors:profile_edit' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 text-sm font-semibold text-white transition hover:bg-white/10">
+          {% if request.user.doctor_profile.avatar %}
+            <img src="{{ request.user.doctor_profile.avatar.url }}?v={{ request.user.doctor_profile.avatar_updated_at|date:'U' }}" alt="Doctor Photo" class="h-8 w-8 rounded-full object-cover border border-teal-400" oncontextmenu="return false;" draggable="false">
+          {% else %}
+            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">Dr</div>
+          {% endif %}
+          <span class="ml-2 hidden sm:inline">{% if site_lang == 'bn' %}প্রোফাইল{% else %}Profile{% endif %}</span>
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+      {% elif request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2.5 text-sm font-semibold text-white transition hover:bg-white/10">
+          <i class="fa-solid fa-user-shield mr-2"></i>Admin
+        </a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white transition hover:bg-white/10">{% if site_lang == 'bn' %}লগ ইন{% else %}Log in{% endif %}</a>
+        <a href="{% url 'accounts:register' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-400">{% if site_lang == 'bn' %}শুরু করুন{% else %}Get started{% endif %}</a>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2 md:hidden">
+      {% if request.user.is_authenticated and request.user.patient_profile %}
+      <!-- Voice Navigation Button Mobile -->
+      <button type="button" data-voice-nav="true" data-lang="{{ site_lang|default:'en' }}" title="{% if site_lang == 'bn' %}ভয়েস নেভিগেশন{% else %}Voice Navigation{% endif %}"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-teal-400/40 bg-teal-500/20 text-teal-300 transition hover:bg-teal-500/30">
+        <i class="fa-solid fa-microphone-lines animate-pulse text-teal-400" aria-hidden="true"></i>
+      </button>
+      {% endif %}
+
+      <button id="themeBtnMobile" type="button" aria-label="{% if site_lang == 'bn' %}থিম বদলান{% else %}Switch theme{% endif %}"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
+        <i class="fa-solid fa-moon" aria-hidden="true"></i>
+      </button>
+      <button id="menuBtn" type="button" aria-controls="mobileMenu" aria-expanded="false" aria-label="{% if site_lang == 'bn' %}নেভিগেশন খুলুন{% else %}Open navigation menu{% endif %}"
+        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
+        <i class="fa-solid fa-bars" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobileMenu" class="hidden border-t border-white/10 bg-slate-950/98 md:hidden">
+    <div class="mx-auto max-w-[1600px] w-full px-4 py-4 sm:px-8 lg:px-12">
+      <div class="grid gap-2 rounded-3xl border border-white/10 bg-white/5 p-3">
+        {% if request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
+          <a href="{% url 'admin:index' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">Admin Dashboard</a>
+          <a href="{% url 'accounts:ai_provider_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-teal-300 transition hover:bg-white/8">AI Providers</a>
+          <a href="{% url 'accounts:admin_analytics' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-purple-300 transition hover:bg-white/8">Platform Analytics</a>
+          <a href="{% url 'accounts:admin_unverified_dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-amber-300 transition hover:bg-white/8">Unverified Accounts</a>
+          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+        {% elif request.user.is_authenticated and request.user.patient_profile and request.path != '/' and request.path != '/home/' %}
+          <a href="{% url 'patient:dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ড্যাশ{% else %}Dashboard{% endif %}</a>
+          <a href="{% url 'patient:doses_today' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ওষুধ{% else %}Doses{% endif %}</a>
+          <a href="{% url 'patient:health_record' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-300 transition hover:bg-white/8"><i class="fa-solid fa-notes-medical mr-1 text-teal-400"></i>{% if site_lang == 'bn' %}রেকর্ড{% else %}Records{% endif %}</a>
+          <a href="{% url 'patient:follow_ups' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ফলো-আপ{% else %}Follow-up{% endif %}</a>
+          <a href="{% url 'patient:appointments' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট{% else %}Appointments{% endif %}</a>
+          <a href="{% url 'patient:analytics' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-300 transition hover:bg-white/8">{% if site_lang == 'bn' %}অ্যানালিটিক্স{% else %}Analytics{% endif %}</a>
+          <a href="{% url 'patient:doctor_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ডাক্তার{% else %}Doctors{% endif %}</a>
+          <a href="{% url 'accounts:profile' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}প্রোফাইল{% else %}Profile{% endif %}</a>
+          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+        {% elif request.user.is_authenticated and request.user.doctor_profile and request.path != '/' and request.path != '/home/' %}
+          <a href="{% url 'doctors:dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ড্যাশবোর্ড{% else %}Dashboard{% endif %}</a>
+          <a href="{% url 'doctors:patient_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}রোগীদের তালিকা{% else %}Patient List{% endif %}</a>
+          <a href="{% url 'doctors:schedule_management' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}সময় স্লট{% else %}Schedule{% endif %}</a>
+          <a href="{% url 'doctors:appointment_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট{% else %}Appointments{% endif %}</a>
+          <a href="{% url 'doctors:history' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ইতিহাস{% else %}History{% endif %}</a>
+          <a href="{% url 'accounts:doctor_analytics' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-300 transition hover:bg-white/8">{% if site_lang == 'bn' %}অ্যানালিটিক্স{% else %}Analytics{% endif %}</a>
+          <a href="{% url 'doctors:notifications' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}নোটিফিকেশন{% else %}Notifications{% endif %}</a>
+          <a href="{% url 'doctors:profile_edit' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}প্রোফাইল{% else %}Profile{% endif %}</a>
+          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+        {% elif request.user.is_authenticated %}
+          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-400">{% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}</a>
+        {% else %}
+          <a href="{% url 'home' %}#how-it-works" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}কাজ করে কীভাবে{% else %}How it works{% endif %}</a>
+          <a href="{% url 'home' %}#features" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ফিচার{% else %}Features{% endif %}</a>
+          <a href="{% url 'home' %}#for-doctors" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}ডাক্তারের জন্য{% else %}For doctors{% endif %}</a>
+          <a href="{% url 'home' %}#faq" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-white/8">{% if site_lang == 'bn' %}সাহায্য{% else %}About{% endif %}</a>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <a href="{% url 'accounts:login' %}" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10">{% if site_lang == 'bn' %}লগ ইন{% else %}Log in{% endif %}</a>
+            <a href="{% url 'accounts:register' %}" class="rounded-2xl bg-teal-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-400">{% if site_lang == 'bn' %}শুরু করুন{% else %}Get started{% endif %}</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  window.CAREBRIDGE_URLS = {
+    patient: {
+      dashboard: "{% url 'patient:dashboard' %}",
+      today: "{% url 'patient:doses_today' %}",
+      records: "{% url 'patient:health_record' %}",
+      followups: "{% url 'patient:follow_ups' %}",
+      appointments: "{% url 'patient:appointments' %}",
+      analytics: "{% url 'patient:analytics' %}",
+      doctors: "{% url 'patient:doctor_list' %}",
+      chat: "{% url 'patient:chatbot' %}",
+      profile: "{% url 'accounts:profile' %}",
+      logout: "{% url 'accounts:logout' %}",
+    },
+  };
+
+  window.CAREBRIDGE_VOICE_COMMANDS = {
+    patient: [
+      { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "মেইন পেজ", "main page"], url: window.CAREBRIDGE_URLS.patient.dashboard },
+      { terms: ["today", "আজ", "আজকের ওষুধ", "ডোজ", "medicine today", "oshud", "osud", "aajker oshud", "doses"], url: window.CAREBRIDGE_URLS.patient.today },
+      { terms: ["records", "health record", "রেকর্ড", "স্বাস্থ্য", "স্বাস্থ্য রেকর্ড", "history", "itihes"], url: window.CAREBRIDGE_URLS.patient.records },
+      { terms: ["follow", "follow up", "ফলো আপ", "ফলোআপ", "appointment", "visit"], url: window.CAREBRIDGE_URLS.patient.followups },
+      { terms: ["appointment", "visit"], url: window.CAREBRIDGE_URLS.patient.appointments },
+      { terms: ["analytics", "অ্যানালিটিক্স", "report", "রিপোর্ট"], url: window.CAREBRIDGE_URLS.patient.analytics },
+      { terms: ["doctor", "doctors", "ডাক্তার", "ডাক্তার খুঁজুন", "daktar", "physician"], url: window.CAREBRIDGE_URLS.patient.doctors },
+      { terms: ["chat", "assistant", "চ্যাট", "সহায়তা", "কথা বলুন", "help"], url: window.CAREBRIDGE_URLS.patient.chat },
+      { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট"], url: window.CAREBRIDGE_URLS.patient.profile },
+      { terms: ["logout", "log out", "sign out", "বের হন", "লগ আউট"], url: window.CAREBRIDGE_URLS.patient.logout },
+    ],
+  };
+</script>

@@ -1,0 +1,163 @@
+{% load static %}
+{# Floating AI assistant — shown on all patient portal pages #}
+<div id="carebridgeAssistant" class="fixed bottom-6 right-6 z-[100] font-sans" data-lang="{{ site_lang|default:'en' }}">
+  <!-- Toggle button -->
+  <button id="assistantToggle" type="button" aria-label="{% if site_lang == 'bn' %}সহকারী খুলুন{% else %}Open assistant{% endif %}"
+    class="group flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-white shadow-2xl ring-4 ring-teal-600/20 transition hover:scale-105 hover:bg-teal-500 focus:outline-none focus:ring-teal-400">
+    <i id="assistantToggleIcon" class="fa-solid fa-comments text-2xl transition-transform group-hover:scale-110"></i>
+    <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-stone-900">AI</span>
+  </button>
+
+  <!-- Chat panel -->
+  <div id="assistantPanel"
+    class="pointer-events-none fixed bottom-24 right-6 flex w-[min(100vw-2rem,440px)] origin-bottom-right scale-95 flex-col overflow-hidden rounded-3xl border border-stone-200/80 bg-white opacity-0 shadow-2xl transition-all duration-200 dark:border-slate-700 dark:bg-slate-900"
+    style="height: min(78vh, 640px);"
+    aria-hidden="true">
+
+    <!-- Header -->
+    <div class="flex shrink-0 items-center justify-between border-b border-stone-100 bg-teal-700 px-4 py-3 dark:border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/20 text-white">
+          <i class="fa-solid fa-robot"></i>
+        </span>
+        <div>
+          <p class="text-sm font-bold text-white leading-none">CareBridge AI</p>
+          <p class="text-[11px] text-teal-100 mt-0.5">{% if site_lang == 'bn' %}আপনার স্বাস্থ্য সহকারী{% else %}Your health assistant{% endif %}</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <!-- Language Switcher (BN / EN) -->
+        <button type="button" id="assistantLangBtn" data-lang="{{ site_lang|default:'en' }}"
+          class="rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold text-white hover:bg-white/25 transition">
+          {% if site_lang == 'bn' %}🇧🇩 BN{% else %}🇺🇸 EN{% endif %}
+        </button>
+
+        <button type="button" id="assistantClearBtn" title="{% if site_lang == 'bn' %}নতুন কথোপকথন{% else %}New chat{% endif %}"
+          class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 hover:bg-white/15 hover:text-white transition">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>
+
+        <button type="button" id="assistantCloseBtn"
+          class="flex h-8 w-8 items-center justify-center rounded-full text-white/80 hover:bg-white/15 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- AI Voice Control Bar (ON, OFF, RESTART) -->
+    <div class="flex items-center justify-between border-b border-stone-200/80 bg-stone-100/90 px-4 py-2 text-xs dark:border-slate-800 dark:bg-slate-950">
+      <div class="flex items-center gap-1.5">
+        <span class="font-semibold text-stone-600 dark:text-stone-300">{% if site_lang == 'bn' %}ভয়েস কন্ট্রোল:{% else %}AI Voice:{% endif %}</span>
+        <span id="assistantVoiceState" class="font-bold text-emerald-600 dark:text-emerald-400">ON</span>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button type="button" id="btnVoiceOn"
+          class="rounded-xl bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-500 shadow-sm transition">
+          🟢 ON
+        </button>
+        <button type="button" id="btnVoiceOff"
+          class="rounded-xl bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-rose-500 shadow-sm transition">
+          🔴 OFF
+        </button>
+        <button type="button" id="btnVoiceRestart"
+          class="rounded-xl bg-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-100 hover:bg-slate-600 shadow-sm transition"
+          title="{% if site_lang == 'bn' %}ভয়েস পুনঃপ্রচার করুন{% else %}Replay voice response{% endif %}">
+          🔄 RESTART
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="assistantMessages" class="flex-1 space-y-4 overflow-y-auto px-4 py-4 scroll-smooth">
+      <div id="assistantWelcome" class="rounded-2xl border border-dashed border-teal-200 bg-teal-50/60 p-4 text-sm leading-relaxed text-stone-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-stone-300">
+        {% if site_lang == 'bn' %}
+          <p class="font-semibold text-teal-800 dark:text-teal-300">👋 স্বাগতম!</p>
+          <p class="mt-2">আমি আপনার প্রেসক্রিপশন, ওষুধ, ডোজ, ফলো-আপ, ডাক্তার, বা CareBridge সম্পর্কে যেকোনো প্রশ্নের উত্তর দিতে পারি। লিখুন বা 🎙️ মাইকে বলুন।</p>
+        {% else %}
+          <p class="font-semibold text-teal-800 dark:text-teal-300">👋 Welcome!</p>
+          <p class="mt-2">Ask me anything about your prescriptions, doses, follow-ups, doctors, or how to use CareBridge. Type or tap 🎙️ to speak.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="assistantTyping" class="hidden shrink-0 px-4 pb-2">
+      <div class="inline-flex items-center gap-2 rounded-2xl bg-stone-100 px-4 py-2 text-xs text-stone-500 dark:bg-slate-800 dark:text-stone-400">
+        <span class="flex gap-1">
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:0ms]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:150ms]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:300ms]"></span>
+        </span>
+        <span>{% if site_lang == 'bn' %}চিন্তা করছি...{% else %}Thinking...{% endif %}</span>
+      </div>
+    </div>
+
+    <!-- File attachment preview indicator -->
+    <div id="assistantFilePreview" class="hidden shrink-0 px-4 pt-2">
+      <div class="inline-flex items-center gap-2 rounded-2xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs text-teal-800 dark:bg-teal-950/40 dark:border-teal-900 dark:text-teal-200">
+        <i class="fa-solid fa-paperclip text-teal-600"></i>
+        <span id="assistantFileName" class="max-w-[200px] truncate font-medium">file.png</span>
+        <button type="button" id="assistantRemoveFileBtn" class="ml-1 text-stone-400 hover:text-red-500">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Input Footer -->
+    <div class="shrink-0 border-t border-stone-100 bg-stone-50/90 p-3 dark:border-slate-800 dark:bg-slate-950/90">
+      <div class="flex items-end gap-2">
+        <input type="file" id="assistantFileInput" class="hidden" accept="image/*,.pdf">
+        <label for="assistantFileInput" id="assistantAttachBtn"
+          class="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-stone-200 bg-white text-teal-600 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-teal-400"
+          title="{% if site_lang == 'bn' %}ছবি/ফাইল সংযুক্ত করুন{% else %}Attach file{% endif %}">
+          <i class="fa-solid fa-paperclip text-lg"></i>
+        </label>
+
+        <button type="button" id="assistantMicBtn" data-lang="{{ site_lang|default:'en' }}"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-white text-teal-600 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-teal-400"
+          title="{% if site_lang == 'bn' %}ভয়েস ইনপুট (ON/OFF){% else %}Voice Input (ON/OFF){% endif %}">
+          <i class="fa-solid fa-microphone text-lg" id="assistantMicIcon"></i>
+        </button>
+
+        <textarea id="assistantInput" rows="1" placeholder="{% if site_lang == 'bn' %}প্রশ্ন লিখুন বা ছবি আপলোড করুন...{% else %}Ask anything or attach a photo...{% endif %}"
+          class="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100"></textarea>
+
+        <button type="button" id="assistantSendBtn"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-sm transition hover:bg-teal-500 disabled:opacity-50">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+
+      <div class="mt-2 flex items-center justify-between px-1">
+        <span class="text-xs font-medium text-stone-500 dark:text-stone-400">
+          🔊 {% if site_lang == 'bn' %}এইচডি বাংলা/ইংরেজি ভয়েস সক্রিয়{% else %}HD Voice Output Active{% endif %}
+        </span>
+        <span class="text-[10px] text-stone-400">Enter = {% if site_lang == 'bn' %}পাঠান{% else %}Send{% endif %}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  window.CAREBRIDGE_ASSISTANT = {
+    lang: "{{ site_lang|default:'en' }}",
+    urls: {
+      history: "{% url 'patient:chat_api_history' %}",
+      send: "{% url 'patient:chat_api_send' %}",
+      clear: "{% url 'patient:chat_api_clear' %}",
+      setLangEn: "{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}",
+      setLangBn: "{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}",
+    },
+    csrfToken: "{{ csrf_token }}",
+    strings: {
+      error: "{% if site_lang == 'bn' %}কিছু ভুল হয়েছে। আবার চেষ্টা করুন।{% else %}Something went wrong. Please try again.{% endif %}",
+      cleared: "{% if site_lang == 'bn' %}নতুন কথোপকথন শুরু হয়েছে।{% else %}Started a new conversation.{% endif %}",
+      listening: "{% if site_lang == 'bn' %}শুনছি...{% else %}Listening...{% endif %}",
+      speak: "{% if site_lang == 'bn' %}শুনুন{% else %}Listen{% endif %}",
+    },
+  };
+</script>
+<script defer src="{% static 'js/assistant.js' %}?v=6.0.0"></script>

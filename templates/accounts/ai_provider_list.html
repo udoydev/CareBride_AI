@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 md:py-16">
+  {% if ai_status.all_unavailable %}
+  <div class="mb-6 rounded-2xl border border-red-200 bg-red-50/80 p-4 dark:border-red-900/40 dark:bg-red-950/30">
+    <div class="flex items-center gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+      </span>
+      <div>
+        <h3 class="text-sm font-bold text-red-900 dark:text-red-300">All AI APIs Are Currently Unavailable</h3>
+        <p class="text-xs text-red-700 dark:text-red-400 mt-1">
+          No active AI providers are configured or all providers have exceeded their rate limits. 
+          Users will see limited local keyword-based responses instead of AI-generated answers.
+          Please add or activate a provider below.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Admin Configuration</p>
+      <h1 class="mt-1 text-3xl font-semibold tracking-tight">AI Provider Management</h1>
+      <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Manage multiple AI APIs. The system tries them in priority order based on availability.</p>
+    </div>
+    <a href="{% url 'accounts:ai_provider_add' %}" class="inline-flex h-10 items-center gap-2 rounded-full bg-teal-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700">
+      <i class="fa-solid fa-plus"></i> Add Provider
+    </a>
+  </div>
+
+  <div class="space-y-4">
+    {% for p in providers %}
+      <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold text-stone-900 dark:text-stone-100">{{ p.name }}</h3>
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase
+                {% if p.is_active %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+                {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+                {% if p.is_active %}Active{% else %}Inactive{% endif %}
+              </span>
+              <span class="text-[10px] font-bold text-stone-500">Priority: {{ p.priority }}</span>
+            </div>
+            <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
+              {{ p.get_provider_display }} • Model: {{ p.model_name }} • Success Rate: {{ p.success_rate }}%
+            </p>
+            <p class="text-xs text-stone-500 dark:text-stone-400">
+              Base URL: {{ p.base_url|default:"(auto-filled)" }} • Usage: {{ p.current_usage_count }}/{{ p.max_requests_per_minute }} rpm • Success: {{ p.success_count }} • Failures: {{ p.failure_count }}
+            </p>
+            {% if p.last_used_at %}
+              <p class="text-[10px] text-stone-400 mt-1">Last used: {{ p.last_used_at|date:"Y-m-d H:i" }}</p>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="{% url 'accounts:ai_provider_toggle' p.pk %}" class="inline-flex h-8 items-center rounded-lg border border-stone-200 px-3 text-[11px] font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-300 dark:hover:bg-slate-800">
+              {% if p.is_active %}Deactivate{% else %}Activate{% endif %}
+            </a>
+            <a href="{% url 'accounts:ai_provider_edit' p.pk %}" class="inline-flex h-8 items-center rounded-lg border border-teal-200 bg-teal-50 px-3 text-[11px] font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+              Edit
+            </a>
+            <a href="{% url 'accounts:ai_provider_delete' p.pk %}" class="inline-flex h-8 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-bold text-red-700 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300" onclick="return confirm('Delete this provider?')">
+              Delete
+            </a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-sm text-stone-500 dark:text-stone-400 text-center py-12">No AI providers configured yet. Add your first provider above.</p>
+    {% endfor %}
+  </div>
+
+  <div class="mt-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+    <p class="text-xs font-bold text-amber-900 dark:text-amber-300">How it works:</p>
+    <ul class="mt-2 list-disc pl-4 text-xs text-stone-700 dark:text-stone-300 space-y-1">
+      <li>Providers are tried in order of <strong>priority</strong> (lower number = tried first).</li>
+      <li>Only <strong>active</strong> providers with available rate limit are used.</li>
+      <li>Usage stats are tracked automatically. Success rate helps identify the best performer.</li>
+      <li>If all providers fail, the system falls back to local keyword-based responses.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

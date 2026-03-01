@@ -1,0 +1,77 @@
+{% load static %}
+<footer class="border-t border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+  <div class="mx-auto max-w-[1600px] w-full px-4 py-12 sm:px-8 lg:px-12">
+    <div class="grid gap-10 md:grid-cols-4">
+      <div class="md:col-span-2 space-y-3">
+        <a href="{% if dashboard_url %}{{ dashboard_url }}{% else %}{% url 'home' %}{% endif %}" class="flex items-center gap-3">
+          <img src="{% static 'images/logo.png' %}?v=20260727" alt="CareBridge AI logo" class="h-9 w-9 rounded-xl border border-stone-200 object-cover dark:border-slate-800">
+          <span class="text-lg font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            CareBridge <span class="text-teal-600 dark:text-teal-400">AI</span>
+          </span>
+        </a>
+        <p class="max-w-xs text-sm text-stone-600 dark:text-slate-400">
+          {% if site_lang == 'bn' %}
+            রোগীদের প্রেসক্রিপশন বুঝতে এবং ঠিকমতো অনুসরণ করতে সাহায্য করে।
+          {% else %}
+            Helping patients understand and follow their prescriptions after they leave the doctor's office.
+          {% endif %}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-500 dark:text-slate-400">
+          {% if site_lang == 'bn' %}দ্রুত নেভিগেশন{% else %}Quick Navigation{% endif %}
+        </p>
+        <ul class="mt-4 space-y-3 text-sm">
+          {% if request.user.is_authenticated and request.user.patient_profile %}
+            <li><a href="{% url 'patient:dashboard' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}রোগীর ড্যাশবোর্ড{% else %}Patient Dashboard{% endif %}</a></li>
+            <li><a href="{% url 'patient:health_record' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}প্রেসক্রিপশন রেকর্ড{% else %}Prescription History{% endif %}</a></li>
+            <li><a href="{% url 'patient:doses_today' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}আজকের ওষুধের তালিকা{% else %}Today's Dose Schedule{% endif %}</a></li>
+            <li><a href="{% url 'patient:follow_ups' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}ডাক্তার ফলো-আপ{% else %}Doctor Follow-ups{% endif %}</a></li>
+          {% elif request.user.is_authenticated and request.user.doctor_profile %}
+            <li><a href="{% url 'doctors:dashboard' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}ডাক্তার ড্যাশবোর্ড{% else %}Doctor Dashboard{% endif %}</a></li>
+            <li><a href="{% url 'doctors:patient_list' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}রোগী ডিরেক্টরি{% else %}Patient Directory{% endif %}</a></li>
+            <li><a href="{% url 'doctors:history' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}প্রেসক্রিপশন ইতিহাস{% else %}Prescription Activity Log{% endif %}</a></li>
+            <li><a href="{% url 'doctors:notifications' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}নোটিফিকেশন সেন্টার{% else %}Doctor Notifications{% endif %}</a></li>
+          {% else %}
+            <li><a href="{% url 'home' %}#how-it-works" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}কাজ করে কীভাবে{% else %}How it works{% endif %}</a></li>
+            <li><a href="{% url 'home' %}#features" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}ফিচারসমূহ{% else %}Features{% endif %}</a></li>
+            <li><a href="{% url 'home' %}#for-doctors" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}ডাক্তারদের জন্য{% else %}For doctors{% endif %}</a></li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-stone-500 dark:text-slate-400">{% if site_lang == 'bn' %}অ্যাকাউন্ট ও সহায়তা{% else %}Account & Support{% endif %}</p>
+        <ul class="mt-4 space-y-3 text-sm">
+          {% if request.user.is_authenticated and request.user.patient_profile %}
+            <li><a href="{% url 'accounts:profile' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}প্রোফাইল সেটিংস{% else %}My Profile Settings{% endif %}</a></li>
+            <li><a href="{% url 'patient:notifications' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}নোটিফিকেশন{% else %}Alerts & Notifications{% endif %}</a></li>
+            <li><a href="{% url 'accounts:logout' %}" class="text-red-600 hover:text-red-700 dark:text-red-400 font-medium">{% if site_lang == 'bn' %}লগ আউট{% else %}Log Out{% endif %}</a></li>
+          {% elif request.user.is_authenticated and request.user.doctor_profile %}
+            <li><a href="{% url 'doctors:profile_edit' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}ডাক্তার প্রোফাইল এডিট{% else %}Edit Doctor Profile{% endif %}</a></li>
+            <li><a href="{% url 'accounts:logout' %}" class="text-red-600 hover:text-red-700 dark:text-red-400 font-medium">{% if site_lang == 'bn' %}লগ আউট{% else %}Log Out{% endif %}</a></li>
+          {% else %}
+            <li><a href="{% url 'accounts:login' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}লগ ইন{% else %}Log in{% endif %}</a></li>
+            <li><a href="{% url 'accounts:register' %}" class="text-stone-600 hover:text-teal-600 dark:text-slate-300 dark:hover:text-teal-400">{% if site_lang == 'bn' %}অ্যাকাউন্ট তৈরি করুন{% else %}Create account{% endif %}</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-10 flex flex-col items-center justify-between gap-4 border-t border-stone-200 pt-6 sm:flex-row dark:border-slate-800">
+      <p class="text-xs text-stone-500 dark:text-slate-400">
+        {% if site_lang == 'bn' %}
+          &copy; {% now "Y" %} CareBridge AI. একটি প্র্যাকটিকাম প্রকল্প।
+        {% else %}
+          &copy; {% now "Y" %} CareBridge AI. Built as a practicum project.
+        {% endif %}
+      </p>
+      <div class="flex items-center gap-4 text-stone-500 dark:text-slate-400">
+        <a href="#" aria-label="Facebook" class="hover:text-teal-600 dark:hover:text-teal-400"><i class="fa-brands fa-facebook"></i></a>
+        <a href="#" aria-label="GitHub" class="hover:text-teal-600 dark:hover:text-teal-400"><i class="fa-brands fa-github"></i></a>
+        <a href="#" aria-label="LinkedIn" class="hover:text-teal-600 dark:hover:text-teal-400"><i class="fa-brands fa-linkedin"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center gap-2 mb-6">
+    <a href="{% url 'doctors:appointment_list' %}" class="text-sm font-medium text-teal-600 hover:underline dark:text-teal-400">
+      <i class="fa-solid fa-arrow-left mr-1"></i> Back to appointments
+    </a>
+  </div>
+
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Appointment #{{ appointment.id }}</p>
+        <h1 class="mt-1 text-2xl font-semibold">{{ appointment.patient.user.get_full_name|default:appointment.patient.user.email }}</h1>
+        <p class="text-sm text-stone-500 dark:text-stone-400">{{ appointment.patient.district|default:"N/A" }} • {{ appointment.patient.phone_number|default:"N/A" }}</p>
+      </div>
+      <span class="rounded-full px-3 py-1 text-xs font-bold
+        {% if appointment.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
+        {% elif appointment.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+        {% elif appointment.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
+        {% elif appointment.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
+        {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+        {{ appointment.get_status_display }}
+      </span>
+    </div>
+
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Date</label>
+          <p class="text-sm font-medium text-stone-900 dark:text-stone-100">{{ appointment.appointment_date|date:"d M Y" }}</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Time</label>
+          <p class="text-sm font-medium text-stone-900 dark:text-stone-100">{{ appointment.start_time|time:"H:i" }} - {{ appointment.end_time|time:"H:i" }}</p>
+        </div>
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Consultation Type</label>
+        <p class="text-sm font-medium text-stone-900 dark:text-stone-100">{{ appointment.get_consultation_type_display }}</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Fee</label>
+        <p class="text-sm font-medium text-stone-900 dark:text-stone-100">৳{{ appointment.fee_bdt }}</p>
+      </div>
+      {% if appointment.edit_count > 0 %}
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Edit Count</label>
+        <p class="text-sm font-medium text-amber-700 dark:text-amber-300">{{ appointment.edit_count }}/3 edits used by patient</p>
+      </div>
+      {% endif %}
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Status</label>
+        <select name="status" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+          <option value="pending" {% if appointment.status == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="confirmed" {% if appointment.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+          <option value="completed" {% if appointment.status == 'completed' %}selected{% endif %}>Completed / Visited</option>
+          <option value="missed" {% if appointment.status == 'missed' %}selected{% endif %}>Missed / No-Show</option>
+          <option value="cancelled" {% if appointment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Doctor Notes</label>
+        <textarea name="notes" rows="3" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" placeholder="Add notes after consultation...">{{ appointment.notes|default:'' }}</textarea>
+      </div>
+
+      {% if appointment.refund_amount > 0 %}
+      <div class="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/20">
+        <p class="text-xs font-bold text-red-800 dark:text-red-300">Refund Information</p>
+        <p class="text-sm text-stone-700 dark:text-stone-300 mt-1">Refund: ৳{{ appointment.refund_amount }} ({{ appointment.get_refund_status_display }})</p>
+        <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Net payout: ৳{{ appointment.net_doctor_payout_bdt }}</p>
+      </div>
+      {% endif %}
+      {% if appointment.status == 'cancellation_pending' %}
+      <div class="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/40 dark:bg-orange-950/20">
+        <p class="text-xs font-bold text-orange-800 dark:text-orange-300">Pending Cancellation Request</p>
+        <p class="text-sm text-stone-700 dark:text-stone-300 mt-1">Reason: {{ appointment.cancellation_reason|default:"Not provided" }}</p>
+        <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Requested at: {{ appointment.cancellation_requested_at|date:"Y-m-d h:i A" }}</p>
+        <div class="mt-3 flex gap-2">
+          <form method="post" action="{% url 'doctors:approve_cancellation' appointment.pk %}" class="inline" onsubmit="return confirm('Approve cancellation? 35% refund will be issued.')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+              <i class="fa-solid fa-check"></i> Approve
+            </button>
+          </form>
+          <form method="post" action="{% url 'doctors:approve_cancellation' appointment.pk %}" class="inline" onsubmit="return confirm('Reject cancellation? Full refund will be issued to patient.')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-800 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+              <i class="fa-solid fa-xmark"></i> Reject
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <button type="submit" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+        <i class="fa-solid fa-save mr-2"></i> Save Changes
+      </button>
+    </form>
+  </div>
+</section>
+{% endblock %}

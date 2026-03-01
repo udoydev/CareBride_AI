@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
+  <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
+        ✨ Powered by Google Gemini 2.0 / 1.5 Flash Vision
+      </span>
+      <h1 class="mt-2 text-2xl font-bold tracking-tight text-stone-900 md:text-3xl dark:text-stone-100">
+        {% if site_lang == 'bn' %}প্রেসক্রিপশন এআই স্ক্যানার (OCR){% else %}Prescription AI OCR Scanner{% endif %}
+      </h1>
+      <p class="mt-1 text-sm text-stone-600 dark:text-stone-300">
+        {% if site_lang == 'bn' %}হাতে লেখা বা প্রিন্ট করা প্রেসক্রিপশনের ছবি আপলোড করুন, এআই মুহূর্তেই ওষুধের নাম ও ডোজ সাজিয়ে দিবে।{% else %}Upload a photo of handwritten or printed prescription for instant AI digitization.{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="grid gap-8 lg:grid-cols-3">
+    <!-- Upload card -->
+    <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
+      <h2 class="text-base font-semibold text-stone-800 dark:text-stone-200">
+        📸 {% if site_lang == 'bn' %}প্রেসক্রিপশনের ছবি আপলোড করুন{% else %}Upload Prescription Photo{% endif %}
+      </h2>
+
+      <form method="post" enctype="multipart/form-data" class="mt-4 space-y-4">
+        {% csrf_token %}
+        <div class="rounded-2xl border border-dashed border-teal-300 bg-teal-50/50 p-6 text-center dark:border-teal-800 dark:bg-teal-950/20">
+          <svg class="mx-auto h-12 w-12 text-teal-600 dark:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <input type="file" name="prescription_image" accept="image/*,.pdf" required
+            class="mt-3 block w-full text-xs text-stone-600 file:mr-4 file:rounded-full file:border-0 file:bg-teal-600 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-teal-700 dark:text-stone-300">
+          <p class="mt-2 text-[11px] text-stone-500">JPG, PNG, WebP or PDF (Max 10MB)</p>
+        </div>
+
+        <button type="submit"
+          class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          {% if site_lang == 'bn' %}এআই স্ক্যান শুরু করুন{% else %}Analyze with Gemini AI Vision{% endif %}
+        </button>
+      </form>
+    </div>
+
+    <!-- Scanned History & Extracted Results -->
+    <div class="space-y-6 lg:col-span-2">
+      <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 class="text-base font-semibold text-stone-800 dark:text-stone-200">
+          📋 {% if site_lang == 'bn' %}স্ক্যানকৃত প্রেসক্রিপশন ও এআই ফলাফল{% else %}Scanned Prescriptions & AI Results{% endif %}
+        </h2>
+
+        {% if recent_scans %}
+          <div class="mt-4 space-y-4">
+            {% for scan in recent_scans %}
+              <div class="rounded-2xl border border-stone-200 bg-stone-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-3 dark:border-slate-700">
+                  <div class="flex items-center gap-2">
+                    <span class="rounded-lg bg-teal-100 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
+                      Scan #{{ scan.pk }}
+                    </span>
+                    <span class="text-xs text-stone-500">{{ scan.created_at|date:"d M Y, h:i A" }}</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                    ✓ {{ scan.get_status_display }}
+                  </span>
+                </div>
+
+                {% if scan.extracted_json %}
+                  <div class="mt-3 grid gap-3 text-xs md:grid-cols-2">
+                    <div>
+                      <p class="font-semibold text-stone-700 dark:text-stone-300">👨‍⚕️ Doctor / Hospital:</p>
+                      <p class="text-stone-600 dark:text-stone-400">{{ scan.extracted_json.doctor_name|default:"Unspecified Doctor" }} ({{ scan.extracted_json.hospital_or_clinic|default:"Chamber" }})</p>
+                    </div>
+                    <div>
+                      <p class="font-semibold text-stone-700 dark:text-stone-300">📅 Follow-up Advice:</p>
+                      <p class="text-stone-600 dark:text-stone-400">{{ scan.extracted_json.follow_up_days|default:"7" }} days after consultation</p>
+                    </div>
+                  </div>
+
+                  {% if scan.extracted_json.medicines %}
+                    <div class="mt-3">
+                      <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">💊 Extracted Medicines:</p>
+                      <div class="mt-2 space-y-1.5">
+                        {% for med in scan.extracted_json.medicines %}
+                          <div class="flex items-center justify-between rounded-xl bg-white p-2 text-xs shadow-2xs dark:bg-slate-900">
+                            <span class="font-medium text-stone-800 dark:text-stone-200">
+                              • {{ med.brand_name }} ({{ med.generic_name }})
+                            </span>
+                            <span class="rounded bg-teal-50 px-2 py-0.5 font-mono text-[11px] text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                              {{ med.dosage }} | {{ med.instructions|default:"After meals" }}
+                            </span>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+                {% else %}
+
+                  <p class="mt-2 text-xs text-stone-500">Processing scan image with Gemini AI Vision...</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mt-8 text-center py-8">
+            <p class="text-sm text-stone-500 dark:text-stone-400">
+              {% if site_lang == 'bn' %}এখনও কোনো প্রেসক্রিপশন স্ক্যান করা হয়নি। বাম দিকের ফর্ম থেকে ছবি আপলোড করুন।{% else %}No scanned prescriptions found. Upload a photo on the left to analyze.{% endif %}
+            </p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

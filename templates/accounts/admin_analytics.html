@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
+  <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-300">Admin Analytics</span>
+      <h1 class="mt-2 text-2xl font-bold tracking-tight text-stone-900 md:text-3xl dark:text-stone-100">Platform Overview</h1>
+      <p class="mt-1 text-xs text-stone-500">Developer metadata for future feature planning and system health monitoring.</p>
+    </div>
+  </div>
+
+  <!-- Core Stats -->
+  <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Doctors</p>
+      <p class="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-100">{{ total_doctors }}</p>
+      <p class="text-xs text-stone-500 mt-1">{{ verified_doctors }} verified &middot; {{ pending_doctor_verifications }} pending</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Patients</p>
+      <p class="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-100">{{ total_patients }}</p>
+      <p class="text-xs text-stone-500 mt-1">{{ verified_patients }} verified &middot; {{ pending_patient_verifications }} pending</p>
+    </div>
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+      <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total Revenue</p>
+      <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-200">{{ total_revenue|floatformat:2 }} BDT</p>
+      <p class="text-xs text-emerald-600 dark:text-emerald-400">{{ month_revenue|floatformat:2 }} BDT this month &middot; {{ week_revenue|floatformat:2 }} BDT this week</p>
+    </div>
+    <div class="rounded-2xl border border-purple-200 bg-purple-50/60 p-5 dark:border-purple-900/50 dark:bg-purple-950/20">
+      <p class="text-xs font-semibold uppercase tracking-wider text-purple-700 dark:text-purple-400">Net Profit</p>
+      <p class="mt-2 text-3xl font-bold text-purple-900 dark:text-purple-200">{{ net_profit|floatformat:2 }} BDT</p>
+      <p class="text-xs text-purple-600 dark:text-purple-400">After refunds</p>
+    </div>
+  </div>
+
+  <!-- Appointment Stats -->
+  <div class="mb-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ total_appointments }}</p>
+    </div>
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/30">
+      <p class="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Pending</p>
+      <p class="mt-2 text-2xl font-bold text-amber-900 dark:text-amber-300">{{ pending_appointments }}</p>
+    </div>
+    <div class="rounded-2xl border border-teal-200 bg-teal-50 p-5 dark:border-teal-900/40 dark:bg-teal-950/30">
+      <p class="text-xs font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Confirmed</p>
+      <p class="mt-2 text-2xl font-bold text-teal-900 dark:text-teal-300">{{ confirmed_appointments }}</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-stone-50 p-5 dark:border-slate-800 dark:bg-slate-800">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Visited</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ completed_appointments }}</p>
+    </div>
+    <div class="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900/40 dark:bg-red-950/30">
+      <p class="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">Missed</p>
+      <p class="mt-2 text-2xl font-bold text-red-900 dark:text-red-300">{{ missed_appointments }}</p>
+    </div>
+    <div class="rounded-2xl border border-orange-200 bg-orange-50 p-5 dark:border-orange-900/40 dark:bg-orange-950/30">
+      <p class="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">Cancelled</p>
+      <p class="mt-2 text-2xl font-bold text-orange-900 dark:text-orange-300">{{ cancelled_appointments }}</p>
+      <p class="text-xs text-orange-500 mt-1">{{ cancellation_pending }} pending approval</p>
+    </div>
+  </div>
+
+  <!-- Financial & System Metadata -->
+  <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Refunds</p>
+      <p class="mt-2 text-2xl font-bold text-red-700 dark:text-red-300">{{ total_refunds|floatformat:2 }} BDT</p>
+      <p class="text-xs text-stone-500 mt-1">{{ partial_refunds }} partial &middot; {{ full_refunds }} full</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Platform Fees</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ platform_fees|floatformat:2 }} BDT</p>
+      <p class="text-xs text-stone-500 mt-1">3% of all paid bookings</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Avg per Doctor</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ avg_appointments_per_doctor }}</p>
+      <p class="text-xs text-stone-500 mt-1">appointments</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Avg per Patient</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ avg_appointments_per_patient }}</p>
+      <p class="text-xs text-stone-500 mt-1">appointments</p>
+    </div>
+  </div>
+
+  <!-- Consultation & Engagement -->
+  <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Active Schedules</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ total_schedules }}</p>
+      <p class="text-xs text-stone-500 mt-1">doctor time slots configured</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Prescriptions</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ total_prescriptions }}</p>
+      <p class="text-xs text-stone-500 mt-1">{{ total_followups }} follow-ups created</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Notifications</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ total_notifications }}</p>
+      <p class="text-xs text-stone-500 mt-1">{{ unread_notifications }} unread</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Consultation Type</p>
+      <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ in_person_appointments }}</p>
+      <p class="text-xs text-stone-500 mt-1">in-person &middot; {{ video_appointments }} video</p>
+    </div>
+  </div>
+
+  <!-- Daily Trend (Last 7 Days) -->
+  <div class="mb-8 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100 mb-4">Daily Appointments (Last 7 Days)</h2>
+    <div class="grid grid-cols-7 gap-2">
+      {% for day in daily_stats %}
+      <div class="text-center">
+        <p class="text-xs text-stone-500 mb-1">{{ day.date|date:"M d" }}</p>
+        <div class="rounded-xl bg-teal-50 p-3 dark:bg-teal-950/30">
+          <p class="text-lg font-bold text-teal-700 dark:text-teal-300">{{ day.count }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">Recent Transactions</h2>
+      <p class="text-xs text-stone-500">Platform fee: 3% per booking</p>
+    </div>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-left text-xs text-stone-700 dark:text-stone-300">
+        <thead class="bg-stone-50 font-semibold uppercase text-stone-600 dark:bg-slate-800/60 dark:text-stone-400">
+          <tr>
+            <th class="px-4 py-3">ID</th>
+            <th class="px-4 py-3">Patient</th>
+            <th class="px-4 py-3">Doctor</th>
+            <th class="px-4 py-3">Date</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Fee</th>
+            <th class="px-4 py-3">Platform Fee</th>
+            <th class="px-4 py-3">Refund</th>
+            <th class="px-4 py-3">Net Payout</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-stone-200 dark:divide-slate-800">
+          {% for apt in recent_appointments %}
+          <tr class="hover:bg-stone-50/50 dark:hover:bg-slate-800/30">
+            <td class="px-4 py-3.5">#{{ apt.pk }}</td>
+            <td class="px-4 py-3.5">{{ apt.patient.user.get_full_name|default:apt.patient.user.email }}</td>
+            <td class="px-4 py-3.5">{{ apt.doctor.user.get_full_name|default:apt.doctor.user.email }}</td>
+            <td class="px-4 py-3.5">{{ apt.appointment_date }}</td>
+            <td class="px-4 py-3.5">
+              <span class="rounded-full px-2.5 py-0.5 font-semibold {% if apt.status == 'completed' %}bg-emerald-100 text-emerald-800{% elif apt.status == 'cancelled' %}bg-red-100 text-red-800{% elif apt.status == 'confirmed' %}bg-blue-100 text-blue-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                {{ apt.get_status_display }}
+              </span>
+            </td>
+            <td class="px-4 py-3.5">{{ apt.paid_amount }}</td>
+            <td class="px-4 py-3.5">{{ apt.platform_fee_bdt }}</td>
+            <td class="px-4 py-3.5 {% if apt.refund_amount > 0 %}text-red-600{% endif %}">{{ apt.refund_amount|default:"0" }}</td>
+            <td class="px-4 py-3.5">{{ apt.net_doctor_payout_bdt }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="px-4 py-6 text-center text-stone-500">No appointments yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

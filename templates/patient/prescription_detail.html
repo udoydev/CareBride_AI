@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+  <div class="space-y-8">
+    
+    <!-- Top Action Bar & Language Selector -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200/80 pb-6 dark:border-slate-800">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+            <i class="fa-solid fa-wand-magic-sparkles text-teal-600 dark:text-teal-400"></i>
+            {% if summary_language == 'bn' %}এআই সচিত্র প্রেসক্রিপশন গাইড{% else %}AI Clinical Prescription Guide{% endif %}
+          </span>
+          <span class="text-xs font-mono font-bold text-stone-500 dark:text-stone-400">
+            Rx #{{ prescription.id }}
+          </span>
+        </div>
+        <h1 class="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+          {% if summary_language == 'bn' %}প্রেসক্রিপশন ও মেডিকেল বিশ্লেষণ{% else %}Prescription & Clinical Analysis{% endif %}
+        </h1>
+        <p class="mt-2 text-sm text-stone-600 dark:text-stone-400">
+          {% if summary_language == 'bn' %}
+            ডা. {{ prescription.doctor.user.get_full_name }} ({{ prescription.doctor.specialty|default:"মেডিসিন বিশেষজ্ঞ" }}) কর্তৃক {{ prescription.issued_at|date:"d M Y" }} তারিখে প্রস্তুতকৃত।
+          {% else %}
+            Issued by Dr. {{ prescription.doctor.user.get_full_name }} ({{ prescription.doctor.specialty|default:"General Specialist" }}) on {{ prescription.issued_at|date:"d M Y" }}.
+          {% endif %}
+        </p>
+      </div>
+
+      <!-- Control Buttons -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Language Switcher -->
+        <div class="inline-flex items-center rounded-full border border-stone-200 bg-white p-1 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <a href="?lang=en"
+            class="rounded-full px-4 py-1.5 text-xs font-bold transition {% if summary_language == 'en' %}bg-teal-600 text-white shadow-xs{% else %}text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white{% endif %}">
+            English
+          </a>
+          <a href="?lang=bn"
+            class="rounded-full px-4 py-1.5 text-xs font-bold transition {% if summary_language == 'bn' %}bg-teal-600 text-white shadow-xs{% else %}text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white{% endif %}">
+            বাংলা
+          </a>
+        </div>
+
+        <!-- Voice Aloud Button -->
+        <button id="playAloud" type="button"
+          data-speak-text="{{ summary_overview|striptags }} {{ summary_schedule|striptags }}"
+          data-lang="{{ summary_language }}"
+          onclick="window.CareBridgeSpeech && window.CareBridgeSpeech.speakText(this.dataset.speakText, this.dataset.lang)"
+          class="inline-flex h-11 items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-5 text-xs font-bold text-teal-800 shadow-xs transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300">
+          <i class="fa-solid fa-volume-high text-teal-600 dark:text-teal-400"></i>
+          {% if summary_language == 'bn' %}ভয়েস শুনুন{% else %}Play Audio Summary{% endif %}
+        </button>
+
+        <!-- Printable PDF Link -->
+        <a href="{% url 'patient:download_prescription' prescription.id %}" target="_blank"
+          class="inline-flex h-11 items-center gap-2 rounded-full bg-teal-600 px-6 text-xs font-bold text-white shadow-xs transition hover:bg-teal-500">
+          <i class="fa-solid fa-file-pdf text-sm"></i>
+          {% if summary_language == 'bn' %}প্রিন্ট / পিডিএফ ডাউনলোড{% else %}Print / Save PDF{% endif %}
+        </a>
+        <a href="{% url 'patient:chat_ui' %}?prescription_id={{ prescription.id }}"
+          class="inline-flex h-11 items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-5 text-xs font-bold text-teal-800 shadow-xs transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300">
+          <i class="fa-solid fa-comments text-sm"></i>
+          {% if summary_language == 'bn' %}চ্যাটবটে আলোচনা{% else %}Discuss in Chatbot{% endif %}
+        </a>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+
+      <!-- Left Column: Printable Style Prescription Medical Paper Sheet -->
+      <article class="rounded-3xl border border-stone-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900 text-stone-900 dark:text-stone-100 space-y-6">
+        
+        <!-- Rx Header Bar -->
+        <div class="flex items-start justify-between border-b border-stone-200 pb-5 dark:border-slate-800">
+          <div class="flex items-center gap-3">
+            <img src="{% static 'images/logo.png' %}" alt="CareBridgeAI Logo" class="h-10 w-auto object-contain">
+            <div>
+              <h2 class="font-extrabold text-lg text-teal-800 dark:text-teal-300 tracking-tight">CareBridgeAI Health</h2>
+              <p class="text-xs text-stone-500 font-medium">Smart Clinical & Healthcare Portal</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-base font-extrabold text-stone-900 dark:text-stone-100">Dr. {{ prescription.doctor.user.get_full_name }}</p>
+            <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">{{ prescription.doctor.specialty|default:"General Physician" }}</p>
+            <p class="text-[11px] text-stone-500 mt-0.5">{{ prescription.doctor.clinic_name|default:"CareBridge Digital Chamber" }}</p>
+          </div>
+        </div>
+
+        <!-- Patient Info Bar -->
+        <div class="grid grid-cols-2 gap-4 rounded-2xl bg-stone-50 p-4 border border-stone-100 dark:bg-slate-800/60 dark:border-slate-800 text-xs">
+          <div>
+            <span class="text-stone-500">Patient:</span> <strong class="text-stone-900 dark:text-stone-100">{{ prescription.patient.user.get_full_name|default:prescription.patient.user.email }}</strong>
+          </div>
+          <div class="text-right">
+            <span class="text-stone-500">Issued Date:</span> <strong class="text-stone-900 dark:text-stone-100">{{ prescription.issued_at|date:"d M Y, h:i A" }}</strong>
+          </div>
+          {% if prescription.chief_complaints %}
+            <div class="col-span-2">
+              <span class="text-stone-500">Chief Complaints (C/C):</span> <span class="font-medium text-stone-800 dark:text-stone-200">{{ prescription.chief_complaints }}</span>
+            </div>
+          {% endif %}
+          {% if prescription.diagnosis %}
+            <div class="col-span-2">
+              <span class="text-stone-500">Diagnosis (D):</span> <span class="font-bold text-teal-700 dark:text-teal-400">{{ prescription.diagnosis }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Prescribed Rx Medicines Table -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2 dark:border-slate-800">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-2">
+              <i class="fa-solid fa-prescription text-teal-600"></i> Prescribed Medicines (Rx)
+            </h3>
+            <span class="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700 dark:bg-teal-950/60 dark:text-teal-300">
+              {{ prescription.items.count }} Item(s)
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            {% for item in prescription.items.all %}
+              <div class="rounded-2xl border border-stone-100 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900/90 space-y-2">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 class="font-bold text-base text-stone-900 dark:text-stone-100">{{ item.medicine.brand_name|default:item.medicine.generic_name }}</h4>
+                    <p class="text-xs text-teal-600 dark:text-teal-400 font-medium">{{ item.medicine.generic_name }}</p>
+                  </div>
+                  <span class="rounded-xl bg-teal-100 px-3 py-1 text-xs font-extrabold text-teal-900 dark:bg-teal-950 dark:text-teal-300 shrink-0">
+                    {{ item.dosage }}
+                  </span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-4 text-xs text-stone-600 dark:text-stone-400 font-medium pt-1">
+                  <span><i class="fa-solid fa-clock text-teal-600 mr-1"></i> Frequency: <strong>{{ item.frequency }}x / day</strong></span>
+                  <span><i class="fa-solid fa-calendar-days text-teal-600 mr-1"></i> Duration: <strong>{{ item.duration_days }} days</strong></span>
+                  <span><i class="fa-solid fa-utensils text-teal-600 mr-1"></i> Timing: <strong>{{ item.get_timing_relation_to_meal_display }}</strong></span>
+                </div>
+
+                {% if item.special_instructions %}
+                  <p class="mt-1 text-xs text-stone-500 italic bg-stone-50 dark:bg-slate-800 p-2 rounded-xl">
+                    <i class="fa-solid fa-info-circle text-teal-600 mr-1"></i> {{ item.special_instructions }}
+                  </p>
+                {% endif %}
+              </div>
+            {% empty %}
+              <p class="text-xs text-stone-400 italic text-center py-6">No prescription items recorded.</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Additional Advice & Follow-Up Date -->
+        {% if prescription.advice_rules or prescription.tests_investigations or prescription.follow_up %}
+          <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-slate-800 dark:bg-slate-800/50 space-y-2 text-xs">
+            {% if prescription.tests_investigations %}
+              <div>
+                <strong class="text-stone-700 dark:text-stone-300">Required Tests/Investigations:</strong>
+                <p class="text-stone-800 dark:text-stone-200 font-medium mt-0.5">{{ prescription.tests_investigations }}</p>
+              </div>
+            {% endif %}
+            {% if prescription.advice_rules %}
+              <div>
+                <strong class="text-stone-700 dark:text-stone-300">Doctor Advice & Rules:</strong>
+                <p class="text-stone-800 dark:text-stone-200 font-medium mt-0.5">{{ prescription.advice_rules }}</p>
+              </div>
+            {% endif %}
+            {% if prescription.follow_up %}
+              <div class="pt-2 border-t border-stone-200 dark:border-slate-700 flex items-center justify-between">
+                <span class="font-bold text-teal-800 dark:text-teal-300"><i class="fa-solid fa-calendar-check mr-1"></i> Next Scheduled Follow-up:</span>
+                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+                  {{ prescription.follow_up.scheduled_date }} ({{ prescription.follow_up.get_status_display }})
+                </span>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+      </article>
+
+      <!-- Right Column: Interactive AI Prescription Explanation & Patient Guide -->
+      <article class="flex flex-col rounded-3xl border border-teal-200/80 bg-white p-6 shadow-md dark:border-teal-900/40 dark:bg-slate-900">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-slate-800">
+          <div class="flex items-center gap-3">
+            <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+              <i class="fa-solid fa-brain text-lg"></i>
+            </span>
+            <div>
+              <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">
+                {% if summary_language == 'bn' %}এআই প্রেসক্রিপশন সহায়িকা{% else %}AI Clinical Prescription Guide{% endif %}
+              </h2>
+              <p class="text-xs text-stone-500 dark:text-stone-400">
+                Powered by Gemini Medical Intelligence
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analyzer Tabs -->
+        <div class="mt-4 flex overflow-x-auto gap-2 border-b border-stone-100 pb-3 dark:border-slate-800 scrollbar-none" id="analyzerTabs">
+          <button type="button" data-tab="tab-overview"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition">
+            <i class="fa-solid fa-file-contract"></i>
+            {% if summary_language == 'bn' %}সারসংক্ষেপ{% else %}Overview{% endif %}
+          </button>
+          <button type="button" data-tab="tab-schedule"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            <i class="fa-solid fa-clock"></i>
+            {% if summary_language == 'bn' %}ওষুধের সময়সূচী{% else %}Schedule{% endif %}
+          </button>
+          <button type="button" data-tab="tab-precautions"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            <i class="fa-solid fa-shield-halved"></i>
+            {% if summary_language == 'bn' %}সতর্কতা ও খাদ্যবিধি{% else %}Precautions & Diet{% endif %}
+          </button>
+          <button type="button" data-tab="tab-warnings"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {% if summary_language == 'bn' %}জরুরি লক্ষণ{% else %}Warning Signals{% endif %}
+          </button>
+          <button type="button" data-tab="tab-deep"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            <i class="fa-solid fa-brain"></i>
+            {% if summary_language == 'bn' %}গভীর বিশ্লেষণ{% else %}Deep Analysis{% endif %}
+          </button>
+          <button type="button" data-tab="tab-faq"
+            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
+            <i class="fa-solid fa-circle-question"></i>
+            {% if summary_language == 'bn' %}প্রশ্নোত্তর{% else %}FAQ{% endif %}
+          </button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="mt-4 flex-1 space-y-4">
+          <!-- Overview Tab -->
+          <div id="tab-overview" class="tab-content block space-y-4">
+            <div class="rounded-2xl bg-teal-50/70 p-4 border border-teal-100 leading-relaxed dark:bg-teal-950/20 dark:border-teal-900/30">
+              <p class="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-300 mb-1.5">
+                {% if summary_language == 'bn' %}সংক্ষিপ্ত সারসংক্ষেপ{% else %}Brief Prescription Summary{% endif %}
+              </p>
+              <p class="text-xs font-semibold text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text">{{ summary_overview }}</p>
+            </div>
+
+            {% if summary_text %}
+              <div class="rounded-2xl border border-stone-200 p-4 shadow-2xs dark:border-slate-800 bg-white dark:bg-slate-900">
+                <p class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-2">
+                  {% if summary_language == 'bn' %}বিস্তারিত মেডিকেল বিবরণ ও নির্দেশনা{% else %}Detailed Prescription Guide{% endif %}
+                </p>
+                <div class="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text font-medium">{{ summary_text }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Schedule Tab -->
+          <div id="tab-schedule" class="tab-content hidden">
+            <div class="rounded-2xl bg-teal-50/60 p-4 border border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/30">
+              <p class="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-300 mb-2">
+                {% if summary_language == 'bn' %}দৈনিক সেবন নিয়মাবলী ও সময়সূচী{% else %}Daily Dosage & Meal Guidance{% endif %}
+              </p>
+              <div class="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text font-medium">{{ summary_schedule }}</div>
+            </div>
+          </div>
+
+          <!-- Precautions Tab -->
+          <div id="tab-precautions" class="tab-content hidden">
+            <div class="rounded-2xl bg-amber-50/60 p-4 border border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/30">
+              <p class="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 mb-2">
+                {% if summary_language == 'bn' %}খাদ্যবিধি ও প্রয়োজনীয় সতর্কতা{% else %}Dietary & Safety Precautions{% endif %}
+              </p>
+              <div class="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text font-medium">{{ summary_precautions }}</div>
+            </div>
+          </div>
+
+          <!-- Warnings Tab -->
+          <div id="tab-warnings" class="tab-content hidden">
+            <div class="rounded-2xl bg-red-50/60 p-4 border border-red-100 dark:bg-red-950/20 dark:border-red-900/30">
+              <p class="text-xs font-bold uppercase tracking-wider text-red-900 dark:text-red-300 mb-2">
+                {% if summary_language == 'bn' %}জরুরি হাসপাতালে যোগাযোগের লক্ষণসমূহ{% else %}Emergency Red-Flag Symptoms{% endif %}
+              </p>
+              <div class="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text font-medium">{{ summary_warnings }}</div>
+            </div>
+          </div>
+
+          <!-- Deep Analysis Tab -->
+          <div id="tab-deep" class="tab-content hidden space-y-4">
+            <div class="rounded-2xl bg-teal-50/70 p-4 border border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/30">
+              <p class="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-300 mb-2">
+                {% if summary_language == 'bn' %}প্রেসক্রিপশনের গভীর পরিসম্পদিত বিশ্লেষণ{% else %}Comprehensive Prescription Analysis{% endif %}
+              </p>
+              <p class="text-xs font-semibold text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text">{{ deep_analysis.overview|default:"" }}</p>
+            </div>
+
+            {% if deep_analysis.medicines_breakdown %}
+            <div class="space-y-3">
+              <p class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                {% if summary_language == 'bn' %}ঔষধ গুলোর বিস্তারিত ব্যাখ্যা{% else %}Detailed Medicine Breakdown{% endif %}
+              </p>
+              {% for med in deep_analysis.medicines_breakdown %}
+              <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900/90">
+                <h4 class="font-bold text-sm text-teal-800 dark:text-teal-300">{{ med.name }} <span class="text-xs text-stone-500">({{ med.generic }})</span></h4>
+                <div class="mt-2 space-y-2 text-xs text-stone-700 dark:text-stone-300">
+                  <p><strong>Purpose:</strong> {{ med.purpose }}</p>
+                  <p><strong>How to Take:</strong> {{ med.how_to_take }}</p>
+                  <p><strong>Duration:</strong> {{ med.duration_guidance }}</p>
+                  <div>
+                    <strong>Side Effects:</strong>
+                    <ul class="mt-1 list-disc pl-4 space-y-1">
+                      {% for effect in med.side_effects %}
+                      <li>{{ effect }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if deep_analysis.diet_interactions %}
+            <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+              <p class="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 mb-2">
+                {% if summary_language == 'bn' %}খাদ্যবিধি ও যোগাযোগ{% else %}Diet Interactions & Tips{% endif %}
+              </p>
+              <ul class="space-y-1.5 text-xs text-stone-800 dark:text-stone-200">
+                {% for tip in deep_analysis.diet_interactions %}
+                <li class="flex items-start gap-2"><i class="fa-solid fa-utensils text-amber-600 mt-0.5"></i> {{ tip }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            {% if deep_analysis.lifestyle_tips %}
+            <div class="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 dark:border-teal-900/40 dark:bg-teal-950/20">
+              <p class="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-300 mb-2">
+                {% if summary_language == 'bn' %}জীবনযাত্রা ও শারীরিক পরামর্শ{% else %}Lifestyle Recommendations{% endif %}
+              </p>
+              <ul class="space-y-1.5 text-xs text-stone-800 dark:text-stone-200">
+                {% for tip in deep_analysis.lifestyle_tips %}
+                <li class="flex items-start gap-2"><i class="fa-solid fa-heart-pulse text-teal-600 mt-0.5"></i> {{ tip }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            {% if deep_analysis.warning_signs %}
+            <div class="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-900/40 dark:bg-red-950/20">
+              <p class="text-xs font-bold uppercase tracking-wider text-red-900 dark:text-red-300 mb-2">
+                {% if summary_language == 'bn' %}জরুরি সতর্কতা ও লক্ষণসমূহ{% else %}Critical Warning Signs{% endif %}
+              </p>
+              <ul class="space-y-1.5 text-xs text-stone-800 dark:text-stone-200">
+                {% for sign in deep_analysis.warning_signs %}
+                <li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-red-600 mt-0.5"></i> {{ sign }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            {% if deep_analysis.follow_up_guidance %}
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+              <p class="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 mb-2">
+                {% if summary_language == 'bn' %}ফলো-আপ পরিকল্পনা{% else %}Follow-Up Preparation Guide{% endif %}
+              </p>
+              <p class="text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed clean-md-text">{{ deep_analysis.follow_up_guidance }}</p>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- FAQ Tab -->
+          <div id="tab-faq" class="tab-content hidden space-y-3">
+            <p class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+              {% if summary_language == 'bn' %}প্রেসক্রিপশন সম্পর্কে সাধারণ প্রশ্ন{% else %}Common Prescription Questions{% endif %}
+            </p>
+            {% if deep_analysis.faq %}
+              {% for item in deep_analysis.faq %}
+              <div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                <p class="text-xs font-bold text-teal-800 dark:text-teal-300 mb-1">Q: {{ item.q }}</p>
+                <p class="text-xs text-stone-700 dark:text-stone-300">A: {{ item.a }}</p>
+              </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-xs text-stone-500 dark:text-stone-400">
+                {% if summary_language == 'bn' %}কোনো FAQ ডাটা পাওয়া যায়নি।{% else %}No FAQ data available for this prescription.{% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const tabs = document.querySelectorAll("#analyzerTabs .tab-btn");
+    const contents = document.querySelectorAll(".tab-content");
+
+    tabs.forEach(tab => {
+      tab.addEventListener("click", function () {
+        const target = this.dataset.tab;
+
+        tabs.forEach(t => {
+          t.classList.remove("bg-teal-600", "text-white", "shadow-xs");
+          t.classList.add("border", "border-stone-200", "bg-stone-50", "text-stone-700", "dark:border-slate-800", "dark:bg-slate-800", "dark:text-stone-300");
+        });
+        this.classList.remove("border", "border-stone-200", "bg-stone-50", "text-stone-700", "dark:border-slate-800", "dark:bg-slate-800", "dark:text-stone-300");
+        this.classList.add("bg-teal-600", "text-white", "shadow-xs");
+
+        contents.forEach(c => c.classList.add("hidden"));
+        document.getElementById(target)?.classList.remove("hidden");
+      });
+    });
+
+    // Clean raw markdown syntax for eye-soothing typography
+    document.querySelectorAll(".clean-md-text").forEach(el => {
+      el.innerHTML = el.innerHTML
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-teal-950 dark:text-teal-200">$1</strong>')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/^###\s+/gm, '');
+    });
+  });
+</script>
+{% endblock %}

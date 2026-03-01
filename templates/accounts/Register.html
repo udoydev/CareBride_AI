@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+
+<!-- Auth layout -->
+<section class="mx-auto grid min-h-[calc(100vh-8rem)] max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:items-center lg:py-16">
+
+  <!-- Registration form -->
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-8 dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between">
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">
+        {% if site_lang == 'bn' %}অ্যাকাউন্ট তৈরি করুন{% else %}Registration{% endif %}
+      </p>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+        <span class="text-sm">🇧🇩</span> {% if site_lang == 'bn' %}বাংলাদেশ কেবল{% else %}Bangladesh Only{% endif %}
+      </span>
+    </div>
+
+    <h1 class="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
+      {% if site_lang == 'bn' %}আপনার অ্যাকাউন্ট খুলুন{% else %}Create your account{% endif %}
+    </h1>
+    <p class="mt-2 text-sm text-stone-600 dark:text-stone-300">
+      {% if site_lang == 'bn' %}শুধুমাত্র বাংলাদেশি নাগরিক এবং রেজিস্টার্ড ডাক্তারদের জন্য প্রযোজ্য।{% else %}Exclusively for Bangladeshi citizens and registered medical doctors.{% endif %}
+    </p>
+
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-4" id="register-form" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="{{ form.first_name.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}নামের প্রথমাংশ{% else %}First name{% endif %}</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.first_name.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.last_name.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}নামের শেষাংশ{% else %}Last name{% endif %}</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}<p class="mt-1 text-xs text-red-600">{{ form.last_name.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div>
+        <label for="{{ form.email.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}ইমেইল অ্যাড্রেস (লগইন আইডি){% else %}Email address (Login ID){% endif %}</label>
+        {{ form.email }}
+        {% if form.email.errors %}<p class="mt-1 text-xs text-red-600">{{ form.email.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label for="{{ form.phone_number.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}বাংলাদেশি মোবাইল নম্বর{% else %}Bangladeshi mobile number{% endif %}</label>
+        <div class="relative">
+          {{ form.phone_number }}
+        </div>
+        <p class="mt-1 text-[11px] text-stone-500">{% if site_lang == 'bn' %}ফরম্যাট: +88017XXXXXXXX অথবা 017XXXXXXXX{% else %}Format: +88017XXXXXXXX or 017XXXXXXXX{% endif %}</p>
+        {% if form.phone_number.errors %}<p class="mt-1 text-xs text-red-600">{{ form.phone_number.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label for="{{ form.password.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}পাসওয়ার্ড{% else %}Password{% endif %}</label>
+        {{ form.password }}
+        <p class="mt-1 text-[11px] text-stone-500">
+          {% if site_lang == 'bn' %}৮ অক্ষরের ন্যূনতম, ১ বড় অক্ষর, ১ ছোট অক্ষর, ১ নম্বর ও ১ বিশেষ অক্ষর{% else %}Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char{% endif %}
+        </p>
+        {% if form.password.errors %}<p class="mt-1 text-xs text-red-600">{{ form.password.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label for="{{ form.password2.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}পাসওয়ার্ড নিশ্চিত করুন{% else %}Confirm Password{% endif %}</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}<p class="mt-1 text-xs text-red-600">{{ form.password2.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}অ্যাকাউন্টের ধরন{% else %}Account Type{% endif %}</label>
+        <div class="grid grid-cols-2 gap-3">
+          {% for radio in form.role %}
+          <label class="flex cursor-pointer items-center justify-center rounded-xl border border-stone-200 py-2.5 text-sm font-medium text-stone-700 transition has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-700 dark:border-slate-800 dark:text-stone-300 dark:has-[:checked]:border-teal-500 dark:has-[:checked]:bg-teal-900/30 dark:has-[:checked]:text-teal-400">
+            {{ radio.tag }} <span class="ml-1.5">{{ radio.choice_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Doctor-specific fields -->
+      <div id="doctor-fields" class="space-y-4 rounded-2xl border border-teal-100 bg-teal-50/40 p-4 dark:border-teal-900/40 dark:bg-teal-950/20">
+        <p class="text-xs font-semibold text-teal-800 dark:text-teal-300">🩺 {% if site_lang == 'bn' %}ডাক্তার ভেরিফিকেশন ও পেশাগত তথ্য{% else %}Doctor Verification & Professional Details{% endif %}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="{{ form.experience_years.id_for_label }}" class="mb-1 block text-xs font-medium text-stone-700 dark:text-stone-300">
+              {% if site_lang == 'bn' %}অভিজ্ঞতার বছর (বাধ্যতামূলক){% else %}Years of Experience (Required){% endif %}
+            </label>
+            {{ form.experience_years }}
+            {% if form.experience_years.errors %}<p class="mt-1 text-xs text-red-600">{{ form.experience_years.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.consultation_fee.id_for_label }}" class="mb-1 block text-xs font-medium text-stone-700 dark:text-stone-300">
+              {% if site_lang == 'bn' %}পরামর্শ চার্জ (BDT) (বাধ্যতামূলক){% else %}Consultation Fee BDT (Required){% endif %}
+            </label>
+            {{ form.consultation_fee }}
+            {% if form.consultation_fee.errors %}<p class="mt-1 text-xs text-red-600">{{ form.consultation_fee.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+        <div>
+          <label for="{{ form.specialty.id_for_label }}" class="mb-1 block text-xs font-medium text-stone-700 dark:text-stone-300">
+            {% if site_lang == 'bn' %}বিশেষতা (বাধ্যতামূলক){% else %}Specialty (Required){% endif %}
+          </label>
+          {{ form.specialty }}
+          {% if form.specialty.errors %}<p class="mt-1 text-xs text-red-600">{{ form.specialty.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.bmdc_number.id_for_label }}" class="mb-1 block text-xs font-medium text-stone-700 dark:text-stone-300">BMDC Registration Number</label>
+          {{ form.bmdc_number }}
+          {% if form.bmdc_number.errors %}<p class="mt-1 text-xs text-red-600">{{ form.bmdc_number.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.bmdc_certificate.id_for_label }}" class="mb-1 block text-xs font-medium text-stone-700 dark:text-stone-300">
+            {% if site_lang == 'bn' %}বিএমডিসি লাইসেন্স / সার্টিফিকেট আপলোড করুন (বাধ্যতামূলক){% else %}Upload BMDC License / Certificate (Required){% endif %}
+          </label>
+          {{ form.bmdc_certificate }}
+          <p class="mt-1 text-[10px] text-stone-500">{% if site_lang == 'bn' %}অ্যাডমিন ভেরিফিকেশনের জন্য অফিসিয়াল নথি প্রমাণ।{% else %}Official document proof for admin verification.{% endif %}</p>
+          {% if form.bmdc_certificate.errors %}<p class="mt-1 text-xs text-red-600">{{ form.bmdc_certificate.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <!-- Patient-specific fields -->
+      <div id="patient-fields" class="space-y-4 rounded-2xl border border-stone-200 bg-stone-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+        <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">🪪 {% if site_lang == 'bn' %}রোগী নাগরিক ভেরিফিকেশন (পরিচয়পত্র আপলোড){% else %}Patient Identity Verification (BD Document Upload){% endif %}</p>
+        <div>
+          <label for="{{ form.district.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}জেলা / District{% else %}District (Bangladesh){% endif %}</label>
+          {{ form.district }}
+          {% if form.district.errors %}<p class="mt-1 text-xs text-red-600">{{ form.district.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.patient_identity_doc.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">
+            {% if site_lang == 'bn' %}এনআইডি কার্ড বা জন্ম সনদের ছবি/পিডিএফ আপলোড করুন{% else %}Upload NID Card, Birth Certificate, or Passport (Image/PDF){% endif %}
+          </label>
+          {{ form.patient_identity_doc }}
+          <p class="mt-1 text-[11px] text-stone-500">{% if site_lang == 'bn' %}অফলাইন চেম্বার অ্যাপয়েন্টমেন্ট নিরাপত্তার জন্য ডকুমেন্ট প্রমাণপত্র গ্রহণ করা হয়।{% else %}Document proof for offline in-person chamber consultation safety.{% endif %}</p>
+          {% if form.patient_identity_doc.errors %}<p class="mt-1 text-xs text-red-600">{{ form.patient_identity_doc.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+
+
+      <button type="submit"
+        class="inline-flex h-11 w-full items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500/50">
+        {% if site_lang == 'bn' %}অ্যাকাউন্ট তৈরি করুন{% else %}Create BD Account{% endif %}
+      </button>
+    </form>
+
+    <p class="mt-6 text-center text-sm text-stone-600 dark:text-stone-400">
+      {% if site_lang == 'bn' %}ইতিমধ্যে অ্যাকাউন্ট আছে?{% else %}Already have an account?{% endif %} <a href="{% url 'accounts:login' %}" class="font-semibold text-teal-600 hover:underline dark:text-teal-400">{% if site_lang == 'bn' %}লগ ইন করুন{% else %}Log in with Email{% endif %}</a>
+    </p>
+  </div>
+
+  <!-- Visual -->
+  <div class="min-h-[24rem] rounded-3xl border border-dashed border-stone-300 p-5 md:p-6 dark:border-stone-700 dark:bg-stone-900">
+    <div class="relative flex h-full flex-col justify-between rounded-2xl border border-stone-200 bg-white/70 p-5 backdrop-blur-sm md:p-6 dark:border-stone-800 dark:bg-stone-950/70">
+      <div>
+        <span class="inline-block rounded-lg bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">CareBridge BD Health Network</span>
+        <h3 class="mt-3 text-lg font-semibold text-stone-800 dark:text-stone-200">Smart AI Healthcare for Bangladesh</h3>
+        <p class="mt-1 text-xs text-stone-600 dark:text-stone-400">Connecting Bangladeshi patients with verified BMDC doctors, digital prescriptions, and voice reminders.</p>
+      </div>
+
+      <div class="mt-6 grid gap-4">
+        <img src="{% static 'images/Welcome Illustration.png' %}" alt="Welcome illustration"
+          class="h-44 w-full rounded-3xl border border-stone-200 object-cover shadow-sm dark:border-stone-800" loading="lazy">
+        <img src="{% static 'images/Patient Photo.png' %}" alt="Patient portrait"
+          class="h-36 w-full rounded-3xl border border-stone-200 object-cover shadow-sm dark:border-stone-800" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const roleRadios = document.querySelectorAll('input[name="role"]');
+    const doctorFields = document.getElementById('doctor-fields');
+    const patientFields = document.getElementById('patient-fields');
+
+    const doctorInputs = doctorFields ? doctorFields.querySelectorAll('input, select, textarea') : [];
+    const patientInputs = patientFields ? patientFields.querySelectorAll('input, select, textarea') : [];
+
+    function toggleFields() {
+      const selected = document.querySelector('input[name="role"]:checked')?.value;
+      if (selected === 'doctor') {
+        doctorFields.classList.remove('hidden');
+        patientFields.classList.add('hidden');
+        doctorInputs.forEach(el => el.removeAttribute('disabled'));
+        patientInputs.forEach(el => el.setAttribute('disabled', ''));
+      } else {
+        doctorFields.classList.add('hidden');
+        patientFields.classList.remove('hidden');
+        doctorInputs.forEach(el => el.setAttribute('disabled', ''));
+        patientInputs.forEach(el => el.removeAttribute('disabled'));
+      }
+    }
+
+    roleRadios.forEach(radio => radio.addEventListener('change', toggleFields));
+    toggleFields();
+  });
+</script>
+
+{% endblock %}

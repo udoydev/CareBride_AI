@@ -1,0 +1,29 @@
+{% load i18n static jazzmin %}
+
+<!-- Main Top Header Bar for Jazzmin Admin with Direct Log Out Button -->
+<nav class="main-header navbar navbar-expand {{ jazzmin_ui.navbar_classes }}" id="jaz-header">
+    <ul class="navbar-nav">
+        <li class="nav-item">
+            <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+        </li>
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{% url 'home' %}" class="nav-link">
+                <i class="fas fa-home"></i> CareBridge Home
+            </a>
+        </li>
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{% url 'accounts:admin_unverified_dashboard' %}" class="nav-link text-warning font-weight-bold">
+                <i class="fas fa-user-check"></i> Unverified Approval Dashboard
+            </a>
+        </li>
+    </ul>
+
+    <!-- Right Top Header Actions: Prominent Red Log Out Button -->
+    <ul class="navbar-nav ml-auto align-items-center">
+        <li class="nav-item">
+            <a href="{% url 'accounts:logout' %}" class="nav-link btn btn-danger btn-sm text-white font-weight-bold px-3 py-1 shadow-sm" style="background-color: #dc3545 !important; border-color: #dc3545 !important; color: #ffffff !important; border-radius: 20px;" title="Log Out of CareBridge Admin">
+                <i class="fas fa-sign-out-alt mr-1"></i> Log Out
+            </a>
+        </li>
+    </ul>
+</nav>

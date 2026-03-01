@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carebridge AI - Soniox Bilingual Voice Assistant & Explainer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Hind Siliguri', 'Outfit', sans-serif; }
+        .pulse-red { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .waveform-bar {
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-400 to-emerald-500 flex items-center justify-center font-bold text-slate-950 text-2xl shadow-lg shadow-teal-500/20">
+                🎙️
+            </div>
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-teal-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent">
+                    Carebridge Bilingual Voice AI
+                </h1>
+                <p class="text-xs text-slate-400">Soniox Real-Time STT (stt-rt-v5) • Bangla & English Medical Explainer</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Language Selector Switch (Bangla vs English) -->
+            <div class="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+                <button id="lang-bn-btn" onclick="setLanguage('bn')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 text-slate-950 shadow">
+                    🇧🇩 বাংলা (Bangla)
+                </button>
+                <button id="lang-en-btn" onclick="setLanguage('en')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-slate-200">
+                    🇺🇸 English
+                </button>
+            </div>
+
+            <!-- Voice Control Action Bar (ON, OFF, RESTART) -->
+            <div class="flex items-center gap-1.5 bg-slate-950 px-3.5 py-1.5 rounded-2xl border border-slate-800 text-xs">
+                <span class="text-slate-400 font-medium">Voice:</span>
+                <strong id="voice-state-text" class="text-emerald-400 mr-1">ON</strong>
+                <button onclick="controlVoice('on')" class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition">🟢 ON</button>
+                <button onclick="controlVoice('off')" class="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition">🔴 OFF</button>
+                <button onclick="controlVoice('restart')" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition" title="Replay voice explanation">🔄 RESTART</button>
+            </div>
+
+            <a href="{% url 'home' %}" class="text-xs font-semibold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                ← {% if site_lang == 'bn' %}ড্যাশবোর্ড{% else %}Dashboard{% endif %}
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Controls & Mic Panel (5 Cols) -->
+        <div class="lg:col-span-5 space-y-6">
+            <!-- Voice Status Card -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
+                <div id="mic-status-badge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 mb-6">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="status-dot"></span>
+                    <span id="status-text">Microphone OFF</span>
+                </div>
+
+                <!-- Big Mic Button -->
+                <div class="relative flex justify-center items-center my-4">
+                    <button id="mic-toggle-btn" class="w-28 h-28 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-slate-950 font-bold flex flex-col items-center justify-center shadow-2xl shadow-teal-500/30 transition-all transform active:scale-95 group">
+                        <span class="text-4xl group-hover:scale-110 transition-transform" id="mic-icon">🎙️</span>
+                        <span class="text-xs font-bold mt-1 tracking-wider" id="mic-btn-text">Start Mic (ON)</span>
+                    </button>
+                </div>
+
+                <!-- Audio Visualizer Waveform -->
+                <div class="flex justify-center items-center gap-1.5 h-8 my-4" id="visualizer-box">
+                    <div class="w-1.5 bg-teal-500/40 rounded-full h-3 waveform-bar"></div>
+                    <div class="w-1.5 bg-teal-500/40 rounded-full h-5 waveform-bar"></div>
+                    <div class="w-1.5 bg-teal-500/40 rounded-full h-7 waveform-bar"></div>
+                    <div class="w-1.5 bg-teal-500/40 rounded-full h-4 waveform-bar"></div>
+                    <div class="w-1.5 bg-teal-500/40 rounded-full h-6 waveform-bar"></div>
+                </div>
+
+                <p class="text-xs text-slate-400" id="mic-hint-text">
+                    Click <strong>Start Mic</strong> and speak clearly in <strong>Bangla</strong> or <strong>English</strong>.
+                </p>
+            </div>
+
+            <!-- Quick Preset Explainer Prompts (Bilingual) -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+                <h3 class="text-xs font-bold text-teal-400 uppercase tracking-wider" id="preset-title">💡 Quick Medical Explainer Prompts</h3>
+                <div class="space-y-2" id="preset-prompts-container">
+                    <!-- Prompts injected via JS based on selected language -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Transcription & AI Explanation (7 Cols) -->
+        <div class="lg:col-span-7 space-y-6 flex flex-col">
+            <!-- Real-Time Speech-to-Text Terminal -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col h-[320px]">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                        <span>⚡ Soniox Real-Time Speech Recognition</span>
+                        <span class="text-[10px] bg-teal-950 text-teal-300 border border-teal-800 px-2 py-0.5 rounded-full font-mono">16kHz PCM</span>
+                    </h2>
+                    <span class="text-[10px] text-slate-400 font-mono" id="stt-lang-indicator">Mode: BN / EN</span>
+                </div>
+
+                <div id="live-transcription-box" class="flex-1 overflow-y-auto bg-slate-950/90 rounded-2xl p-4 border border-slate-800/90 text-sm font-sans text-slate-200 space-y-3">
+                    <div class="text-slate-500 text-xs italic" id="stt-placeholder">
+                        Start speaking to see real-time transcription and translation...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Carebridge AI Response & Clean Speech Output -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 flex-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                            <span>🤖 Carebridge Medical AI Response</span>
+                        </h2>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-stop-speech" onclick="controlVoice('off')" class="hidden px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                                <span>⏹️ Stop Voice</span>
+                            </button>
+                            <button id="btn-speak-response" onclick="controlVoice('restart')" class="hidden px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                                <span>🔊 Play HD Voice</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="ai-response-box" class="bg-slate-950/90 rounded-2xl p-4 border border-slate-800/90 text-sm text-slate-200 min-h-[120px] leading-relaxed">
+                        <p class="text-slate-400 text-xs" id="ai-placeholder">
+                            AI medical advice will appear here and read aloud in crystal-clear HD speech.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const WS_URL = "{{ ws_url }}";
+        let ws = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let scriptProcessor = null;
+        let isRecording = false;
+        let lastTranscribedText = "";
+        let isVoiceOutputEnabled = true;
+        let currentLanguage = "bn";
+        let currentSpeechText = "";
+
+        const micBtn = document.getElementById('mic-toggle-btn');
+        const micIcon = document.getElementById('mic-icon');
+        const micBtnText = document.getElementById('mic-btn-text');
+        const statusBadge = document.getElementById('mic-status-badge');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const transcriptionBox = document.getElementById('live-transcription-box');
+        const aiResponseBox = document.getElementById('ai-response-box');
+        const speakBtn = document.getElementById('btn-speak-response');
+        const stopSpeechBtn = document.getElementById('btn-stop-speech');
+
+        micBtn.addEventListener('click', toggleRecording);
+        renderPresets();
+
+        class CarebridgePageVoicePlayer {
+            constructor() {
+                this.currentAudio = null;
+                this.isEnabled = true;
+                this.currentText = "";
+                this.currentLang = "bn";
+            }
+
+            cleanText(text) {
+                if (!text) return "";
+                return String(text)
+                    .replace(/[\*\#\_\~`\•\-\>\🚨\💡\❤️\🤒\🩸\🤖\⚡\🎙️\🌐\📋\🗣️]/g, ' ')
+                    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+                    .replace(/https?:\/\/\S+/g, '')
+                    .replace(/<[^>]*>/g, ' ')
+                    .replace(/\d+\./g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            play(text, lang = "bn", force = false) {
+                if (!force && !this.isEnabled) {
+                    this.stop();
+                    return;
+                }
+
+                this.stop();
+                this.currentText = text;
+                this.currentLang = lang || currentLanguage;
+
+                const cleaned = this.cleanText(text);
+                if (!cleaned) return;
+
+                const ttsUrl = `/api/voice/tts/?text=${encodeURIComponent(cleaned)}&lang=${encodeURIComponent(this.currentLang)}&t=${Date.now()}`;
+                const fallbackSpeak = () => {
+                    if (!window.speechSynthesis) return;
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(cleaned);
+                    utterance.lang = this.currentLang === 'en' ? 'en-US' : 'bn-BD';
+                    utterance.rate = this.currentLang === 'en' ? 1.0 : 0.9;
+                    utterance.pitch = 1.0;
+                    window.speechSynthesis.speak(utterance);
+                };
+
+                const audio = new Audio(ttsUrl);
+                this.currentAudio = audio;
+                stopSpeechBtn?.classList.remove('hidden');
+                speakBtn?.classList.remove('hidden');
+
+                audio.onerror = () => {
+                    if (this.currentAudio === audio && this.isEnabled) {
+                        fallbackSpeak();
+                    }
+                };
+
+                audio.oncanplaythrough = () => {
+                    if (this.currentAudio === audio && this.isEnabled) {
+                        audio.play().catch(() => fallbackSpeak());
+                    }
+                };
+
+                audio.onended = () => {
+                    stopSpeechBtn?.classList.add('hidden');
+                };
+
+                audio.play().catch(() => fallbackSpeak());
+            }
+
+            stop() {
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.currentTime = 0;
+                    this.currentAudio = null;
+                }
+                stopSpeechBtn?.classList.add('hidden');
+            }
+
+            restart() {
+                if (this.currentAudio && this.isEnabled) {
+                    this.currentAudio.currentTime = 0;
+                    this.currentAudio.play().catch(() => {});
+                } else if (this.currentText) {
+                    this.play(this.currentText, this.currentLang, true);
+                }
+            }
+        }
+
+        const pageVoicePlayer = new CarebridgePageVoicePlayer();
+
+        function controlVoice(action) {
+            const stateText = document.getElementById('voice-state-text');
+            if (action === 'on') {
+                pageVoicePlayer.isEnabled = true;
+                isVoiceOutputEnabled = true;
+                if (stateText) {
+                    stateText.innerText = "ON";
+                    stateText.className = "text-emerald-400 mr-1";
+                }
+                if (currentSpeechText) {
+                    pageVoicePlayer.play(currentSpeechText, currentLanguage, true);
+                }
+            } else if (action === 'off') {
+                pageVoicePlayer.isEnabled = false;
+                isVoiceOutputEnabled = false;
+                pageVoicePlayer.stop();
+                if (stateText) {
+                    stateText.innerText = "OFF";
+                    stateText.className = "text-rose-400 mr-1";
+                }
+            } else if (action === 'restart') {
+                pageVoicePlayer.isEnabled = true;
+                isVoiceOutputEnabled = true;
+                if (stateText) {
+                    stateText.innerText = "ON";
+                    stateText.className = "text-emerald-400 mr-1";
+                }
+                pageVoicePlayer.restart();
+            }
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            const bnBtn = document.getElementById('lang-bn-btn');
+            const enBtn = document.getElementById('lang-en-btn');
+            const indicator = document.getElementById('stt-lang-indicator');
+            const hintText = document.getElementById('mic-hint-text');
+
+            if (lang === 'bn') {
+                bnBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 text-slate-950 shadow";
+                enBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-slate-200";
+                indicator.innerText = "Mode: Bangla (বাংলা)";
+                hintText.innerHTML = "স্পষ্টভাবে <strong>বাংলায়</strong> কথা বলুন। কেয়ারব্রীজ এআই বাংলা ভাষায় সাহায্য করবে।";
+            } else {
+                enBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition bg-emerald-500 text-slate-950 shadow";
+                bnBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition text-slate-400 hover:text-slate-200";
+                indicator.innerText = "Mode: English";
+                hintText.innerHTML = "Speak clearly in <strong>English</strong>. Carebridge AI will respond in simple English.";
+            }
+
+            renderPresets();
+            pageVoicePlayer.stop();
+        }
+
+        function renderPresets() {
+            const container = document.getElementById('preset-prompts-container');
+            const title = document.getElementById('preset-title');
+
+            if (currentLanguage === 'bn') {
+                title.innerText = "💡 দ্রুত বাংলা চিকিৎসা প্রশ্ন (বিষয় অনুযায়ী)";
+                container.innerHTML = `
+                    <button onclick="sendQuickPrompt('প্রাথমিক:fever, জ্বর ও মাথাব্যথার what to do?')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🤒 জ্বর ও মাথাব্যথার প্রাথমিক চিকিৎসা</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('উচ্চ রক্তচাপ (High BP) কমানোর নিয়ম ও খাবার বর্জন')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>❤️ উচ্চ রক্তচাপ নিয়ন্ত্রণ ও ডায়েট</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('ডায়াবেটিস: খাদ্যাভ্যাস, ওষুধ ও রক্তে শর্করা পরিমাপ')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🩸 ডায়াবেটিস পরিচর্যা ও শর্করা ট্র্যাকিং</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('গ্যাস্ট্রিক ও বুক জ্বালা: কারণ, ওষুধ ও খাবার')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🫀 গ্যাস্ট্রিক ও অ্যCIDITY ব্যবস্থাপনা</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('কাশি ও সর্দি: ঘরোয়া চিকিৎসা ও ওষুধ')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🤧 কাশি, সর্দি ও গলা ব্যথার প্রতিকারণ</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('জরুরি: হৃদযান্ত্রণা, অচেতন বা শ্বাসকষ্ট — ৯৯৯ কল')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🚨 জরুরি চিকিৎসা সতর্কতা (999)</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                `;
+            } else {
+                title.innerText = "💡 Dynamic Medical Explainer Presets (by topic)";
+                container.innerHTML = `
+                    <button onclick="sendQuickPrompt('Fever, headache and body pain — first aid and red flags')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🤒 Fever, headache & body pain first aid</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('High blood pressure: how to control it and what foods to avoid')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>❤️ High BP control & dietary restrictions</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('Diabetes care: diet chart, medicine timing and blood sugar targets')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🩸 Diabetes diet, meds & sugar targets</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('Gastric pain and acidity: causes, OTC medicines and lifestyle changes')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🫀 Gastric pain & acidity management</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('Cough and cold: home remedies, medicines and when to see a doctor')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🤧 Cough, cold & sore throat care</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                    <button onclick="sendQuickPrompt('Emergency: chest pain, unconsciousness or heavy bleeding — call 999')" class="w-full text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-xs text-slate-300 hover:text-teal-300 transition flex items-center justify-between">
+                        <span>🚨 Emergency warning — call 999</span>
+                        <span class="text-slate-500">▶</span>
+                    </button>
+                `;
+            }
+        }
+
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 16000,
+                    }
+                });
+
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    updateStatus(true, currentLanguage === 'bn' ? "লাইভ ভয়েস রেকর্ড হচ্ছে..." : "Live Voice Recording...");
+                    isRecording = true;
+                    micIcon.innerText = "⏹️";
+                    micBtnText.innerText = currentLanguage === 'bn' ? "থামুন (Stop)" : "Stop Mic (OFF)";
+                    micBtn.classList.add('pulse-red');
+
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                    const source = audioContext.createMediaStreamSource(mediaStream);
+                    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                    scriptProcessor.onaudioprocess = (e) => {
+                        if (!isRecording || ws.readyState !== WebSocket.OPEN) return;
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const pcmInt16 = convertFloat32ToInt16(inputData);
+                        ws.send(pcmInt16.buffer);
+                        animateVisualizer(inputData);
+                    };
+
+                    source.connect(scriptProcessor);
+                    scriptProcessor.connect(audioContext.destination);
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === "transcription") {
+                        appendTranscription(data);
+                        if (data.original || data.text) {
+                            lastTranscribedText = data.original || data.text;
+                        }
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error("WebSocket Error:", err);
+                    updateStatus(false, "Connection Disconnected");
+                };
+
+                ws.onclose = () => {
+                    stopRecording();
+                };
+
+            } catch (err) {
+                alert("Microphone access error: " + err.message);
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            if (scriptProcessor) {
+                scriptProcessor.disconnect();
+                scriptProcessor = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            if (ws) {
+                ws.send(JSON.stringify({ type: "finish" }));
+                ws.close();
+            }
+
+            updateStatus(false, currentLanguage === 'bn' ? "মাইক্রোফোন বন্ধ" : "Microphone OFF");
+            micIcon.innerText = "🎙️";
+            micBtnText.innerText = currentLanguage === 'bn' ? "কথা বলুন (ON)" : "Start Mic (ON)";
+            micBtn.classList.remove('pulse-red');
+
+            if (lastTranscribedText && lastTranscribedText.trim().length > 2) {
+                fetchAIExplanation(lastTranscribedText);
+            }
+        }
+
+        function convertFloat32ToInt16(buffer) {
+            let l = buffer.length;
+            let buf = new Int16Array(l);
+            while (l--) {
+                let s = Math.max(-1, Math.min(1, buffer[l]));
+                buf[l] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return buf;
+        }
+
+        function animateVisualizer(buffer) {
+            let sum = 0;
+            for (let i = 0; i < buffer.length; i += 10) {
+                sum += Math.abs(buffer[i]);
+            }
+            const avg = sum / (buffer.length / 10);
+            const bars = document.querySelectorAll('.waveform-bar');
+            bars.forEach((bar, idx) => {
+                const h = Math.min(28, Math.max(4, avg * 100 * (idx + 1) * 0.5));
+                bar.style.height = `${h}px`;
+            });
+        }
+
+        function updateStatus(active, msg) {
+            statusText.innerText = msg;
+            if (active) {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
+                statusBadge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800 mb-6";
+            } else {
+                statusDot.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
+                statusBadge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 mb-6";
+            }
+        }
+
+        function appendTranscription(data) {
+            const placeholder = document.getElementById('stt-placeholder');
+            if (placeholder) placeholder.remove();
+
+            const div = document.createElement('div');
+            div.className = "p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-1";
+            div.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] text-slate-400">
+                    <span class="font-semibold text-teal-400">Speaker ${data.speaker} (${(data.language || currentLanguage).toUpperCase()})</span>
+                    <span class="text-slate-500 font-mono">Soniox Real-Time STT</span>
+                </div>
+                <div class="text-slate-100 font-medium text-sm">🗣️ Recognized: <span>${data.original || data.text}</span></div>
+                ${data.translation ? `<div class="text-emerald-300 text-xs">🌐 Translation: <span>${data.translation}</span></div>` : ''}
+            `;
+            transcriptionBox.appendChild(div);
+            transcriptionBox.scrollTop = transcriptionBox.scrollHeight;
+        }
+
+        async function sendQuickPrompt(promptText) {
+            lastTranscribedText = promptText;
+            appendTranscription({
+                speaker: 1,
+                language: currentLanguage,
+                original: promptText,
+                text: promptText,
+                translation: currentLanguage === 'bn' ? 'Bangla Medical Query' : 'English Medical Query'
+            });
+            fetchAIExplanation(promptText);
+        }
+
+        async function fetchAIExplanation(queryText) {
+            aiResponseBox.innerHTML = `
+                <div class="flex items-center gap-3 text-teal-300 text-xs font-medium py-4">
+                    <div class="w-4 h-4 rounded-full border-2 border-teal-400 border-t-transparent animate-spin"></div>
+                    <span>Carebridge Medical AI is preparing response...</span>
+                </div>
+            `;
+            try {
+                const res = await fetch("/api/voice/explainer/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ query: queryText, language: currentLanguage })
+                });
+                const data = await res.json();
+                if (data.success && data.explanation) {
+                    aiResponseBox.innerHTML = `
+                        <div class="prose prose-invert max-w-none text-slate-100 text-sm leading-relaxed">
+                            ${data.explanation.replace(/\n/g, '<br>')}
+                        </div>
+                    `;
+                    currentSpeechText = data.explanation;
+                    pageVoicePlayer.play(data.explanation, currentLanguage, false);
+                } else {
+                    aiResponseBox.innerHTML = `<p class="text-rose-400 text-xs">Error generating advice: ${data.error || 'Please try again'}</p>`;
+                }
+            } catch (err) {
+                aiResponseBox.innerHTML = `<p class="text-rose-400 text-xs">Server Error: ${err.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

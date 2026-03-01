@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-2xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center gap-2 mb-6">
+    <a href="{% url 'doctors:appointment_list' %}" class="text-sm font-medium text-teal-600 hover:underline dark:text-teal-400">
+      <i class="fa-solid fa-arrow-left mr-1"></i> Back to appointments
+    </a>
+  </div>
+
+  <div class="rounded-3xl border border-red-200 bg-red-50/60 p-6 shadow-sm dark:border-red-900/40 dark:bg-red-950/20">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+      </span>
+      <div>
+        <h1 class="text-xl font-semibold text-red-900 dark:text-red-300">Emergency Notification</h1>
+        <p class="text-xs text-red-700 dark:text-red-400">Send an urgent message to all your booked patients.</p>
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-xl bg-white p-4 text-sm text-stone-700 dark:bg-slate-900 dark:text-stone-300">
+      <p>You have <strong>{{ upcoming_count }}</strong> upcoming confirmed appointment(s).</p>
+    </div>
+
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Notification Title</label>
+        <input type="text" name="title" required placeholder="e.g. Clinic Closed Tomorrow" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Message</label>
+        <textarea name="message" rows="4" required placeholder="Explain the emergency or cancellation reason..." class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Filter by Date (optional)</label>
+        <input type="date" name="appointment_date" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Leave empty to send to all upcoming confirmed appointments.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" name="send_all" id="sendAll" class="rounded border-stone-300 text-teal-600 focus:ring-teal-600">
+        <label for="sendAll" class="text-sm text-stone-700 dark:text-stone-300">Include all past and future confirmed appointments</label>
+      </div>
+      <button type="submit" class="inline-flex h-11 items-center justify-center rounded-full bg-red-600 px-6 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
+        <i class="fa-solid fa-paper-plane mr-2"></i> Send Emergency Alert
+      </button>
+    </form>
+  </div>
+</section>
+{% endblock %}

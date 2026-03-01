@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/patient_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-[1600px] px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+  <div class="space-y-8">
+    
+    <!-- Page Header & Action Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200/80 pb-6 dark:border-slate-800">
+      <div>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-bold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+          <i class="fa-solid fa-notes-medical"></i>
+          {% if site_lang == 'bn' %}হেলথ জার্নি ও টাইমলাইন{% else %}Health Journey & Timeline{% endif %}
+        </span>
+        <h1 class="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+          {% if site_lang == 'bn' %}স্বাস্থ্য রেকর্ড ও মেডিকেল ইতিহাস{% else %}Medical History & Test Reports{% endif %}
+        </h1>
+        <p class="mt-2 text-sm text-stone-600 dark:text-stone-400">
+          {% if site_lang == 'bn' %}সকল ডাক্তার প্রেসক্রিপশন, প্যাথলজি টেস্ট এবং এক্সটার্নাল রিপোর্টের সচিত্র টাইমলাইন।{% else %}Complete chronological timeline of your prescriptions, lab tests, and external doctor consultations.{% endif %}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a href="{% url 'prescriptions:scan_prescription' %}"
+          class="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-5 text-xs font-bold text-stone-800 shadow-sm transition hover:border-teal-300 hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-teal-600">
+          <i class="fa-solid fa-camera text-sm"></i>
+          {% if site_lang == 'bn' %}প্রেসক্রিপশন স্ক্যান{% else %}Scan Prescription{% endif %}
+        </a>
+        <button onclick="document.getElementById('uploadReportModal').classList.remove('hidden')"
+          class="inline-flex h-11 items-center gap-2 rounded-full bg-teal-600 px-6 text-xs font-bold text-white shadow-sm transition hover:bg-teal-500">
+          <i class="fa-solid fa-file-arrow-up text-sm"></i>
+          {% if site_lang == 'bn' %}টেস্ট রিপোর্ট / প্রেসক্রিপশন আপলোড করুন{% else %}Upload Test Report / Prescription{% endif %}
+        </button>
+      </div>
+    </div>
+
+    {% if not ai_available %}
+    <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+      <div class="flex items-center gap-3">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+        </span>
+        <div>
+          <p class="text-sm font-bold text-amber-900 dark:text-amber-300">
+            {% if site_lang == 'bn' %}এআই পরিষেবা বর্তমানে অনুপলব্ধ{% else %}AI Service Currently Unavailable{% endif %}
+          </p>
+          <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">
+            {% if site_lang == 'bn' %}এআই-ভিত্তিক স্বাস্থ্য পরামর্শ বর্তমানে উপলব্ধ নয়। আপনি সাধারণ ইতিহাস টাইমলাইন দেখতে পাচ্ছেন।{% else %}AI-powered health advice is currently unavailable. You can still view your general history timeline.{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Grid: Timeline Left, AI Journey Review Right -->
+    <div class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+
+      <!-- Left Column: Chronological Health Journey Timeline -->
+      <article class="space-y-6">
+        <div class="flex items-center justify-between border-b border-stone-200 pb-3 dark:border-slate-800">
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <i class="fa-solid fa-timeline text-teal-600"></i>
+            {% if site_lang == 'bn' %}মেডিকেল টাইমলাইন{% else %}Chronological Health Timeline{% endif %}
+          </h2>
+          <div class="flex items-center gap-3">
+            <button id="bulkDownloadBtn" type="button" onclick="submitBulkDownload()" class="hidden inline-flex h-9 items-center gap-2 rounded-full bg-teal-600 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-teal-500">
+              <i class="fa-solid fa-file-zipper text-sm"></i>
+              {% if site_lang == 'bn' %}Select IDs ডাউনলোড{% else %}Download Selected{% endif %}
+            </button>
+          </div>
+        </div>
+
+        <form id="bulkDownloadForm" method="POST" action="{% url 'prescriptions:bulk_prescriptions_pdf' %}" class="hidden">
+          {% csrf_token %}
+          <div id="bulkIdsContainer"></div>
+        </form>
+
+        <div class="relative space-y-6 before:absolute before:inset-0 before:left-6 before:h-full before:w-0.5 before:bg-teal-200 dark:before:bg-teal-900/40">
+          {% for item in timeline_items %}
+            <div class="relative flex items-start gap-4 pl-2">
+              <!-- Timeline Icon Node -->
+              <span class="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-teal-600 text-white shadow-sm dark:border-slate-900">
+                {% if item.type == 'prescription' %}
+                  <i class="fa-solid fa-prescription text-xs"></i>
+                {% else %}
+                  <i class="fa-solid fa-file-medical text-xs"></i>
+                {% endif %}
+              </span>
+
+              <!-- Content Card -->
+              <div class="flex-1 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-teal-300 dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex flex-wrap items-start justify-between gap-2 border-b border-stone-100 pb-3 dark:border-slate-800">
+                  <div class="flex items-start gap-3">
+                    {% if item.type == 'prescription' %}
+                    <input type="checkbox" class="rx-bulk-checkbox mt-1 h-4 w-4 rounded border-stone-300 text-teal-600 focus:ring-teal-500" value="{{ item.obj.pk }}" onchange="toggleBulkButton()">
+                    {% endif %}
+                    <div>
+                      <span class="text-xs font-mono font-bold text-teal-700 dark:text-teal-400"><i class="fa-regular fa-calendar mr-1"></i>{{ item.date }}</span>
+                      <h3 class="mt-1 font-bold text-base text-stone-900 dark:text-stone-100">{{ item.title }}</h3>
+                      <p class="text-xs text-stone-500 font-medium">{{ item.subtitle }}</p>
+                    </div>
+                  </div>
+                  <div>
+                    {% if item.type == 'prescription' %}
+                      <div class="flex flex-wrap gap-2">
+                        <a href="{{ item.download_url }}" class="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                          <i class="fa-solid fa-download"></i> {% if site_lang == 'bn' %}পিডিএফ{% else %}Download Rx{% endif %}
+                        </a>
+                        <a href="{% url 'patient:chat_ui' %}?prescription_id={{ item.obj.pk }}" class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-bold text-stone-800 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+                          <i class="fa-solid fa-comments"></i> {% if site_lang == 'bn' %}চ্যাট{% else %}Chat{% endif %}
+                        </a>
+                      </div>
+                    {% elif item.file_url %}
+                      <a href="{{ item.file_url }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-bold text-stone-800 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+                        <i class="fa-solid fa-paperclip"></i> {% if site_lang == 'bn' %}ফাইল দেখুন{% else %}View Document{% endif %}
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="mt-3 text-xs text-stone-700 dark:text-stone-300 whitespace-pre-line leading-relaxed">
+                  {{ item.details }}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="rounded-3xl border border-stone-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-950 dark:text-teal-400">
+                <i class="fa-solid fa-folder-open text-xl"></i>
+              </span>
+              <h3 class="mt-4 font-bold text-base">{% if site_lang == 'bn' %}কোনো টাইমলাইন রেকর্ড পাওয়া যায়নি{% else %}No health records found{% endif %}</h3>
+              <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}আপনার টেস্ট রিপোর্ট বা অতীতের প্রেসক্রিপশন আপলোড করতে উপরের বাটনে ক্লিক করুন।{% else %}Upload your lab test reports or external doctor prescriptions above.{% endif %}</p>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <!-- Right Column: AI Health Journey Review & Interactive Assistant -->
+      <article class="space-y-6">
+        <div class="rounded-3xl border border-teal-200/80 bg-white p-6 shadow-md dark:border-teal-900/40 dark:bg-slate-900">
+          <div class="flex items-center gap-3 border-b border-stone-100 pb-4 dark:border-slate-800">
+            <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+              <i class="fa-solid fa-brain text-lg"></i>
+            </span>
+            <div>
+              <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">
+                {% if site_lang == 'bn' %}এআই হেলথ জার্নি অ্যানালাইজার{% else %}AI Health Journey Review & Assistant{% endif %}
+              </h2>
+              <p class="text-xs text-stone-500 dark:text-stone-400">Powered by Gemini Medical Intelligence</p>
+            </div>
+          </div>
+
+          <!-- Summary Overview -->
+          <div class="mt-4 rounded-2xl bg-teal-50/60 p-4 border border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/30">
+            <p class="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-300">{% if site_lang == 'bn' %}সামগ্রিক স্বাস্থ্য সারসংক্ষেপ{% else %}Holistic Health Overview{% endif %}</p>
+            <p class="mt-1.5 text-xs text-stone-800 dark:text-stone-200 leading-relaxed">{{ history_text_summary }}</p>
+          </div>
+
+          <!-- Interactive AI Q&A Form -->
+          <form method="post" class="mt-5 space-y-3">
+            {% csrf_token %}
+            <label class="block text-xs font-bold text-stone-700 dark:text-stone-300">
+              {% if site_lang == 'bn' %}মেডিকেল হিস্ট্রি সম্পর্কে প্রশ্ন জিজ্ঞাসা করুন:{% else %}Ask AI specific questions based on your medical history:{% endif %}
+            </label>
+            <div class="relative">
+              <textarea name="ai_query" rows="3" placeholder="{% if site_lang == 'bn' %}উদাহরণ: আমার বিগত রক্ত পরীক্ষা ও প্রেসক্রিপশন অনুযায়ী লাইফস্টাইল উপদেশ দিন...{% else %}e.g. Based on my uploaded blood test and prescription history, what diet advice should I follow?{% endif %}"
+                class="w-full rounded-2xl border border-stone-200 bg-white p-3.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">{{ ai_query }}</textarea>
+              <button type="submit" class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-teal-500">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                {% if site_lang == 'bn' %}এআই বিশ্লেষণ ও পরামর্শ পান{% else %}Analyze & Get AI Advice{% endif %}
+              </button>
+            </div>
+          </form>
+
+          <!-- AI Response Box -->
+          {% if ai_answer %}
+            <div class="mt-5 rounded-2xl border border-teal-200 bg-white p-5 shadow-sm dark:border-teal-800 dark:bg-slate-800/80">
+              <div class="flex items-center gap-2 border-b border-stone-100 pb-2.5 dark:border-slate-700">
+                <i class="fa-solid fa-lightbulb text-amber-500"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-stone-900 dark:text-stone-100">{% if site_lang == 'bn' %}এআই উত্তর ও পরামর্শ{% else %}AI Advice Response{% endif %}</h3>
+              </div>
+              <p class="mt-3 text-xs text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed">{{ ai_answer }}</p>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Dose Adherence Chart -->
+    <article class="rounded-3xl border border-stone-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex items-center gap-3 border-b border-stone-100 pb-4 dark:border-slate-800">
+        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-950 dark:text-teal-300">
+          <i class="fa-solid fa-chart-line text-lg"></i>
+        </span>
+        <div>
+          <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">
+            {% if site_lang == 'bn' %}ডোজ অ্যাডেহ্যারেন্স চার্ট{% else %}Dose Adherence Chart{% endif %}
+          </h2>
+          <p class="text-xs text-stone-500 dark:text-stone-400">
+            {% if site_lang == 'bn' %}সাপ্তাহিক ওষুধ গ্রহণ হার{% else %}Weekly medicine intake adherence{% endif %}
+          </p>
+        </div>
+      </div>
+
+      {% if adherence_chart.medicines %}
+      {{ adherence_chart|json_script:"adherenceChartData" }}
+      <div class="mt-4 h-64 w-full">
+        <canvas id="adherenceChart" class="h-full w-full"></canvas>
+      </div>
+      {% else %}
+      <p class="text-stone-500 py-8 text-center text-sm">
+        {% if site_lang == 'bn' %}এখনও কোনো ডোজ রেকর্ড পাওয়া যায়নি।{% else %}No dose records found yet. Take a few doses to see adherence tracking here.{% endif %}
+      </p>
+      {% endif %}
+    </article>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var canvas = document.getElementById("adherenceChart");
+        if (!canvas) return;
+
+        var raw = document.getElementById("adherenceChartData");
+        if (!raw) return;
+
+        var chartData = JSON.parse(raw.textContent.trim());
+
+        var palette = [
+          { bg: "rgba(13,148,137,0.55)", bd: "rgb(13,148,137)" },
+          { bg: "rgba(14,165,233,0.55)", bd: "rgb(14,165,233)" },
+          { bg: "rgba(245,158,11,0.55)", bd: "rgb(245,158,11)" },
+          { bg: "rgba(16,185,129,0.55)", bd: "rgb(16,185,129)" },
+          { bg: "rgba(139,92,246,0.55)", bd: "rgb(139,92,246)" },
+          { bg: "rgba(239,68,68,0.55)", bd: "rgb(239,68,68)" },
+        ];
+
+        var datasets = chartData.medicines.map(function (med, i) {
+          var p = palette[i % palette.length];
+          return {
+            label: med.name,
+            data: med.data,
+            backgroundColor: p.bg,
+            borderColor: p.bd,
+            borderWidth: 1,
+            barThickness: 16,
+          };
+        });
+
+        new Chart(canvas.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels: chartData.labels,
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  font: { size: 11 },
+                  padding: 16,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    return ctx.dataset.label + ": " + ctx.raw + "%";
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                stacked: false,
+              },
+              y: {
+                stacked: false,
+                beginAtZero: true,
+                max: 100,
+                ticks: { font: { size: 10 } },
+                  title: {
+                  display: true,
+                  text: "{% if site_lang == 'bn' %}গ্রহণ হার ({% else %}Taken ({% endif %}%)",
+                  font: { size: 11 },
+                },
+              },
+            },
+          },
+        });
+      });
+    </script>
+  </div>
+</section>
+
+<!-- Upload Self Report / External Prescription Modal -->
+<div id="uploadReportModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+  <div class="w-full max-w-lg rounded-3xl border border-stone-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-stone-900 dark:text-stone-100 space-y-4">
+    <div class="flex items-center justify-between border-b border-stone-100 pb-3 dark:border-slate-800">
+      <h3 class="text-lg font-bold">{% if site_lang == 'bn' %}টেস্ট রিপোর্ট / প্রেসক্রিপশন আপলোড{% else %}Upload Medical Report / External Prescription{% endif %}</h3>
+      <button onclick="document.getElementById('uploadReportModal').classList.add('hidden')" class="text-stone-400 hover:text-stone-600 dark:hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="upload_report" value="1">
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Title / Report Name *</label>
+        <input type="text" name="title" required placeholder="e.g. CBC Blood Test Report / Dr. Rahman Consultation"
+          class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Report Category</label>
+          <select name="report_type" class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+            <option value="lab_test">Lab Test Report</option>
+            <option value="external_prescription">External Doctor Prescription</option>
+            <option value="imaging_xray">X-Ray / MRI / Ultrasound</option>
+            <option value="other">Other Medical Document</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Date Performed *</label>
+          <input type="date" name="date_performed" required value="{% now 'Y-m-d' %}"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Consulting Doctor / Clinic Name</label>
+        <input type="text" name="doctor_or_clinic_name" placeholder="e.g. Popular Diagnostic Center / Dr. Karim"
+          class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Result Summary / Notes</label>
+        <textarea name="result_description" rows="2" placeholder="e.g. Hemoglobin 13.5 g/dL, Normal Range. Doctor advised follow up after 1 month."
+          class="w-full rounded-xl border border-stone-200 bg-white p-3 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">Upload Document (Image / PDF) *</label>
+        <input type="file" name="document_file" required accept="image/*,application/pdf"
+          class="w-full rounded-xl border border-stone-200 bg-white p-2 text-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" onclick="document.getElementById('uploadReportModal').classList.add('hidden')"
+          class="rounded-full border border-stone-200 px-5 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100 dark:border-slate-800 dark:text-stone-300">
+          Cancel
+        </button>
+        <button type="submit"
+          class="rounded-full bg-teal-600 px-6 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-500">
+          Upload to Timeline
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleBulkButton() {
+    const checks = document.querySelectorAll('.rx-bulk-checkbox:checked');
+    const btn = document.getElementById('bulkDownloadBtn');
+    if (btn) {
+      btn.classList.toggle('hidden', checks.length === 0);
+    }
+  }
+
+  function submitBulkDownload() {
+    const checks = document.querySelectorAll('.rx-bulk-checkbox:checked');
+    const ids = Array.from(checks).map(c => c.value);
+    if (!ids.length) return;
+    const container = document.getElementById('bulkIdsContainer');
+    container.innerHTML = '';
+    ids.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'prescription_ids';
+      input.value = id;
+      container.appendChild(input);
+    });
+    document.getElementById('bulkDownloadForm').submit();
+  }
+</script>
+{% endblock %}

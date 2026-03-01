@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+
+
+{% block content %}
+
+<section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-8 dark:border-slate-800 dark:bg-slate-900">
+
+      <div class="flex flex-col gap-6 border-b border-stone-200 pb-6 md:flex-row md:items-center md:justify-between dark:border-slate-800">
+        <div class="flex items-center gap-4">
+        {% if patient and patient.avatar %}
+          <img src="{{ patient.avatar.url }}?v={{ patient.avatar_updated_at|date:'U' }}" alt="Profile image"
+            class="h-16 w-16 rounded-full border border-stone-200 object-cover shadow-sm dark:border-slate-800" loading="lazy">
+        {% elif doctor and doctor.avatar %}
+          <img src="{{ doctor.avatar.url }}?v={{ doctor.avatar_updated_at|date:'U' }}" alt="Profile image"
+            class="h-16 w-16 rounded-full border border-stone-200 object-cover shadow-sm dark:border-slate-800" loading="lazy">
+        {% else %}
+            <img src="{% static 'images/Patient Photo.png' %}" alt="Profile image"
+              class="h-16 w-16 rounded-full border border-stone-200 object-cover shadow-sm dark:border-slate-800" loading="lazy">
+          {% endif %}
+        <div>
+          <p class="text-xl font-semibold">{{ request.user.get_full_name|default:request.user.username }}</p>
+          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">
+            {% if patient %}{% if site_lang == 'bn' %}রোগীর প্রোফাইল ও সেটিংস{% else %}Patient profile and settings{% endif %}{% else %}{% if site_lang == 'bn' %}অ্যাকাউন্ট সেটিংস{% else %}Account settings{% endif %}{% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-stone-200 bg-white/70 px-4 py-3 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-950/70 dark:text-stone-300">
+        {% if site_lang == 'bn' %}সদস্য হয়েছেন{% else %}Member since{% endif %} {{ request.user.date_joined|date:"F Y" }}
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="mt-8 space-y-5">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="grid gap-5 md:grid-cols-2">
+        <div class="md:col-span-2">
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}প্রোফাইল ছবি{% else %}Profile photo{% endif %}</label>
+          {{ form.avatar }}
+          {% if form.avatar.errors %}
+            <p class="mt-1 text-xs text-red-600">{{ form.avatar.errors.0 }}</p>
+          {% endif %}
+          <p class="mt-1 text-xs text-stone-400">{% if site_lang == 'bn' %}নাভবার ও প্রোফাইলের জন্য একটি বর্গাকার ছবি দিন।{% else %}Upload a square photo for the navbar and profile page.{% endif %}</p>
+        </div>
+        <div>
+          <label for="{{ form.full_name.id_for_label }}" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}পুরো নাম{% else %}Full name{% endif %}</label>
+          {{ form.full_name }}
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}ফোন নম্বর{% else %}Phone number{% endif %}</label>
+          <input type="text" value="{{ request.user.username }}" disabled
+            class="w-full cursor-not-allowed rounded-xl border border-stone-200 bg-stone-100 px-4 py-2.5 text-sm text-stone-500 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-400">
+          <p class="mt-1 text-xs text-stone-400">{% if site_lang == 'bn' %}ফোন নম্বর পরিবর্তন করা যাবে না।{% else %}Phone number cannot be changed{% endif %}</p>
+        </div>
+      </div>
+
+
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <button type="submit"
+          class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+          {% if site_lang == 'bn' %}সেভ করুন{% else %}Save changes{% endif %}
+        </button>
+        <a href="{% url 'accounts:logout' %}"
+          class="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 bg-white px-6 text-sm font-semibold text-stone-800 shadow-sm transition hover:border-teal-300 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+          {% if site_lang == 'bn' %}লগ আউট{% else %}Log out{% endif %}
+        </a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

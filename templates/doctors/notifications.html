@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-2xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Notifications</p>
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight">Your Notifications</h1>
+    </div>
+    {% if items %}
+    <form method="post" action="{% url 'accounts:clear_notifications' %}" class="inline" onsubmit="return confirm('Clear all notifications?');">
+      {% csrf_token %}
+      <button type="submit" class="rounded-full bg-red-50 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50">
+        <i class="fa-solid fa-trash-can mr-1"></i>
+        {% if site_lang == 'bn' %}সমস্ত মুছুন{% else %}Clear All{% endif %}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="mt-8 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+    {% for item in items %}
+    <div class="flex items-start gap-4 px-6 py-4 {% if not item.is_read %}bg-teal-50/50 dark:bg-teal-900/10{% endif %}">
+      <span class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-600 dark:bg-teal-900/50 dark:text-teal-400">
+        {% if item.notification_type == "booking" %}
+          <i class="fa-solid fa-calendar-check"></i>
+        {% elif item.notification_type == "dose_reminder" %}
+          <i class="fa-solid fa-pills"></i>
+        {% else %}
+          <i class="fa-solid fa-bell"></i>
+        {% endif %}
+      </span>
+      <div class="flex-1">
+        <p class="font-bold text-sm text-stone-900 dark:text-stone-100">{{ item.title }}</p>
+        <p class="text-xs text-stone-700 dark:text-stone-300 mt-0.5">{{ item.message }}</p>
+        <p class="mt-1 text-[11px] text-stone-400 font-mono">{{ item.created_at|date:"Y-m-d h:i A" }}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if item.link_url %}
+          <a href="{{ item.link_url }}" class="rounded-full bg-teal-600 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700">View</a>
+        {% endif %}
+        <form method="post" action="{% url 'accounts:delete_notification' item.pk %}" class="inline" onsubmit="return confirm('Delete this notification?');">
+          {% csrf_token %}
+          <button type="submit" class="rounded-full bg-stone-100 p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-500 transition dark:bg-slate-800 dark:hover:bg-red-950/30">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <p class="px-6 py-8 text-center text-stone-500 dark:text-stone-400">No notifications yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
