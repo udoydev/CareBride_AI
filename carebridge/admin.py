@@ -1,7 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from datetime import timedelta
 
 from accounts.models import Patient, Doctor, AppNotification, AIProvider, SiteSettings, News
@@ -46,9 +46,9 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
         monthly_platform_income = paid_appointments.filter(appointment_date__gte=month_start).aggregate(total=Sum("platform_fee_bdt"))["total"] or 0
         weekly_platform_income = paid_appointments.filter(appointment_date__gte=week_start).aggregate(total=Sum("platform_fee_bdt"))["total"] or 0
         
-        total_refunds = paid_appointments.filter(refund_amount__gt=0).aggregate(total=Sum("refund_amount"))["total"] or 0
-        net_platform_income = max((total_platform_income or 0) - (total_refunds or 0), 0)
-        
+        total_refunds = Appointment.objects.filter(status="cancelled").aggregate(total=Sum("refund_amount"))["total"] or 0
+        net_platform_income = total_platform_income or 0
+
         total_appointments = Appointment.objects.count()
         total_patients = Patient.objects.count()
         total_doctors = Doctor.objects.count()
@@ -105,22 +105,53 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
             "confirmed": Appointment.objects.filter(status="confirmed").count(),
         }
 
-        news_list = News.objects.filter(is_active=True).order_by("-created_at")[:10]
+        news_list = News.objects.all().order_by("-created_at")[:20]
 
         if request.method == "POST":
-            title = request.POST.get("title", "").strip()
-            message = request.POST.get("message", "").strip()
-            target = request.POST.get("target_audience", "all")
-            is_urgent = bool(request.POST.get("is_urgent"))
-            if title and message:
-                News.objects.create(
-                    title=title,
-                    message=message,
-                    target_audience=target,
-                    is_urgent=is_urgent,
-                )
-                messages.success(request, "News published successfully.")
-                return redirect("admin:analytics_dashboard")
+            action_type = request.POST.get("action_type", "create_news")
+            
+            if action_type == "delete_news":
+                news_id = request.POST.get("news_id")
+                if news_id:
+                    News.objects.filter(pk=news_id).delete()
+                    messages.success(request, "✓ Announcement deleted successfully.")
+                    return redirect("admin:index")
+            
+            elif action_type == "edit_news":
+                news_id = request.POST.get("news_id")
+                title = request.POST.get("title", "").strip()
+                message = request.POST.get("message", "").strip()
+                target = request.POST.get("target_audience", "all")
+                is_urgent = bool(request.POST.get("is_urgent"))
+                is_active = bool(request.POST.get("is_active"))
+                
+                if news_id and title and message:
+                    news_item = News.objects.filter(pk=news_id).first()
+                    if news_item:
+                        news_item.title = title
+                        news_item.message = message
+                        news_item.target_audience = target
+                        news_item.is_urgent = is_urgent
+                        news_item.is_active = is_active
+                        news_item.save()
+                        messages.success(request, f"✓ Announcement '{title}' updated successfully.")
+                        return redirect("admin:index")
+
+            elif action_type == "create_news":
+                title = request.POST.get("title", "").strip()
+                message = request.POST.get("message", "").strip()
+                target = request.POST.get("target_audience", "all")
+                is_urgent = bool(request.POST.get("is_urgent"))
+                if title and message:
+                    News.objects.create(
+                        title=title,
+                        message=message,
+                        target_audience=target,
+                        is_urgent=is_urgent,
+                        is_active=True,
+                    )
+                    messages.success(request, "✓ Announcement published successfully.")
+                    return redirect("admin:index")
 
         context = {
             "title": "CareBridge Platform Admin",
