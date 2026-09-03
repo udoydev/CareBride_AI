@@ -234,8 +234,15 @@ class SiteSettings(models.Model):
     platform_commission_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("7.50"),
-        help_text="Platform commission rate (percentage) charged on each paid appointment. To change: edit default here, then run makemigrations + migrate.",
+        default=Decimal("15.00"),
+        help_text="Platform commission rate (percentage) charged on each paid appointment.",
+    )
+
+    patient_refund_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("35.00"),
+        help_text="Patient partial refund percentage on patient-initiated cancellations.",
     )
 
     class Meta:
@@ -249,4 +256,10 @@ class SiteSettings(models.Model):
     def get_solo(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    def get_commission_rate(self):
+        return self.platform_commission_rate or Decimal("15.00")
+
+    def get_patient_refund_percentage(self):
+        return self.patient_refund_percentage or Decimal("35.00")
 

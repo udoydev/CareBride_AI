@@ -16,4 +16,12 @@ def commission_rate():
     try:
         return SiteSettings.get_solo().platform_commission_rate
     except Exception:
-        return 7.50
+        return 15.00
+
+
+@register.simple_tag
+def refund_percentage():
+    try:
+        return SiteSettings.get_solo().patient_refund_percentage
+    except Exception:
+        return 35.00

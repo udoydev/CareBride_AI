@@ -33,8 +33,19 @@ def ui_settings(request):
 
     is_patient = request.user.is_authenticated and hasattr(request.user, "patient_profile") and bool(request.user.patient_profile)
 
+    from accounts.models import SiteSettings
+    try:
+        settings_obj = SiteSettings.get_solo()
+        comm_rate = settings_obj.platform_commission_rate
+        refund_pct = settings_obj.patient_refund_percentage
+    except Exception:
+        comm_rate = 15.00
+        refund_pct = 35.00
+
     return {
         "site_lang": target_lang,
         "dashboard_url": dashboard_url,
         "is_patient_portal": is_patient,
+        "site_commission_rate": comm_rate,
+        "site_refund_percentage": refund_pct,
     }

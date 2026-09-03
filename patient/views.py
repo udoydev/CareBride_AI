@@ -1708,11 +1708,14 @@ def request_cancellation(request, appointment_id):
             if appointment.payment_status == "paid":
                 from accounts.models import SiteSettings
                 settings_obj = SiteSettings.get_solo()
-                rate = Decimal(str(settings_obj.platform_commission_rate or "3.00")) / Decimal("100")
-                site_charge = (appointment.fee_bdt * rate).quantize(Decimal("0.01"))
+                comm_rate = Decimal(str(settings_obj.platform_commission_rate or "15.00")) / Decimal("100")
+                refund_pct = Decimal(str(settings_obj.patient_refund_percentage or "35.00")) / Decimal("100")
+                display_pct = settings_obj.patient_refund_percentage
+
+                site_charge = (appointment.fee_bdt * comm_rate).quantize(Decimal("0.01"))
                 remaining_money = max(Decimal("0.00"), appointment.fee_bdt - site_charge)
                 appointment.refund_status = "partial"
-                appointment.refund_amount = (remaining_money * Decimal("0.35")).quantize(Decimal("0.01"))
+                appointment.refund_amount = (remaining_money * refund_pct).quantize(Decimal("0.01"))
                 appointment.payment_status = "refunded"
                 appointment.save()
 
@@ -1722,7 +1725,7 @@ def request_cancellation(request, appointment_id):
                 AppNotification.objects.create(
                     user=request.user,
                     title="Refund Credited to Wallet",
-                    message=f"A refund of {appointment.refund_amount} BDT has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
+                    message=f"A refund of {appointment.refund_amount} BDT ({display_pct}%) has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
                     notification_type="booking",
                     link_url=reverse("patient:appointments"),
                 )
@@ -1730,18 +1733,18 @@ def request_cancellation(request, appointment_id):
                 AppNotification.objects.create(
                     user=appointment.doctor.user,
                     title="Appointment Cancelled by Patient",
-                    message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT (35%) processed.",
+                    message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT ({display_pct}%) processed.",
                     notification_type="booking",
                     link_url=reverse("doctors:appointment_list"),
                 )
                 AppNotification.objects.create(
                     user=request.user,
                     title="Cancellation Confirmed",
-                    message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT (35%) has been processed.",
+                    message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT ({display_pct}%) has been processed.",
                     notification_type="booking",
                     link_url=reverse("patient:appointments"),
                 )
-                messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded (35%).")
+                messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded ({display_pct}%).")
             else:
                 appointment.refund_status = "none"
                 appointment.refund_amount = Decimal("0.00")

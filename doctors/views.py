@@ -1511,11 +1511,14 @@ def approve_cancellation(request, appointment_id):
             if appointment.payment_status in ("paid", "refunded"):
                 from accounts.models import SiteSettings
                 settings_obj = SiteSettings.get_solo()
-                rate = Decimal(str(settings_obj.platform_commission_rate or "3.00")) / Decimal("100")
-                site_charge = (appointment.fee_bdt * rate).quantize(Decimal("0.01"))
+                comm_rate = Decimal(str(settings_obj.platform_commission_rate or "15.00")) / Decimal("100")
+                refund_pct = Decimal(str(settings_obj.patient_refund_percentage or "35.00")) / Decimal("100")
+                display_pct = settings_obj.patient_refund_percentage
+
+                site_charge = (appointment.fee_bdt * comm_rate).quantize(Decimal("0.01"))
                 remaining_money = max(Decimal("0.00"), appointment.fee_bdt - site_charge)
                 appointment.refund_status = "partial"
-                appointment.refund_amount = (remaining_money * Decimal("0.35")).quantize(Decimal("0.01"))
+                appointment.refund_amount = (remaining_money * refund_pct).quantize(Decimal("0.01"))
                 appointment.payment_status = "refunded"
                 appointment.save()
 
@@ -1526,11 +1529,12 @@ def approve_cancellation(request, appointment_id):
                 AppNotification.objects.create(
                     user=patient.user,
                     title="Refund Credited to Wallet",
-                    message=f"A refund of {appointment.refund_amount} BDT has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
+                    message=f"A refund of {appointment.refund_amount} BDT ({display_pct}%) has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
                     notification_type="booking",
                     link_url=reverse("patient:appointments"),
                 )
             else:
+                display_pct = SiteSettings.get_solo().patient_refund_percentage
                 appointment.refund_status = "none"
                 appointment.refund_amount = Decimal("0.00")
                 appointment.save()
@@ -1538,18 +1542,18 @@ def approve_cancellation(request, appointment_id):
             AppNotification.objects.create(
                 user=appointment.patient.user,
                 title="Cancellation Approved",
-                message=f"Your cancellation for {appointment.appointment_date} was approved. Refund: {appointment.refund_amount} BDT (35%) has been processed.",
+                message=f"Your cancellation for {appointment.appointment_date} was approved. Refund: {appointment.refund_amount} BDT ({display_pct}%) has been processed.",
                 notification_type="booking",
                 link_url=reverse("patient:appointments"),
             )
             AppNotification.objects.create(
                 user=request.user,
                 title="Cancellation Approved — Refund Issued",
-                message=f"You approved cancellation for {appointment.patient.user.get_full_name()} on {appointment.appointment_date}. Patient refunded {appointment.refund_amount} BDT (35%). Your payout adjusted.",
+                message=f"You approved cancellation for {appointment.patient.user.get_full_name()} on {appointment.appointment_date}. Patient refunded {appointment.refund_amount} BDT ({display_pct}%). Your payout adjusted.",
                 notification_type="booking",
                 link_url=reverse("doctors:appointment_list"),
             )
-            messages.success(request, f"Cancellation approved. Patient refunded {appointment.refund_amount} BDT (35%).")
+            messages.success(request, f"Cancellation approved. Patient refunded {appointment.refund_amount} BDT ({display_pct}%).")
         elif action == "reject":
             appointment.status = "confirmed"
             appointment.cancellation_approved = False
