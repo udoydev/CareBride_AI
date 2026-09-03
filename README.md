@@ -20,7 +20,7 @@ flowchart TD
     
     Calc -->|Auto-Compute| AptSave[Appointment.save]
     Calc -->|Dynamic Context| ContextProc[ui_settings Context Processor]
-    Calc -->|Template Tags| Helpers[{% commission_rate %} & {% refund_percentage %}]
+    Calc -->|Template Tags| Helpers["Template Tags: commission_rate and refund_percentage"]
     
     ContextProc -->|Global Variables| UI[Patient, Doctor & Admin Templates]
     Calc -->|Dynamic Messages| Notif[AppNotification System]
@@ -146,7 +146,33 @@ Create a `.env` file in the project root:
 DEBUG=True
 SECRET_KEY=your-django-secret-key
 GEMINI_API_KEY=your-google-gemini-api-key
+
+# Database (Default: SQLite. Uncomment below for PostgreSQL)
+# DB_ENGINE=postgresql
+# DB_NAME=carebridge_db
+# DB_USER=postgres
+# DB_PASSWORD=your_postgres_password
+# DB_HOST=localhost
+# DB_PORT=5432
 ```
+
+### 🐘 SQLite to PostgreSQL Migration Guide (With Data Preservation)
+
+CareBridge AI provides automated database switching and data migration scripts to convert SQLite databases to PostgreSQL while preserving 100% of all user accounts, appointments, prescriptions, news, and financial logs:
+
+1. **Export Existing Data**:
+   ```bash
+   python scratch/export_utf8_fixture.py
+   ```
+2. **Set `.env` Database Variables**: Set `DB_ENGINE=postgresql` and your PostgreSQL database credentials in `.env`.
+3. **Migrate PostgreSQL Schema**:
+   ```bash
+   python manage.py migrate
+   ```
+4. **Import All Records into PostgreSQL**:
+   ```bash
+   python manage.py loaddata db_dump.json
+   ```
 
 ### 5. Run Database Migrations
 ```bash
