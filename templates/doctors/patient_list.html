@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 {% include 'includes/doctor_breadcrumb.html' %}
@@ -7,9 +7,36 @@
   <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Patients</p>
   <h1 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Search Patients</h1>
 
-  <form method="get" class="mt-6">
-    <input type="text" name="q" placeholder="Search by name or phone number"
+  <form method="get" class="mt-6 space-y-3">
+    <input type="text" name="q" placeholder="Search by name, email or phone number" value="{{ query }}"
       class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+    <div class="flex flex-wrap gap-3">
+      <select name="verification" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">All Verification</option>
+        <option value="verified" {% if verification_filter == 'verified' %}selected{% endif %}>Verified</option>
+        <option value="pending" {% if verification_filter == 'pending' %}selected{% endif %}>Pending</option>
+      </select>
+      <select name="district" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">All Districts</option>
+        {% for code, name in districts %}
+        <option value="{{ code }}" {% if district_filter == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <select name="has_prescription" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">All Patients</option>
+        <option value="yes" {% if prescription_filter == 'yes' %}selected{% endif %}>Has Prescription</option>
+        <option value="no" {% if prescription_filter == 'no' %}selected{% endif %}>No Prescription</option>
+      </select>
+      <select name="sort" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Sort: Name</option>
+        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Sort: Newest</option>
+        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Sort: Oldest</option>
+        <option value="district" {% if sort_by == 'district' %}selected{% endif %}>Sort: District</option>
+      </select>
+      <button type="submit" class="rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700">
+        Apply Filters
+      </button>
+    </div>
   </form>
 
   <div class="mt-6 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
@@ -26,8 +53,14 @@
           {% endif %}
         </div>
         <div>
-          <p class="font-bold text-stone-900 dark:text-stone-100">{{ patient.name }}</p>
-          <p class="text-xs text-stone-500 dark:text-stone-400">Phone: {{ patient.phone }} &bull; District: {{ patient.district }}</p>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">#PAT-{{ patient.id }}</span>
+            <p class="font-bold text-stone-900 dark:text-stone-100">{{ patient.name }}</p>
+          </div>
+          <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Phone: {{ patient.phone }} &bull; District: {{ patient.district }}</p>
+          {% if not patient.is_verified %}
+          <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950 dark:text-amber-300">Pending Verification</span>
+          {% endif %}
         </div>
       </div>
       <span class="text-sm font-semibold text-teal-600 dark:text-teal-400">View File &rarr;</span>
@@ -36,5 +69,17 @@
     <p class="px-6 py-8 text-center text-stone-500 dark:text-stone-400">No patients found.</p>
     {% endfor %}
   </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-6 flex items-center justify-center gap-2">
+    {% if page_obj.has_previous %}
+      <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+    {% endif %}
+    <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

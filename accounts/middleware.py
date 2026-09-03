@@ -30,6 +30,9 @@ class RoleBasedAccessMiddleware:
             "/ai-providers/",
             "/admin-unverified/",
             "/analytics/",
+            "/reports/admin/",
+            "/doctors/",
+            "/patient/",
         ]
 
     def __call__(self, request):
@@ -49,7 +52,7 @@ class RoleBasedAccessMiddleware:
                 if any(path.startswith(allowed) for allowed in self.allowed_admin_paths):
                     return self.get_response(request)
                 if path in ["/", "/home/"]:
-                    return self.get_response(request)
+                    return redirect("admin:index")
                 return redirect("admin:index")
 
             # Check verification status for patient/doctor
@@ -73,7 +76,7 @@ class RoleBasedAccessMiddleware:
                 if path.startswith("/doctors/") or path.startswith("/doctor/"):
                     return self.get_response(request)
                 if path in ["/", "/home/"]:
-                    return self.get_response(request)
+                    return redirect("doctors:dashboard")
                 return redirect("doctors:dashboard")
             
             # Patient users
@@ -81,7 +84,7 @@ class RoleBasedAccessMiddleware:
                 if path.startswith("/patient/"):
                     return self.get_response(request)
                 if path in ["/", "/home/"]:
-                    return self.get_response(request)
+                    return redirect("patient:dashboard")
                 return redirect("patient:dashboard")
 
         return self.get_response(request)

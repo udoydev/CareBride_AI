@@ -1,21 +1,58 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 <section class="mx-auto max-w-2xl px-4 py-12 sm:px-6 md:py-16">
   <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-    <h1 class="text-2xl font-semibold tracking-tight">Review Cancellation Request</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">{% translate_bn "Review Cancellation Request" %}</h1>
     <div class="mt-4 space-y-3 text-sm">
-      <p><strong>Patient:</strong> {{ appointment.patient.user.get_full_name|default:appointment.patient.user.email }}</p>
-      <p><strong>Date:</strong> {{ appointment.appointment_date }}</p>
-      <p><strong>Time:</strong> {{ appointment.start_time }}</p>
-      <p><strong>Reason:</strong> {{ appointment.cancellation_reason|default:"No reason provided" }}</p>
+      <p><strong>{% translate_bn "Patient" %}:</strong> {{ appointment.patient.user.get_full_name|default:appointment.patient.user.email }}</p>
+      <p><strong>{% translate_bn "Date" %}:</strong> {{ appointment.appointment_date }}</p>
+      <p><strong>{% translate_bn "Time" %}:</strong> {{ appointment.start_time }}</p>
+      <p><strong>{% translate_bn "Reason" %}:</strong> {{ appointment.cancellation_reason|default:"No reason provided" }}</p>
     </div>
-    <form method="post" class="mt-6 flex gap-3">
+    <form method="post" id="approveCancelForm" class="mt-6 flex gap-3">
       {% csrf_token %}
-      <button type="submit" name="action" value="approve" class="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">Approve</button>
-      <button type="submit" name="action" value="reject" class="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-red-200 bg-red-50 px-6 text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">Reject</button>
+      <button type="submit" name="action" value="approve" class="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-emerald-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">{% translate_bn "Approve" %}</button>
+      <button type="submit" name="action" value="reject" class="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-red-200 bg-red-50 px-6 text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% translate_bn "Reject" %}</button>
     </form>
   </div>
 </section>
+
+<script>
+  document.getElementById('approveCancelForm').addEventListener('submit', function(e) {
+    const action = e.submitter ? e.submitter.value : null;
+    if (action === 'approve') {
+      e.preventDefault();
+      showWarningModal(
+        '{% translate_bn "Are you sure?" %}',
+        '{% translate_bn "Approve cancellation? 35% refund will be issued." %}',
+        function() {
+          const form = document.getElementById('approveCancelForm');
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'action';
+          input.value = 'approve';
+          form.appendChild(input);
+          form.submit();
+        }
+      );
+    } else if (action === 'reject') {
+      e.preventDefault();
+      showWarningModal(
+        '{% translate_bn "Are you sure?" %}',
+        '{% translate_bn "Doctor-cancelled: Full refund issued, no platform commission charged." %}',
+        function() {
+          const form = document.getElementById('approveCancelForm');
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'action';
+          input.value = 'reject';
+          form.appendChild(input);
+          form.submit();
+        }
+      );
+    }
+  });
+</script>
 {% endblock %}

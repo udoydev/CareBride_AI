@@ -9,7 +9,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Outfit', 'Hind Siliguri', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['Outfit', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       colors: {
         teal: { 600: '#0f766e', 700: '#0b5f58' },

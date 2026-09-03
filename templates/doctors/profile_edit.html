@@ -66,6 +66,26 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
+        <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Designation</label>
+        <input type="text" name="designation" value="{{ doctor.designation|default:'' }}"
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Degrees</label>
+        <input type="text" name="degrees" value="{{ doctor.degrees|default:'' }}"
+          class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      </div>
+    </div>
+
+    <div>
+      <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">BMDC Registration Year</label>
+      <input type="number" name="bmdc_registration_year" value="{{ doctor.bmdc_registration_year|default:'' }}" min="1900" max="2099"
+        class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
         <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Years of experience <span class="text-red-500">*</span></label>
         <input type="number" name="experience_years" value="{{ doctor.experience_years|default:0 }}" min="0" max="60" required
           class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">

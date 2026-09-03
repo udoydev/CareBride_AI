@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 {% include 'includes/doctor_breadcrumb.html' %}
@@ -19,9 +19,6 @@
       <a href="{% url 'doctors:financial_report_export' %}" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
         <i class="fa-solid fa-file-export"></i> Export Financial Report
       </a>
-      <a href="{% url 'doctors:send_emergency_notification' %}" class="inline-flex h-10 items-center gap-2 rounded-full bg-red-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-700">
-        <i class="fa-solid fa-triangle-exclamation"></i> Emergency Alert
-      </a>
     </div>
   </div>
 
@@ -35,6 +32,10 @@
       <p class="text-xs text-amber-600 dark:text-amber-400">Pending</p>
       <p class="text-lg font-bold text-amber-900 dark:text-amber-300">{{ stats.pending }}</p>
     </div>
+    <div class="rounded-xl border border-purple-200 bg-purple-50 p-3 text-center dark:border-purple-900/40 dark:bg-purple-950/30">
+      <p class="text-xs text-purple-600 dark:text-purple-400">Verify Payment</p>
+      <p class="text-lg font-bold text-purple-900 dark:text-purple-300">{{ stats.pending_verification }}</p>
+    </div>
     <div class="rounded-xl border border-teal-200 bg-teal-50 p-3 text-center dark:border-teal-900/40 dark:bg-teal-950/30">
       <p class="text-xs text-teal-600 dark:text-teal-400">Confirmed</p>
       <p class="text-lg font-bold text-teal-900 dark:text-teal-300">{{ stats.confirmed }}</p>
@@ -47,17 +48,9 @@
       <p class="text-xs text-red-600 dark:text-red-400">Missed</p>
       <p class="text-lg font-bold text-red-900 dark:text-red-300">{{ stats.missed }}</p>
     </div>
-    <div class="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center dark:border-orange-900/40 dark:bg-orange-950/30">
-      <p class="text-xs text-orange-600 dark:text-orange-400">Cancelled</p>
-      <p class="text-lg font-bold text-orange-900 dark:text-orange-300">{{ stats.cancelled }}</p>
-    </div>
-    <div class="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center dark:border-orange-900/40 dark:bg-orange-950/30">
-      <p class="text-xs text-orange-600 dark:text-orange-400">Pending Approval</p>
-      <p class="text-lg font-bold text-orange-900 dark:text-orange-300">{{ stats.cancellation_pending }}</p>
-    </div>
-    <div class="rounded-xl border border-teal-200 bg-teal-50 p-3 text-center dark:border-teal-900/40 dark:bg-teal-950/30">
-      <p class="text-xs text-teal-600 dark:text-teal-400">Today</p>
-      <p class="text-lg font-bold text-teal-900 dark:text-teal-300">{{ stats.today }}</p>
+    <div class="rounded-xl border border-red-200 bg-red-50 p-3 text-center dark:border-red-900/40 dark:bg-red-950/30">
+      <p class="text-xs text-red-600 dark:text-red-400">Cancelled</p>
+      <p class="text-lg font-bold text-red-900 dark:text-red-300">{{ stats.cancelled }}</p>
     </div>
   </div>
 
@@ -65,6 +58,7 @@
   <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
     <a href="?status=" class="rounded-full px-4 py-1.5 text-xs font-bold {% if not status_filter %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">All</a>
     <a href="?status=pending" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'pending' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Pending</a>
+    <a href="?status=pending_verification" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'pending_verification' %}bg-purple-600 text-white{% else %}border border-purple-200 text-purple-700 dark:border-purple-900/40 dark:text-purple-300{% endif %}">Verify Payment</a>
     <a href="?status=confirmed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'confirmed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Confirmed</a>
     <a href="?status=completed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'completed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Visited</a>
     <a href="?status=missed" class="rounded-full px-4 py-1.5 text-xs font-bold {% if status_filter == 'missed' %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">Missed</a>
@@ -74,6 +68,50 @@
       <i class="fa-solid fa-robot mr-1"></i> Auto-Detect Missed
     </a>
   </div>
+
+  <!-- Date Filters -->
+  <form method="get" class="flex flex-wrap gap-2 mb-6 items-end">
+    <input type="hidden" name="status" value="{{ status_filter }}">
+    <div>
+      <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1">Filter Type</label>
+      <select name="filter_type" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">-- Select --</option>
+        <option value="date" {% if filter_type == 'date' %}selected{% endif %}>Specific Date</option>
+        <option value="month" {% if filter_type == 'month' %}selected{% endif %}>Month</option>
+        <option value="year" {% if filter_type == 'year' %}selected{% endif %}>Year</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1">Date</label>
+      <input type="date" name="filter_value" value="{% if filter_type == 'date' %}{{ filter_value }}{% endif %}" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1">Month</label>
+      <select name="filter_month" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">-- Select --</option>
+        {% for code, name in months %}
+          <option value="{{ code }}" {% if filter_type == 'month' and selected_month == code %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1">Year</label>
+      <select name="filter_year" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200">
+        <option value="">-- Select --</option>
+        {% for y in years %}
+          <option value="{{ y }}" {% if filter_type == 'month' or filter_type == 'year' %}{% if selected_year == y|stringformat:'s' %}selected{% endif %}{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="inline-flex h-9 items-center rounded-full bg-teal-600 px-4 text-xs font-bold text-white hover:bg-teal-700">
+      <i class="fa-solid fa-filter mr-1"></i> Apply
+    </button>
+    {% if filter_type %}
+    <a href="?status={{ status_filter }}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:text-stone-300">
+      Clear
+    </a>
+    {% endif %}
+  </form>
 
   <!-- Appointments grouped by date -->
   {% if appointments %}
@@ -89,59 +127,83 @@
           {% endif %}
           <span class="text-xs text-stone-400">{{ date_group.list|length }} appointment{{ date_group.list|pluralize:"s" }}</span>
         </div>
-        <div class="space-y-3">
-          {% for apt in date_group.list %}
-            <div class="rounded-2xl border {% if apt.appointment_date == today %}border-teal-300 bg-teal-50/50 dark:border-teal-700 dark:bg-teal-950/20{% else %}border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900{% endif %} p-5 shadow-sm transition hover:shadow-md">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                    {{ apt.patient.user.get_full_name|default:apt.patient.user.email }}
-                  </p>
-                  <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.patient.district|default:"N/A" }} • {{ apt.patient.phone_number|default:"N/A" }}</p>
-                  <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">
-                    <i class="fa-regular fa-clock mr-1"></i> {{ apt.start_time|time:"H:i" }} - {{ apt.end_time|time:"H:i" }}
-                    <span class="mx-1">•</span>
-                    {{ apt.get_consultation_type_display }}
-                  </p>
-                   {% if apt.chief_complaint %}
-                     <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 italic">"{{ apt.chief_complaint|truncatechars:80 }}"</p>
-                   {% endif %}
-                   {% if apt.edit_count > 0 %}
-                     <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                       <i class="fa-solid fa-pen mr-1"></i> Rescheduled {{ apt.edit_count }} time{{ apt.edit_count|pluralize:"s" }} by patient
-                     </p>
-                   {% endif %}
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="rounded-full px-3 py-1 text-xs font-bold
-                    {% if apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
-                    {% elif apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
-                    {% elif apt.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
-                    {% elif apt.status == 'missed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300
-                    {% elif apt.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
-                    {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
-                    {{ apt.get_status_display }}
-                  </span>
-                  {% if apt.status != 'completed' and apt.status != 'missed' and apt.status != 'cancelled' %}
-                  <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline" onsubmit="return confirm('Mark as visited?')">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="visited">
-                    <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
-                      <i class="fa-solid fa-check"></i> Visited
-                    </button>
-                  </form>
-                  <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline" onsubmit="return confirm('Mark as missed? A notification will be sent to the patient.')">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="missed">
-                    <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-800 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                      <i class="fa-solid fa-xmark"></i> Missed
-                    </button>
-                  </form>
-                  {% endif %}
-                  <a href="{% url 'doctors:appointment_detail' apt.pk %}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
-                    Manage
-                  </a>
-                </div>
+         <div class="space-y-3">
+           {% for apt in date_group.list %}
+             <div class="rounded-2xl border {% if apt.appointment_date == today %}border-teal-300 bg-teal-50/50 dark:border-teal-700 dark:bg-teal-950/20{% else %}border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900{% endif %} p-5 shadow-sm transition hover:shadow-md" data-appt-id="{{ apt.pk }}">
+               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                 <div>
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="font-mono text-xs text-stone-600 dark:text-stone-400 font-bold bg-stone-100 dark:bg-slate-800 px-2 py-0.5 rounded">#APT-{{ apt.id }}</span>
+                      <span class="font-mono text-xs text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">#PAT-{{ apt.patient.id }}</span>
+                    </div>
+                   <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                     {{ apt.patient.user.get_full_name|default:apt.patient.user.email }}
+                   </p>
+                   <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.patient.district|default:"N/A" }} • {{ apt.patient.phone_number|default:"N/A" }}</p>
+                   <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">
+                      <i class="fa-regular fa-clock mr-1"></i> {{ apt.start_time|time:"h:i A" }} - {{ apt.end_time|time:"h:i A" }}
+                     <span class="mx-1">•</span>
+                     {{ apt.get_consultation_type_display }}
+                   </p>
+                    {% if apt.chief_complaint %}
+                       <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 italic">"{{ apt.chief_complaint|truncatechars:80 }}"</p>
+                    {% endif %}
+                    {% if apt.edit_count > 0 %}
+                      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        <i class="fa-solid fa-pen mr-1"></i> Rescheduled {{ apt.edit_count }} time{{ apt.edit_count|pluralize:"s" }} by patient
+                      </p>
+                    {% endif %}
+                 </div>
+                  <div class="flex items-center gap-2">
+                        {% if apt.time_passed and apt.status in 'pending,confirmed,cancellation_pending' and not apt.is_window_expired %}
+                       <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 countdown-timer" data-remaining="{{ apt.remaining_seconds }}" data-appt-id="{{ apt.pk }}">
+                         <i class="fa-regular fa-clock mr-1"></i> <span class="timer-text">Loading...</span>
+                       </span>
+                       {% endif %}
+                      {% if not apt.is_window_expired %}
+                      <a href="{% url 'doctors:patient_detail' apt.patient.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+                        <i class="fa-solid fa-user"></i> View Patient
+                      </a>
+                      {% endif %}
+                     <span class="rounded-full px-3 py-1 text-xs font-bold
+                      {% if apt.payment_status == 'pending_verification' %}bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300
+                      {% elif apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
+                      {% elif apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+                      {% elif apt.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
+                      {% elif apt.status == 'missed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300
+                      {% elif apt.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
+                      {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+                      {% if apt.payment_status == 'pending_verification' %}Pending Verification
+                      {% else %}{{ apt.get_status_display }}{% endif %}
+                    </span>
+                     {% if not apt.is_window_expired %}
+                     {% if apt.payment_status == 'pending_verification' %}
+                     <a href="{% url 'doctors:verify_payment' apt.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-3 text-xs font-bold text-purple-800 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300">
+                       <i class="fa-solid fa-check"></i> Verify
+                     </a>
+                     {% elif apt.status != 'completed' and apt.status != 'missed' and apt.status != 'cancelled' and not apt.prescriptions.exists and not apt.is_window_expired %}
+                     <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline mark-attendance-form" data-action="visited">
+                       {% csrf_token %}
+                       <input type="hidden" name="action" value="visited">
+                       <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                         <i class="fa-solid fa-check"></i> {% translate_bn "Mark as visited" %}
+                       </button>
+                     </form>
+                     <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline mark-attendance-form" data-action="missed">
+                       {% csrf_token %}
+                       <input type="hidden" name="action" value="missed">
+                       <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-800 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                         <i class="fa-solid fa-xmark"></i> {% translate_bn "Mark as missed" %}
+                       </button>
+                     </form>
+                     {% endif %}
+                     {% endif %}
+                     {% if not apt.is_window_expired %}
+                     <a href="{% url 'doctors:appointment_detail' apt.pk %}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
+                       Manage
+                     </a>
+                     {% endif %}
+                  </div>
               </div>
             </div>
           {% endfor %}
@@ -156,5 +218,63 @@
       <p class="text-sm text-stone-500 dark:text-stone-400">No appointments found.</p>
     </div>
   {% endif %}
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-8 flex items-center justify-center gap-2">
+    {% if page_obj.has_previous %}
+      <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+    {% endif %}
+    <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
+
+<script>
+  document.querySelectorAll('.mark-attendance-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const action = form.dataset.action;
+      const message = action === 'visited'
+        ? '{% translate_bn "Mark as visited?" %}'
+        : '{% translate_bn "Mark as missed? A notification will be sent to the patient." %}';
+      showWarningModal('{% translate_bn "Are you sure?" %}', message, function() {
+        form.submit();
+      });
+    });
+  });
+
+  function updateCountdowns() {
+    document.querySelectorAll('.countdown-timer').forEach(function(el) {
+      let remaining = parseInt(el.dataset.remaining, 10);
+        if (isNaN(remaining) || remaining <= 0) {
+        el.querySelector('.timer-text').textContent = 'Missed';
+        el.classList.remove('bg-amber-100', 'text-amber-800', 'dark:bg-amber-900/40', 'dark:text-amber-300');
+        el.classList.add('bg-red-100', 'text-red-800', 'dark:bg-red-900/40', 'dark:text-red-300');
+        const apptId = el.dataset.apptId;
+        if (apptId) {
+          const card = document.querySelector(`.rounded-2xl[data-appt-id="${apptId}"]`);
+          if (card) {
+            card.querySelectorAll('.flex.items-center.gap-2 a, .flex.items-center.gap-2 button, .flex.items-center.gap-2 form').forEach(function(el) {
+              el.style.display = 'none';
+            });
+          }
+        }
+        return;
+      }
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+      let text = '';
+      if (hours > 0) text += hours + 'h ';
+      text += minutes + 'm ' + seconds + 's';
+      el.querySelector('.timer-text').textContent = text;
+      el.dataset.remaining = remaining - 1;
+    });
+  }
+  updateCountdowns();
+  setInterval(updateCountdowns, 1000);
+</script>
 {% endblock %}

@@ -28,7 +28,7 @@
         {% for sch in schedules %}
           <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800">
             <p class="text-sm font-semibold capitalize text-stone-900 dark:text-stone-100">{{ sch.get_day_of_week_display }}</p>
-            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"H:i" }} - {{ sch.end_time|time:"H:i" }}</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }}</p>
             <p class="text-[10px] text-stone-400 mt-1">{{ sch.slot_duration_minutes }} min per slot</p>
           </div>
         {% endfor %}
@@ -38,37 +38,43 @@
 
   <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
     <h2 class="text-lg font-semibold mb-1">Available Time Slots</h2>
-    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">Select an available slot to book your appointment.</p>
+    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">Book in 3 steps: first pick a <span class="font-semibold text-teal-600">Date</span>, then choose an available <span class="font-semibold text-teal-600">Time</span>.</p>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Step 1 — Select Date</label>
+      <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+      <input type="hidden" id="selectedCalendarDate" value="">
+    </div>
 
     {% if available_slots %}
-      <form method="post" class="space-y-4">
+      <form method="post" id="bookingForm" class="space-y-4">
         {% csrf_token %}
 
-        <!-- Group slots by date -->
-        {% regroup available_slots by date as date_slots %}
-        {% for date_group in date_slots %}
-          <div class="mb-4">
-            <p class="text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">
-              {{ date_group.grouper|date:"l, d M Y" }}
-            </p>
-            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-              {% for slot in date_group.list %}
-                {% if slot.available %}
-                  <label class="cursor-pointer">
-                    <input type="radio" name="selected_slot" value="{{ slot.date }} {{ slot.start }}" required class="peer sr-only">
-                    <div class="rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-center text-xs font-medium text-stone-700 transition peer-checked:border-teal-500 peer-checked:bg-teal-50 peer-checked:text-teal-700 hover:border-teal-300 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:peer-checked:border-teal-600 dark:peer-checked:bg-teal-950/30 dark:peer-checked:text-teal-300">
-                      <i class="fa-regular fa-clock mr-1"></i>{{ slot.start }}
+        <div id="slotsContainer" class="space-y-3">
+          {% for date_str, slots in grouped_slots %}
+            <div class="date-group" data-date="{{ date_str }}" style="display:none;">
+              <p class="text-xs font-bold text-stone-700 dark:text-stone-300 mb-2 date-label uppercase tracking-wider">
+                {{ date_str|date:"l, d M Y" }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                {% for slot in slots %}
+                  {% if slot.available %}
+                    <label class="cursor-pointer">
+                      <input type="radio" name="selected_slot" value="{{ slot.date }} {{ slot.start }}" required class="peer sr-only">
+                      <div class="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-center text-xs font-medium text-stone-700 transition peer-checked:border-teal-500 peer-checked:bg-teal-50 peer-checked:text-teal-700 hover:border-teal-300 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:peer-checked:border-teal-600 dark:peer-checked:bg-teal-950/30 dark:peer-checked:text-teal-300">
+                        <i class="fa-regular fa-clock mr-1"></i>{{ slot.start }}
+                      </div>
+                    </label>
+                  {% else %}
+                    <div class="rounded-lg border border-stone-100 bg-stone-50 px-3 py-1.5 text-center text-xs text-stone-400 line-through opacity-60 cursor-not-allowed dark:border-slate-800 dark:bg-slate-900 dark:text-stone-500">
+                      {{ slot.start }}
                     </div>
-                  </label>
-                {% else %}
-                  <div class="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-center text-xs text-stone-400 line-through dark:border-slate-800 dark:bg-slate-900 dark:text-stone-500">
-                    {{ slot.start }}
-                  </div>
-                {% endif %}
-              {% endfor %}
+                  {% endif %}
+                {% endfor %}
+              </div>
             </div>
-          </div>
-        {% endfor %}
+          {% endfor %}
+        </div>
 
         <!-- Hidden fields for form submission -->
         <input type="hidden" name="appointment_date" id="selectedDate">
@@ -105,12 +111,105 @@
 </section>
 
 <script>
+  const groupedSlots = {{ grouped_slots|safe }};
+  const calendarGrid = document.getElementById("calendarGrid");
+  const selectedCalendarDateInput = document.getElementById("selectedCalendarDate");
+  const slotsContainer = document.getElementById("slotsContainer");
+  const selectedDateInput = document.getElementById("selectedDate");
+  const selectedTimeInput = document.getElementById("selectedTime");
+  const bookingForm = document.getElementById("bookingForm");
+
+  if (slotsContainer) {
+    slotsContainer.style.display = "none";
+  }
+
+  function getAvailableDates() {
+    const dates = new Set();
+    Object.keys(groupedSlots).forEach(dateStr => dates.add(dateStr));
+    return dates;
+  }
+
+  function buildCalendar() {
+    if (!calendarGrid) return;
+    const availableDates = getAvailableDates();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      days.push(d);
+    }
+
+    days.forEach(d => {
+      const dateStr = d.toISOString().split('T')[0];
+      const cell = document.createElement("div");
+      cell.className = "w-8 h-8 flex items-center justify-center text-xs rounded cursor-pointer transition border";
+      cell.textContent = d.getDate();
+
+      const hasAvailable = availableDates.has(dateStr);
+      if (hasAvailable) {
+        cell.classList.add("bg-teal-50", "text-teal-800", "border-teal-200", "hover:bg-teal-100", "dark:bg-teal-950", "dark:text-teal-300", "dark:border-teal-900");
+      } else {
+        cell.classList.add("bg-stone-50", "text-stone-400", "border-stone-200", "cursor-not-allowed", "dark:bg-slate-800", "dark:text-stone-500", "dark:border-slate-700");
+      }
+
+      if (d.getTime() === today.getTime()) {
+        cell.classList.add("ring-1", "ring-teal-500");
+      }
+
+      if (hasAvailable) {
+        cell.addEventListener("click", function() {
+          document.querySelectorAll("#calendarGrid > div").forEach(c => {
+            c.classList.remove("ring-2", "ring-teal-600", "dark:ring-teal-400");
+            c.classList.add("border");
+          });
+          cell.classList.remove("border");
+          cell.classList.add("ring-2", "ring-teal-600", "dark:ring-teal-400");
+          if (selectedCalendarDateInput) selectedCalendarDateInput.value = dateStr;
+          filterSlots(dateStr);
+        });
+      }
+
+      calendarGrid.appendChild(cell);
+    });
+  }
+
+  function filterSlots(selectedDate) {
+    if (!slotsContainer) return;
+    if (!selectedDate) {
+      slotsContainer.style.display = "none";
+      return;
+    }
+    slotsContainer.style.display = "block";
+    const groups = slotsContainer.querySelectorAll(".date-group");
+    groups.forEach(group => {
+      const groupDate = group.getAttribute("data-date");
+      group.style.display = (groupDate === selectedDate) ? "block" : "none";
+    });
+  }
+
+  buildCalendar();
+
   document.querySelectorAll('input[name="selected_slot"]').forEach(function(radio) {
     radio.addEventListener('change', function() {
       const val = this.value.split(' ');
-      document.getElementById('selectedDate').value = val[0];
-      document.getElementById('selectedTime').value = val[1];
+      if (selectedDateInput) selectedDateInput.value = val[0];
+      if (selectedTimeInput) selectedTimeInput.value = val[1];
     });
   });
+
+  if (bookingForm) {
+    bookingForm.addEventListener("submit", function(e) {
+      const chosenDate = selectedCalendarDateInput ? selectedCalendarDateInput.value : "";
+      const chosenTime = selectedTimeInput ? selectedTimeInput.value : "";
+      if (!chosenDate || !chosenTime) {
+        e.preventDefault();
+        alert("Please select a date and an available time slot to book your appointment.");
+        return;
+      }
+    });
+  }
 </script>
 {% endblock %}

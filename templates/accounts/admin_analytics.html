@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags helpers %}
 
 {% block content %}
 <section class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
@@ -24,14 +24,19 @@
       <p class="text-xs text-stone-500 mt-1">{{ verified_patients }} verified &middot; {{ pending_patient_verifications }} pending</p>
     </div>
     <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-      <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total Revenue</p>
-      <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-200">{{ total_revenue|floatformat:2 }} BDT</p>
-      <p class="text-xs text-emerald-600 dark:text-emerald-400">{{ month_revenue|floatformat:2 }} BDT this month &middot; {{ week_revenue|floatformat:2 }} BDT this week</p>
+      <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Site Income</p>
+      <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-200">৳{{ site_income|floatformat:0 }} BDT</p>
+      <p class="text-xs text-emerald-600 dark:text-emerald-400">৳{{ month_site_income|floatformat:0 }} BDT this month &middot; ৳{{ week_site_income|floatformat:0 }} BDT this week</p>
     </div>
     <div class="rounded-2xl border border-purple-200 bg-purple-50/60 p-5 dark:border-purple-900/50 dark:bg-purple-950/20">
       <p class="text-xs font-semibold uppercase tracking-wider text-purple-700 dark:text-purple-400">Net Profit</p>
-      <p class="mt-2 text-3xl font-bold text-purple-900 dark:text-purple-200">{{ net_profit|floatformat:2 }} BDT</p>
-      <p class="text-xs text-purple-600 dark:text-purple-400">After refunds</p>
+      <p class="mt-2 text-3xl font-bold text-purple-900 dark:text-purple-200">৳{{ net_profit|floatformat:0 }} BDT</p>
+      <p class="text-xs text-purple-600 dark:text-purple-400">Site commission after doctor-cancellations</p>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Bookings (Gross)</p>
+      <p class="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-100">৳{{ total_revenue|floatformat:0 }} BDT</p>
+      <p class="text-xs text-stone-500 mt-1">Doctor payout: ৳{{ doctor_payout|floatformat:0 }} BDT</p>
     </div>
   </div>
 
@@ -74,7 +79,7 @@
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Platform Fees</p>
       <p class="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-100">{{ platform_fees|floatformat:2 }} BDT</p>
-      <p class="text-xs text-stone-500 mt-1">3% of all paid bookings</p>
+       <p class="text-xs text-stone-500 mt-1">{% commission_rate %}% of all paid bookings</p>
     </div>
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Avg per Doctor</p>
@@ -131,7 +136,7 @@
   <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">Recent Transactions</h2>
-      <p class="text-xs text-stone-500">Platform fee: 3% per booking</p>
+      <p class="text-xs text-stone-500">Site commission: {% commission_rate %}% per booking (configurable in Site Settings)</p>
     </div>
     <div class="mt-4 overflow-x-auto">
       <table class="w-full text-left text-xs text-stone-700 dark:text-stone-300">
@@ -170,6 +175,18 @@
           {% endfor %}
         </tbody>
       </table>
+
+      {% if recent_appointments.has_other_pages %}
+      <div class="mt-4 flex items-center justify-center gap-2">
+        {% if recent_appointments.has_previous %}
+          <a href="?page={{ recent_appointments.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+        {% endif %}
+        <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ recent_appointments.number }} of {{ recent_appointments.paginator.num_pages }}</span>
+        {% if recent_appointments.has_next %}
+          <a href="?page={{ recent_appointments.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 </section>

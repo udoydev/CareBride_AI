@@ -11,14 +11,6 @@ function updateThemeButtonsUI(theme) {
   buttons.forEach((btn) => {
     btn.setAttribute("aria-label", label);
     btn.setAttribute("title", label);
-    const icon = btn.querySelector("i");
-    if (icon) {
-      if (isDark) {
-        icon.className = "fa-solid fa-sun text-amber-400 text-lg transition-transform hover:scale-110";
-      } else {
-        icon.className = "fa-solid fa-moon text-slate-200 text-lg transition-transform hover:scale-110";
-      }
-    }
   });
 }
 

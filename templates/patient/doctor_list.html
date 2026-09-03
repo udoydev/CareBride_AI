@@ -36,9 +36,10 @@
         </div>
         <div>
           <p class="font-semibold text-stone-900 dark:text-stone-100">Dr. {{ doctor.user.get_full_name }}</p>
-          <p class="text-sm text-teal-700 dark:text-teal-400">{{ doctor.specialty }}</p>
+          <p class="text-sm text-teal-700 dark:text-teal-400">{{ doctor.designation|default:doctor.specialty|default:"General practice" }}</p>
           <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
             <i class="fa-solid fa-briefcase-medical mr-1"></i>{{ doctor.experience_years|default:0 }} yrs
+            {% if doctor.degrees %} · <i class="fa-solid fa-graduation-cap mr-1"></i>{{ doctor.degrees }}{% endif %}
             {% if doctor.consultation_fee %} · {{ doctor.consultation_fee }} BDT{% endif %}
           </p>
         </div>
@@ -63,9 +64,10 @@
         </div>
         <div>
           <p class="font-medium text-stone-900 dark:text-stone-100">Dr. {{ doctor.user.get_full_name }}</p>
-          <p class="text-sm text-stone-500 dark:text-stone-400">{{ doctor.specialty }} — {{ doctor.clinic_name|default:"-" }}</p>
+          <p class="text-sm text-stone-500 dark:text-stone-400">{{ doctor.designation|default:doctor.specialty|default:"General practice" }} — {{ doctor.clinic_name|default:"-" }}</p>
           <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
             <i class="fa-solid fa-briefcase-medical mr-1"></i>{{ doctor.experience_years|default:0 }} yrs experience
+            {% if doctor.degrees %} · <i class="fa-solid fa-graduation-cap mr-1"></i>{{ doctor.degrees }}{% endif %}
             {% if doctor.consultation_fee %} · <i class="fa-solid fa-tag mr-1"></i>{{ doctor.consultation_fee }} BDT{% endif %}
           </p>
         </div>
@@ -76,5 +78,17 @@
     <p class="px-6 py-8 text-center text-stone-500 dark:text-stone-400">No doctors found.</p>
     {% endfor %}
   </div>
+
+  {% if page_obj and page_obj.has_other_pages %}
+  <nav class="mt-8 flex items-center justify-center gap-3">
+    {% if page_obj.has_previous %}
+    <a href="?q={{ query }}&category={{ category }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+    {% endif %}
+    <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?q={{ query }}&category={{ category }}&page={{ page_obj.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+    {% endif %}
+  </nav>
+  {% endif %}
 </section>
 {% endblock %}

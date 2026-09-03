@@ -22,6 +22,16 @@ VISION_FALLBACK_MODELS = [
 ]
 
 
+def _truncate_to_words(text, max_words=200):
+    """Truncate text to max_words on a word boundary, appending a notice if truncated."""
+    if not text:
+        return text
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return ' '.join(words[:max_words]) + "... (response truncated)"
+
+
 class GeminiAIService:
     """
     Unified AI Integration Service.
@@ -398,12 +408,29 @@ class GeminiAIService:
     def chat_with_patient_vision(cls, user_message, image_file=None, conversation_history=None, preferred_language="bn"):
         lang_instruction = "Respond fluently, naturally, and warmly in Bangladeshi Bangla (বাংলা)." if preferred_language == "bn" else "Respond fluently, clearly, and warmly in English."
 
+        history_text = ""
+        if conversation_history:
+            history_lines = []
+            for msg in conversation_history[-10:]:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "user":
+                    history_lines.append(f"Patient: {content}")
+                else:
+                    history_lines.append(f"CareBridge AI: {content}")
+            if history_lines:
+                history_text = "\n".join(history_lines) + "\n\n"
+
         base_prompt = (
             "System Instruction: You are CareBridge AI (কেয়ারব্রীজ এআই), an expert medical AI assistant for patients in Bangladesh. "
             f"{lang_instruction} "
             "Always include a brief friendly disclaimer that AI advice is for informational purposes.\n\n"
-            f"User Message: {user_message or 'মেডিকেল তথ্য বিশ্লেষণ করুন।'}"
         )
+        if history_text:
+            base_prompt += f"Previous conversation:\n{history_text}\n"
+
+        base_prompt += f"Current Patient Question: {user_message or 'মেডিকেল তথ্য বিশ্লেষণ করুন।'}\n\n"
+        base_prompt += "Instructions: Answer the CURRENT question based on the conversation history above. Do not repeat previous answers. Give a fresh, specific response to what the patient is asking now. Keep your response under 200 words."
 
         vision_prompt = base_prompt
         if image_file:
@@ -427,29 +454,35 @@ class GeminiAIService:
                 if not res:
                     res = cls._call_gemini_rest(api_key, vision_prompt, image_file)
                 if res:
+                    res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
                     return res
             else:
                 res = cls._call_openai_compatible(provider, base_prompt, image_file=None)
                 if res:
+                    res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
                     return res
 
         # 2. Try .env-configured Gemini
         res = cls._fallback_env_gemini(vision_prompt, image_file)
         if res:
+            res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
             return res
 
         # 3. Try .env-configured Groq
         res = cls._fallback_env_groq(base_prompt, image_file=None, preferred_language=preferred_language)
         if res:
+            res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
             return res
 
         fallback_text = cls.generate_contextual_fallback(user_message, preferred_language)
+        fallback_text = _truncate_to_words(fallback_text, 200)
         return {"reply_text": fallback_text, "status": "fallback"}
 
     @classmethod
     def generate_text(cls, prompt, language="bn"):
         res = cls.chat_with_patient(user_message=prompt, preferred_language=language)
-        return res.get("reply_text") or cls.generate_contextual_fallback(prompt, language)
+        text = res.get("reply_text") or cls.generate_contextual_fallback(prompt, language)
+        return _truncate_to_words(text, 200)
 
     @classmethod
     def scan_prescription_image(cls, image_file_path_or_bytes):
@@ -559,11 +592,12 @@ class GeminiAIService:
         }
 
     @classmethod
-    def generate_clinical_summary(cls, patient_name, history_text, metrics_summary=""):
+    def generate_clinical_summary(cls, patient_name, history_text, metrics_summary="", language="en"):
         db_providers = cls._get_db_providers()
+        language_instruction = "in Bangla" if language == "bn" else "in English"
         prompt = (
             f"You are a clinical AI assistant for doctors in Bangladesh. Generate a concise 3-bullet point "
-            f"clinical summary and drug interaction check for doctor chamber review in Bangla:\n"
+            f"clinical summary and drug interaction check for doctor chamber review {language_instruction}:\n"
             f"Patient Name: {patient_name}\n"
             f"Medical History: {history_text}\n"
             f"Health Vitals: {metrics_summary}\n"

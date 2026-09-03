@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Reports</p>
+      <h1 class="mt-1 text-3xl font-semibold tracking-tight">Doctor Reports</h1>
+      <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">{% if doctor_name %}Dr. {{ doctor_name }}{% endif %}</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="?export=pdf" target="_blank" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100 dark:hover:bg-slate-800">
+        <i class="fa-solid fa-file-pdf"></i> Export PDF
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div>
+      <label class="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">Start Date</label>
+      <input type="date" name="start_date" value="{{ start_date }}" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">End Date</label>
+      <input type="date" name="end_date" value="{{ end_date }}" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">Status</label>
+      <select name="status" class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+        <option value="">All</option>
+        {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="inline-flex h-10 items-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white hover:bg-teal-700">
+      <i class="fa-solid fa-filter mr-1"></i> Filter
+    </button>
+  </form>
+
+  <!-- Metric cards -->
+  <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-5 mb-6">
+    <div class="rounded-xl border border-stone-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs text-stone-500 dark:text-stone-400">Total Earnings (BDT)</p>
+      <p class="text-xl font-bold text-stone-900 dark:text-stone-100">{{ metrics.income_total }}</p>
+    </div>
+    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900/40 dark:bg-rose-950/30">
+      <p class="text-xs text-rose-600 dark:text-rose-400">Refund (BDT)</p>
+      <p class="text-xl font-bold text-rose-900 dark:text-rose-300">{{ metrics.refund_total }}</p>
+    </div>
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
+      <p class="text-xs text-emerald-600 dark:text-emerald-400">Net Earnings (BDT)</p>
+      <p class="text-xl font-bold text-emerald-900 dark:text-emerald-300">{{ metrics.revenue }}</p>
+    </div>
+    <div class="rounded-xl border border-stone-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900">
+      <p class="text-xs text-stone-500 dark:text-stone-400">Patients Seen</p>
+      <p class="text-xl font-bold text-stone-900 dark:text-stone-100">{{ metrics.patients_seen }}</p>
+    </div>
+    <div class="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center dark:border-orange-900/40 dark:bg-orange-950/30">
+      <p class="text-xs text-orange-600 dark:text-orange-400">Cancelled</p>
+      <p class="text-xl font-bold text-orange-900 dark:text-orange-300">{{ metrics.cancelled_count }}</p>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid gap-6 md:grid-cols-2">
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h3 class="text-sm font-bold text-stone-700 dark:text-stone-300 mb-3">Appointment Status Distribution</h3>
+      <canvas id="statusChart" height="220"></canvas>
+    </div>
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h3 class="text-sm font-bold text-stone-700 dark:text-stone-300 mb-3">Daily Income (BDT)</h3>
+      <canvas id="incomeChart" height="220"></canvas>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportDropdown = document.getElementById("exportDropdown");
+  if (exportBtn && exportDropdown) {
+    exportBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      exportDropdown.classList.toggle("hidden");
+    });
+    document.addEventListener("click", function() {
+      exportDropdown.classList.add("hidden");
+    });
+    exportDropdown.addEventListener("click", function(e) {
+      e.stopPropagation();
+    });
+  }
+
+  function exportReport(format) {
+    const checkboxes = document.querySelectorAll('#exportDropdown input[name="cols"]:checked');
+    const cols = Array.from(checkboxes).map(cb => cb.value).join(',');
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', format);
+    params.set('cols', cols);
+    window.location.href = '?' + params.toString();
+  }
+</script>
+{{ metrics.status_counts|json_script:"status-data" }}
+{{ metrics.daily_series|json_script:"daily-data" }}
+<script>
+  const statusData = JSON.parse(document.getElementById("status-data").textContent);
+  const dailyData = JSON.parse(document.getElementById("daily-data").textContent);
+
+  new Chart(document.getElementById("statusChart"), {
+    type: "bar",
+    data: {
+      labels: ["Completed", "Missed", "Cancelled", "Pending", "Confirmed", "Pending Approv."],
+      datasets: [{
+        label: "Appointments",
+        data: [
+          statusData.completed, statusData.missed, statusData.cancelled,
+          statusData.pending, statusData.confirmed, statusData.cancellation_pending
+        ],
+        backgroundColor: ["#0d9488", "#e11d48", "#f97316", "#f59e0b", "#14b8a6", "#fb923c"]
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  new Chart(document.getElementById("incomeChart"), {
+    type: "line",
+    data: {
+      labels: dailyData.map(d => d.date),
+      datasets: [{
+        label: "Income (BDT)",
+        data: dailyData.map(d => d.income),
+        borderColor: "#0d9488",
+        backgroundColor: "rgba(13,148,136,0.15)",
+        fill: true, tension: 0.3
+      }]
+    },
+    options: { responsive: true }
+  });
+</script>
+{% endblock %}

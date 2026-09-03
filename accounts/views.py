@@ -10,6 +10,7 @@ from django.contrib.auth.views import (
     PasswordResetConfirmView,
     PasswordResetCompleteView,
 )
+from django.core.paginator import Paginator
 from django.urls import reverse_lazy, reverse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.http import JsonResponse
@@ -52,8 +53,10 @@ def register_view(request):
                     nid_or_birth_reg=data.get("patient_nid_or_birth_reg", "").strip(),
                     identity_document=patient_doc,
                     country="Bangladesh",
-                    verification_status="pending",
-                    is_verified=False,
+                    verification_status="verified",
+                    is_verified=True,
+                    date_of_birth=data.get("date_of_birth"),
+                    gender=data.get("gender", "").strip(),
                 )
 
             else:
@@ -68,8 +71,10 @@ def register_view(request):
                     experience_years=data.get("experience_years", 0),
                     consultation_fee=data.get("consultation_fee", 0),
                     country="Bangladesh",
-                    verification_status="pending",
-                    is_verified=False,
+                    verification_status="verified",
+                    is_verified=True,
+                    date_of_birth=data.get("date_of_birth"),
+                    gender=data.get("gender", "").strip(),
                 )
 
             # Log the user in specifying backend explicitly
@@ -92,11 +97,8 @@ def login_view(request):
         form = LoginForm(request.POST, request=request)
         if form.is_valid():
             user = form.get_user()
-            # Block admin/staff users from logging in through patient/doctor portal
-            if user.is_superuser or user.is_staff:
-                messages.error(request, "Admin accounts must log in through the Admin Dashboard. Please use /admin/ to log in.")
-                return redirect("accounts:login")
-            login(request, user)
+            backend = "accounts.backends.EmailAuthBackend"
+            login(request, user, backend=backend)
             messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
             return redirect("accounts:post_login_redirect")
     else:
@@ -124,8 +126,11 @@ class CustomPasswordResetView(PasswordResetView):
     email_template_name = "registration/password_reset_email.html"
     subject_template_name = "registration/password_reset_subject.txt"
     success_url = reverse_lazy("accounts:password_reset_done")
-    extra_email_context = {"url_name": "accounts:password_reset_confirm"}
-
+    extra_email_context = {
+        "url_name": "accounts:password_reset_confirm",
+        "site_name": "CareBridge AI",
+        "support_email": "mdimran095m@gmail.com",
+    }
 
 
 class CustomPasswordResetDoneView(PasswordResetDoneView):
@@ -149,7 +154,6 @@ def verification_pending_view(request):
     doctor = getattr(request.user, "doctor_profile", None)
     patient = getattr(request.user, "patient_profile", None)
 
-    # If user is superuser or already verified, redirect to dashboard
     if request.user.is_superuser or (doctor and doctor.is_verified) or (patient and patient.is_verified):
         return redirect("accounts:post_login_redirect")
 
@@ -162,21 +166,30 @@ def verification_pending_view(request):
 
 @login_required
 def post_login_redirect(request):
-    """Send doctors and patients to the dashboard matching their role, checking verification status."""
+    """Send doctors, patients, and admins directly to their respective dashboards."""
     if request.user.is_superuser or request.user.is_staff:
         return redirect("admin:index")
 
     if hasattr(request.user, "doctor_profile"):
-        if not request.user.doctor_profile.is_verified:
-            return redirect("accounts:verification_pending")
         return redirect("doctors:dashboard")
 
     if hasattr(request.user, "patient_profile"):
-        if not request.user.patient_profile.is_verified:
-            return redirect("accounts:verification_pending")
         return redirect("patient:dashboard")
 
-    return redirect("home")
+    # If user has no profile yet, create a verified patient profile automatically
+    from datetime import date
+    Patient.objects.get_or_create(
+        user=request.user,
+        defaults={
+            "phone_number": "+8801700000000",
+            "district": "Dhaka",
+            "date_of_birth": date(1995, 1, 1),
+            "gender": "Male",
+            "is_verified": True,
+            "verification_status": "verified",
+        }
+    )
+    return redirect("patient:dashboard")
 
 
 
@@ -454,32 +467,33 @@ def payment_process_view(request, appointment_id):
 
     if request.method == "POST":
         payment_method = request.POST.get("payment_method", "cash")
-        transaction_id = request.POST.get("transaction_id", f"TXN-{appointment.pk}-{timezone.now().timestamp()}")
+        transaction_id = request.POST.get("transaction_id", "").strip()
+        payment_notes = request.POST.get("payment_notes", "").strip()
+        payment_proof = request.FILES.get("payment_proof")
 
-        appointment.payment_status = "paid"
+        if not transaction_id and not payment_proof:
+            messages.error(request, "Please provide either transaction ID or payment proof screenshot.")
+            return redirect("accounts:payment_process", appointment_id=appointment.pk)
+
         appointment.payment_method = payment_method
-        appointment.transaction_id = transaction_id
-        appointment.paid_amount = appointment.fee_bdt
-        appointment.platform_fee_bdt = (appointment.fee_bdt * Decimal("0.03")).quantize(Decimal("0.01"))
-        appointment.net_doctor_payout_bdt = appointment.fee_bdt - appointment.platform_fee_bdt
-        appointment.status = "confirmed"
+        appointment.transaction_id = transaction_id or f"TXN-{appointment.pk}-{timezone.now().timestamp()}"
+        appointment.payment_notes = payment_notes
+        if payment_proof:
+            appointment.payment_proof = payment_proof
+        appointment.payment_status = "pending_verification"
         appointment.save()
 
-        # Create receipt
-        from prescriptions.views import _build_appointment_receipt_pdf
-        receipt_buffer = _build_appointment_receipt_pdf(appointment)
-
-        # Notify doctor
+        # Notify doctor for payment verification
         AppNotification.objects.create(
             user=appointment.doctor.user,
-            title="New Appointment Confirmed",
-            message=f"Patient {patient.user.get_full_name()} booked an appointment on {appointment.appointment_date}. Payment received: {appointment.fee_bdt} BDT.",
+            title="💳 Payment Verification Required",
+            message=f"Patient {patient.user.get_full_name()} has submitted payment proof for appointment on {appointment.appointment_date}. Please verify the payment.",
             notification_type="booking",
-            link_url=reverse("doctors:appointment_list"),
+            link_url=reverse("doctors:verify_payment", kwargs={"appointment_id": appointment.pk}),
         )
 
-        messages.success(request, f"Payment successful! Appointment confirmed. Receipt generated.")
-        return redirect("patient:appointment_detail", appointment_id=appointment.pk)
+        messages.success(request, "Payment proof submitted successfully. Please wait for doctor to verify your payment.")
+        return redirect("patient:appointments")
 
     return render(request, "accounts/payment_process.html", {
         "appointment": appointment,
@@ -499,35 +513,38 @@ def doctor_analytics_view(request):
     today = date.today()
     month_start = today.replace(day=1)
 
-    # All completed appointments
-    completed = Appointment.objects.filter(doctor=doctor, status="completed")
-    cancelled = Appointment.objects.filter(doctor=doctor, status="cancelled")
+    # All appointments for this doctor
+    all_appointments = Appointment.objects.filter(doctor=doctor)
+    completed = all_appointments.filter(status="completed")
+    cancelled = all_appointments.filter(status="cancelled")
+    paid = all_appointments.filter(payment_status="paid")
 
     # This month's stats
     month_completed = completed.filter(appointment_date__gte=month_start)
     month_cancelled = cancelled.filter(appointment_date__gte=month_start)
+    month_paid = paid.filter(appointment_date__gte=month_start)
 
     total_patients = Patient.objects.filter(prescriptions__doctor=doctor).distinct().count()
-    total_appointments = completed.count()
+    total_appointments = all_appointments.count()
     month_appointments = month_completed.count()
 
-    # Financial calculations
-    total_revenue = completed.aggregate(Sum("paid_amount"))["paid_amount__sum"] or 0
-    month_revenue = month_completed.aggregate(Sum("paid_amount"))["paid_amount__sum"] or 0
+    # Financial calculations — only from PAID appointments
+    total_earnings = paid.aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
+    month_earnings = month_paid.aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
     total_refunds = cancelled.aggregate(Sum("refund_amount"))["refund_amount__sum"] or 0
     month_refunds = month_cancelled.aggregate(Sum("refund_amount"))["refund_amount__sum"] or 0
-    platform_fees = completed.aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
-    net_earnings = total_revenue - total_refunds - platform_fees
+    platform_fees = paid.aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
+    net_earnings = total_earnings - platform_fees - total_refunds
 
-    # Recent transactions
-    recent_appointments = Appointment.objects.filter(doctor=doctor).order_by("-created_at")[:20]
+    # Recent transactions — all appointments, newest first
+    recent_appointments = all_appointments.order_by("-created_at")[:20]
 
     return render(request, "accounts/doctor_analytics.html", {
         "total_patients": total_patients,
         "total_appointments": total_appointments,
         "month_appointments": month_appointments,
-        "total_revenue": total_revenue,
-        "month_revenue": month_revenue,
+        "total_earnings": total_earnings,
+        "month_earnings": month_earnings,
         "total_refunds": total_refunds,
         "month_refunds": month_refunds,
         "platform_fees": platform_fees,
@@ -578,9 +595,13 @@ def admin_analytics_view(request):
     total_notifications = AppNotification.objects.count()
     unread_notifications = AppNotification.objects.filter(is_read=False).count()
 
-    total_revenue = Appointment.objects.filter(payment_status="paid").aggregate(Sum("paid_amount"))["paid_amount__sum"] or 0
-    month_revenue = Appointment.objects.filter(payment_status="paid", appointment_date__gte=month_start).aggregate(Sum("paid_amount"))["paid_amount__sum"] or 0
-    week_revenue = Appointment.objects.filter(payment_status="paid", appointment_date__gte=week_start).aggregate(Sum("paid_amount"))["paid_amount__sum"] or 0
+    total_revenue = Appointment.objects.filter(payment_status="paid").aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
+    site_income = Appointment.objects.filter(payment_status="paid").aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
+    month_revenue = Appointment.objects.filter(payment_status="paid").aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
+    month_site_income = Appointment.objects.filter(payment_status="paid", appointment_date__gte=month_start).aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
+    week_revenue = Appointment.objects.filter(payment_status="paid").aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
+    week_site_income = Appointment.objects.filter(payment_status="paid", appointment_date__gte=week_start).aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
+    doctor_payout = Appointment.objects.filter(payment_status="paid").aggregate(Sum("net_doctor_payout_bdt"))["net_doctor_payout_bdt__sum"] or 0
     total_refunds = Appointment.objects.filter(refund_amount__gt=0).aggregate(Sum("refund_amount"))["refund_amount__sum"] or 0
     partial_refunds = Appointment.objects.filter(refund_status="partial").count()
     full_refunds = Appointment.objects.filter(refund_status="full").count()
@@ -593,7 +614,10 @@ def admin_analytics_view(request):
     avg_appointments_per_doctor = round(total_appointments / total_doctors, 1) if total_doctors > 0 else 0
     avg_appointments_per_patient = round(total_appointments / total_patients, 1) if total_patients > 0 else 0
 
-    recent_appointments = Appointment.objects.all().order_by("-created_at")[:20]
+    recent_appointments_qs = Appointment.objects.all().order_by("-created_at")[:50]
+    paginator = Paginator(recent_appointments_qs, 10)
+    page_number = request.GET.get("page")
+    recent_appointments = paginator.get_page(page_number)
 
     daily_stats = []
     for i in range(7):
@@ -622,10 +646,14 @@ def admin_analytics_view(request):
         "completed_followups": completed_followups,
         "total_notifications": total_notifications,
         "unread_notifications": unread_notifications,
-        "total_revenue": total_revenue,
-        "month_revenue": month_revenue,
-        "week_revenue": week_revenue,
-        "total_refunds": total_refunds,
+         "total_revenue": total_revenue,
+         "month_revenue": month_revenue,
+         "week_revenue": week_revenue,
+         "site_income": site_income,
+         "month_site_income": month_site_income,
+         "week_site_income": week_site_income,
+         "doctor_payout": doctor_payout,
+         "total_refunds": total_refunds,
         "partial_refunds": partial_refunds,
         "full_refunds": full_refunds,
         "platform_fees": platform_fees,

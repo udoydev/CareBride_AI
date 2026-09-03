@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',
     'django_browser_reload',
+    'carebridge',
     'accounts',
     'patient',
     'doctors',
@@ -54,7 +55,6 @@ INSTALLED_APPS = [
 ]
 
 TAILWIND_APP_NAME = "theme"
-INTERNAL_IPS = ['127.0.0.1']
 NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
 
 MIDDLEWARE = [
@@ -125,6 +125,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.tz',
                 'carebridge.context_processors.ui_settings',
                 'accounts.context_processors.notifications_processor',
             ],
@@ -190,6 +191,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'carebridge' / 'static',
+    BASE_DIR / 'static',
 ]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

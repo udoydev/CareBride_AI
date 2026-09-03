@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+<section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 md:py-16">
+  <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <h1 class="text-2xl font-semibold tracking-tight">Verify Payment</h1>
+    <p class="mt-2 text-sm text-stone-600 dark:text-stone-300">Review the payment proof and confirm or reject the payment.</p>
+
+    <div class="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-slate-800 dark:bg-slate-800">
+      <div class="space-y-2 text-sm">
+        <p><strong>Patient:</strong> {{ appointment.patient.user.get_full_name|default:appointment.patient.user.email }}</p>
+        <p><strong>Appointment Date:</strong> {{ appointment.appointment_date }}</p>
+        <p><strong>Time:</strong> {{ appointment.start_time }}</p>
+        <p><strong>Amount:</strong> {{ appointment.fee_bdt }} BDT</p>
+        <p><strong>Payment Method:</strong> {{ appointment.payment_method|default:"Not specified" }}</p>
+        <p><strong>Transaction ID:</strong> {{ appointment.transaction_id|default:"Not provided" }}</p>
+        {% if appointment.payment_notes %}
+        <p><strong>Patient Notes:</strong> {{ appointment.payment_notes }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if appointment.payment_proof %}
+    <div class="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 dark:border-slate-800 dark:bg-slate-800">
+      <p class="text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Payment Proof Screenshot:</p>
+      <img src="{{ appointment.payment_proof.url }}" alt="Payment Proof" class="max-w-full h-auto rounded-xl border border-stone-200 dark:border-slate-700">
+    </div>
+    {% endif %}
+
+    <form method="post" class="mt-6 flex gap-3">
+      {% csrf_token %}
+      <button type="submit" name="action" value="approve" class="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+        <i class="fa-solid fa-check mr-2"></i> Approve Payment
+      </button>
+      <button type="submit" name="action" value="reject" class="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-red-200 bg-red-50 px-6 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+        <i class="fa-solid fa-xmark mr-2"></i> Reject
+      </button>
+    </form>
+  </div>
+</section>
+{% endblock %}

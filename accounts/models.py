@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 try:
     from django.db.models import JSONField
@@ -37,14 +38,15 @@ class Patient(models.Model):
     is_verified = models.BooleanField(default=False)
     avatar = models.ImageField(upload_to="patient_avatars/", null=True, blank=True)
     avatar_updated_at = models.DateTimeField(null=True, blank=True)
-    date_of_birth = models.DateField(null=True, blank=True)
-    gender = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(null=False, blank=False, help_text="Required — used to calculate age and verify identity")
+    gender = models.CharField(max_length=20, null=False, blank=False, help_text="Required — Male / Female / Other")
     preferred_language = models.CharField(
         max_length=10,
         choices=[("bn", "Bangla"), ("en", "English")],
         default="bn",
     )
     custom_dose_times = JSONField(default=list, blank=True, help_text="Custom dose times in HH:MM format, e.g. ['08:00', '14:00', '20:00']")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Refundable wallet balance in BDT")
 
     def save(self, *args, **kwargs):
         if self.verification_status == "rejected":
@@ -69,7 +71,9 @@ class Doctor(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="doctor_profile")
     phone_number = models.CharField(max_length=20, blank=True, help_text="Bangladeshi mobile number e.g. +88017XXXXXXXX")
-    specialty = models.CharField(max_length=100, blank=True)
+    date_of_birth = models.DateField(null=False, blank=False, help_text="Required — used to calculate age and verify identity")
+    gender = models.CharField(max_length=20, null=False, blank=False, help_text="Required — Male / Female / Other")
+    specialty = models.CharField(max_length=100, null=False, blank=False)
     registration_number = models.CharField(max_length=50, blank=True, help_text="BMDC Registration Number e.g. A-12345")
     nid_number = models.CharField(max_length=30, blank=True, help_text="Bangladeshi NID Number for verification")
     bmdc_certificate = models.FileField(upload_to="doctor_certificates/", null=True, blank=True, help_text="BMDC certificate / license image or PDF")
@@ -87,6 +91,9 @@ class Doctor(models.Model):
     payout_account_number = models.CharField(max_length=100, blank=True)
     payout_mobile_wallet = models.CharField(max_length=20, blank=True, help_text="bKash/Nagad number")
     payout_account_holder = models.CharField(max_length=150, blank=True)
+    designation = models.CharField(max_length=150, blank=True, help_text="e.g. Consultant, Associate Professor, HOD")
+    degrees = models.TextField(blank=True, help_text="e.g. MBBS, MD (Cardiology), FCPS")
+    bmdc_registration_year = models.PositiveIntegerField(null=True, blank=True, help_text="BMDC Registration Year")
 
     def save(self, *args, **kwargs):
         if self.verification_status == "rejected":
@@ -187,4 +194,59 @@ class AIProvider(models.Model):
         if total == 0:
             return 100.0
         return round((self.success_count / total) * 100, 1)
+
+
+class News(models.Model):
+    TARGET_CHOICES = [
+        ("all", "All Users"),
+        ("patients", "Patients Only"),
+        ("doctors", "Doctors Only"),
+    ]
+
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    target_audience = models.CharField(max_length=20, choices=TARGET_CHOICES, default="all")
+    is_active = models.BooleanField(default=True)
+    is_urgent = models.BooleanField(default=False, help_text="Show with animation")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.get_target_audience_display()})"
+
+
+class SiteSettings(models.Model):
+    BOOKING_RULE_CHOICES = [
+        ("enabled", "4-Hour Rule Enabled"),
+        ("disabled", "No Restriction — Book Anytime"),
+    ]
+
+    booking_edit_rule = models.CharField(
+        max_length=20,
+        choices=BOOKING_RULE_CHOICES,
+        default="enabled",
+        help_text="If enabled, patients can only edit appointments at least 4 hours before the scheduled time. If disabled, patients can edit anytime based on slot availability.",
+    )
+
+    platform_commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("7.50"),
+        help_text="Platform commission rate (percentage) charged on each paid appointment. To change: edit default here, then run makemigrations + migrate.",
+    )
+
+    class Meta:
+        verbose_name = "Site Settings"
+        verbose_name_plural = "Site Settings"
+
+    def __str__(self):
+        return "Site Settings"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 

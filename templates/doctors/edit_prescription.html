@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load static tailwind_tags %}
+
+{% block content %}
+{% include 'includes/doctor_breadcrumb.html' %}
+<section class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:py-10">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400">Edit</p>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tight">Prescription #{{ prescription.id }}</h1>
+      <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+        Patient: {{ patient.user.get_full_name|default:patient.user.email }}
+      </p>
+    </div>
+    <a href="{% url 'doctors:prescription_detail' prescription.id %}" class="inline-flex h-10 items-center justify-center rounded-full border border-stone-300 bg-white px-4 text-xs font-semibold text-stone-700 shadow-xs hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-300">
+      Cancel & Back
+    </a>
+  </div>
+
+  {% if prescription.is_locked %}
+  <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+    <div class="flex items-start gap-3">
+      <i class="fa-solid fa-lock text-red-500 mt-0.5"></i>
+      <div>
+        <h3 class="text-sm font-bold text-red-800 dark:text-red-300">Prescription Locked</h3>
+        <p class="mt-1 text-xs text-red-700 dark:text-red-400">
+          This prescription is locked and can no longer be edited. The 4-hour editing window has expired.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Clinical Overview</h3>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Chief Complaints (C/C)</label>
+        <textarea name="chief_complaints" rows="2" class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">{{ prescription.chief_complaints|default:'' }}</textarea>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Diagnosis (Dx)</label>
+        <input type="text" name="diagnosis" value="{{ prescription.diagnosis|default:'' }}" class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Doctor Notes</label>
+        <textarea name="doctor_notes" rows="2" class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">{{ prescription.doctor_notes|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Tests / Investigations</h3>
+      <div id="tests_container" class="space-y-2">
+        {% for test in prescription.tests_investigations|linebreaks %}
+        <div class="flex items-center gap-2">
+          <input type="text" name="test_name[]" value="{{ test }}" class="test-name-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+          <button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addTest()" class="inline-flex items-center gap-2 rounded-full border border-dashed border-stone-300 px-4 py-2 text-xs font-bold text-stone-600 hover:border-teal-400 hover:text-teal-700 dark:border-slate-700 dark:text-stone-400">
+        <i class="fa-solid fa-plus text-[10px]"></i> Add Test
+      </button>
+    </div>
+
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Advice / Rules</h3>
+      <div id="advice_container" class="space-y-2">
+        {% for advice in prescription.advice_rules|linebreaks %}
+        <div class="flex items-center gap-2">
+          <input type="text" name="advice_rule[]" value="{{ advice }}" class="advice-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+          <button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addAdvice()" class="inline-flex items-center gap-2 rounded-full border border-dashed border-stone-300 px-4 py-2 text-xs font-bold text-stone-600 hover:border-teal-400 hover:text-teal-700 dark:border-slate-700 dark:text-stone-400">
+        <i class="fa-solid fa-plus text-[10px]"></i> Add Advice
+      </button>
+    </div>
+
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Medicines</h3>
+      <div id="medicines_container" class="space-y-4">
+        {% for item in existing_items %}
+        <div class="med-row rounded-xl border border-stone-100 p-4 dark:border-slate-800">
+          <div class="flex items-center gap-2">
+            <input type="text" name="med_name[]" value="{{ item.medicine.brand_name|default:item.medicine.generic_name }}" required
+              class="med-name-field flex-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100">
+            <button type="button" onclick="this.closest('.med-row').remove()" class="remove-med-btn text-stone-400 hover:text-red-500 px-2 py-1">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5 mt-3">
+            <div>
+              <label class="text-[10px] text-stone-500">Dosage</label>
+              <input type="text" name="med_dosage[]" value="{{ item.dosage|default:'1+0+1' }}" 
+                class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            </div>
+            <div>
+              <label class="text-[10px] text-stone-500">Frequency</label>
+              <select name="med_frequency[]" class="med-frequency-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                <option value="1" {% if item.frequency == 1 %}selected{% endif %}>1x/day</option>
+                <option value="2" {% if item.frequency == 2 %}selected{% endif %}>2x/day</option>
+                <option value="3" {% if item.frequency == 3 %}selected{% endif %}>3x/day</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-stone-500">Timing</label>
+              <select name="med_timing[]" class="med-timing-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                <option value="after_meal" {% if item.timing_relation_to_meal == 'after_meal' %}selected{% endif %}>After meal / খাবার পরে</option>
+                <option value="before_meal" {% if item.timing_relation_to_meal == 'before_meal' %}selected{% endif %}>Before meal / খাবার আগে</option>
+                <option value="with_meal" {% if item.timing_relation_to_meal == 'with_meal' %}selected{% endif %}>With meal / খাবারের সাথে</option>
+                <option value="anytime" {% if item.timing_relation_to_meal == 'anytime' %}selected{% endif %}>Any time / যেকোনো সময়</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-stone-500">Duration (Days)</label>
+              <input type="number" name="med_duration[]" value="{{ item.duration_days|default:7 }}" min="1"
+                class="med-duration-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            </div>
+            <div>
+              <label class="text-[10px] text-stone-500">Instructions / Notes</label>
+              <input type="text" name="med_notes[]" value="{{ item.special_instructions|default:'' }}"
+                class="med-notes-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addMedicine()" class="inline-flex items-center gap-2 rounded-full border border-dashed border-stone-300 px-4 py-2 text-xs font-bold text-stone-600 hover:border-teal-400 hover:text-teal-700 dark:border-slate-700 dark:text-stone-400">
+        <i class="fa-solid fa-plus text-[10px]"></i> Add Medicine
+      </button>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="inline-flex h-11 items-center justify-center rounded-full bg-amber-600 px-8 text-sm font-bold text-white shadow-md transition hover:bg-amber-700">
+        <i class="fa-solid fa-pen-to-square mr-2"></i> Update Prescription
+      </button>
+    </div>
+  </form>
+</section>
+
+<script>
+  function addTest() {
+    const container = document.getElementById('tests_container');
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2';
+    div.innerHTML = '<input type="text" name="test_name[]" class="test-name-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"><button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400"><i class="fa-solid fa-xmark text-xs"></i></button>';
+    container.appendChild(div);
+  }
+
+  function addAdvice() {
+    const container = document.getElementById('advice_container');
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2';
+    div.innerHTML = '<input type="text" name="advice_rule[]" class="advice-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"><button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400"><i class="fa-solid fa-xmark text-xs"></i></button>';
+    container.appendChild(div);
+  }
+
+  function addMedicine() {
+    const container = document.getElementById('medicines_container');
+    const div = document.createElement('div');
+    div.className = 'med-row rounded-xl border border-stone-100 p-4 dark:border-slate-800';
+    div.innerHTML = `
+      <div class="flex items-center gap-2">
+        <input type="text" name="med_name[]" placeholder="Medicine Name" required
+          class="med-name-field flex-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100">
+        <button type="button" onclick="this.closest('.med-row').remove()" class="remove-med-btn text-stone-400 hover:text-red-500 px-2 py-1">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-5 mt-3">
+        <div>
+          <label class="text-[10px] text-stone-500">Dosage</label>
+          <input type="text" name="med_dosage[]" value="1+0+1" 
+            class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Frequency</label>
+          <select name="med_frequency[]" class="med-frequency-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            <option value="1">1x/day</option>
+            <option value="2" selected>2x/day</option>
+            <option value="3">3x/day</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Timing</label>
+          <select name="med_timing[]" class="med-timing-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            <option value="after_meal" selected>After meal / খাবার পরে</option>
+            <option value="before_meal">Before meal / খাবার আগে</option>
+            <option value="with_meal">With meal / খাবারের সাথে</option>
+            <option value="anytime">Any time / যেকোনো সময়</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Duration (Days)</label>
+          <input type="number" name="med_duration[]" value="7" min="1"
+            class="med-duration-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Instructions / Notes</label>
+          <input type="text" name="med_notes[]" placeholder="e.g. for fever"
+            class="med-notes-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+</script>
+{% endblock %}

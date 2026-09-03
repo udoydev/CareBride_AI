@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 {% include 'includes/patient_breadcrumb.html' %}
@@ -7,7 +7,7 @@
   <div class="flex items-center justify-between mb-8">
     <div>
       <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">My analytics</p>
-      <h1 class="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Health Dashboard</h1>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">History of Appointments</h1>
       <p class="mt-2 text-stone-600 dark:text-stone-400">Your appointments, spending, and health metrics at a glance.</p>
     </div>
     <a href="{% url 'patient:payment_history_export' %}" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
@@ -109,7 +109,7 @@
         <div class="flex items-center justify-between border-b border-stone-100 pb-3 dark:border-slate-800">
           <div>
             <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">Dr. {{ apt.doctor.user.get_full_name|default:apt.doctor.user.username }}</p>
-            <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.appointment_date|date:"d M Y" }} &bull; {{ apt.start_time|time:"H:i" }}</p>
+             <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.appointment_date|date:"d M Y" }} &bull; {{ apt.start_time|time:"h:i A" }}</p>
           </div>
           <span class="rounded-full px-2.5 py-0.5 text-xs font-bold
             {% if apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
@@ -121,11 +121,22 @@
         </div>
         {% endfor %}
       </div>
+      {% if recent_appointments.has_other_pages %}
+      <div class="mt-4 flex items-center justify-center gap-2">
+        {% if recent_appointments.has_previous %}
+          <a href="?apt_page={{ recent_appointments.previous_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+        {% endif %}
+        <span class="text-xs font-medium text-stone-600 dark:text-stone-400">Page {{ recent_appointments.number }} of {{ recent_appointments.paginator.num_pages }}</span>
+        {% if recent_appointments.has_next %}
+          <a href="?apt_page={{ recent_appointments.next_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+        {% endif %}
+      </div>
+      {% endif %}
       {% else %}
       <p class="text-sm text-stone-500 dark:text-stone-400">No appointments yet.</p>
       {% endif %}
       <a href="{% url 'patient:appointments' %}" class="mt-4 inline-flex items-center gap-2 text-sm font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300">
-        <span>{% if site_lang == 'bn' %}সব অ্যাপয়েন্টমেন্ট দেখুন{% else %}View all appointments{% endif %}</span>
+        <span>{% translate_bn "View all appointments" %}</span>
         <i class="fa-solid fa-arrow-right"></i>
       </a>
     </div>
@@ -147,11 +158,22 @@
         </div>
         {% endfor %}
       </div>
+      {% if recent_prescriptions.has_other_pages %}
+      <div class="mt-4 flex items-center justify-center gap-2">
+        {% if recent_prescriptions.has_previous %}
+          <a href="?rx_page={{ recent_prescriptions.previous_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
+        {% endif %}
+        <span class="text-xs font-medium text-stone-600 dark:text-stone-400">Page {{ recent_prescriptions.number }} of {{ recent_prescriptions.paginator.num_pages }}</span>
+        {% if recent_prescriptions.has_next %}
+          <a href="?rx_page={{ recent_prescriptions.next_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
+        {% endif %}
+      </div>
+      {% endif %}
       {% else %}
       <p class="text-sm text-stone-500 dark:text-stone-400">No prescriptions yet.</p>
       {% endif %}
       <a href="{% url 'patient:health_record' %}" class="mt-4 inline-flex items-center gap-2 text-sm font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300">
-        <span>{% if site_lang == 'bn' %}স্বাস্থ্য রেকর্ড দেখুন{% else %}View health records{% endif %}</span>
+        <span>{% translate_bn "View health records" %}</span>
         <i class="fa-solid fa-arrow-right"></i>
       </a>
     </div>

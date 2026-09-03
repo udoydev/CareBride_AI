@@ -12,8 +12,18 @@ TIMING_LABELS = {
     "before_meal": {"bn": "খাবারের আগে", "en": "before meals"},
     "after_meal": {"bn": "খাবারের পরে", "en": "after meals"},
     "with_meal": {"bn": "খাবারের সাথে", "en": "with meals"},
-    "anytime": {"bn": "যেকোনো সময়", "en": "any time"},
+    "anytime": {"bn": "যেকোনো সময়", "en": "any time"},
 }
+
+
+def _truncate_to_words(text, max_words=200):
+    """Truncate text to max_words on a word boundary, appending a notice if truncated."""
+    if not text:
+        return text
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return ' '.join(words[:max_words]) + "... (response truncated)"
 
 
 def _resolve_provider():
@@ -435,7 +445,7 @@ def _local_patient_reply(question, language, patient):
     # Check medical topics
     for topic_id, topic in MEDICAL_TOPICS.items():
         if any(w in q for w in topic["keywords"]):
-            return topic["bn"] if is_bn else topic["en"]
+            return _truncate_to_words(topic["bn"] if is_bn else topic["en"], 200)
 
     prescriptions = list(
         Prescription.objects.filter(patient=patient)
@@ -455,12 +465,12 @@ def _local_patient_reply(question, language, patient):
         if doses and doses.exists():
             items = [f"• **{s.prescription_item.medicine}**: {s.prescription_item.dosage} ({s.get_status_display()})" for s in doses]
             if is_bn:
-                return "📋 **আজকের ওষুধের তালিকা:**\n\n" + "\n".join(items) + "\n\n💡 *'আজকের ওষুধ' পেজে গিয়ে ওষুধ নিয়ে থাকলে mark করুন।*"
-            return "📋 **Today's Dose Schedule:**\n\n" + "\n".join(items) + "\n\n💡 *Mark doses as taken on the 'Today's Doses' page.*"
+                return _truncate_to_words("📋 **আজকের ওষুধের তালিকা:**\n\n" + "\n".join(items) + "\n\n💡 *'আজকের ওষুধ' পেজে গিয়ে ওষুধ নিয়ে থাকলে mark করুন।*", 200)
+            return _truncate_to_words("📋 **Today's Dose Schedule:**\n\n" + "\n".join(items) + "\n\n💡 *Mark doses as taken on the 'Today's Doses' page.*", 200)
         else:
             if is_bn:
-                return "✅ **আজকের জন্য কোনো ওষুধের রিমাইন্ডার বাকি নেই।**\n\nআপনি প্রেসক্রিপশন বা যেকোনো শারীরিক সমস্যা নিয়ে প্রশ্ন করতে পারেন।"
-            return "✅ **No medicine doses scheduled for today.**\n\nYou can ask me about symptoms, medicines, or doctors."
+                return _truncate_to_words("✅ **আজকের জন্য কোনো ওষুধের রিমাইন্ডার বাকি নেই।**\n\nআপনি প্রেসক্রিপশন বা যেকোনো শারীরিক সমস্যা নিয়ে প্রশ্ন করতে পারেন।", 200)
+            return _truncate_to_words("✅ **No medicine doses scheduled for today.**\n\nYou can ask me about symptoms, medicines, or doctors.", 200)
 
     followup_keywords = ["ফলো", "ফলোআপ", "সাক্ষাৎ", "ভিজিট", "অ্যাপয়েন্টমেন্ট", "follow", "followup", "appointment", "visit", "date", "apointment"]
     if any(w in q for w in followup_keywords):
@@ -468,12 +478,12 @@ def _local_patient_reply(question, language, patient):
         if fus and fus.exists():
             lines = [f"• **{fu.scheduled_date}** — Dr. {fu.prescription.doctor.user.get_full_name()}" for fu in fus]
             if is_bn:
-                return "📅 **আপনার আসন্ন ফলো-আপের সময়সূচী:**\n\n" + "\n".join(lines) + "\n\n💡 *'ফলো-আপ' পেজে বিস্তারিত জানতে পারবেন।*"
-            return "📅 **Your Upcoming Follow-up Visits:**\n\n" + "\n".join(lines) + "\n\n💡 *Check the 'Follow-ups' page for full details.*"
+                return _truncate_to_words("📅 **আপনার আসন্ন ফলো-আপের সময়সূচী:**\n\n" + "\n".join(lines) + "\n\n💡 *'ফলো-আপ' পেজে বিস্তারিত জানতে পারবেন।*", 200)
+            return _truncate_to_words("📅 **Your Upcoming Follow-up Visits:**\n\n" + "\n".join(lines) + "\n\n💡 *Check the 'Follow-ups' page for full details.*", 200)
         else:
             if is_bn:
-                return "ℹ️ **বর্তমানে আপনার কোনো নির্ধারিত ফলো-আপ নেই।**\n\nনতুন ডাক্তারের সাথে দেখা করতে 'ডাক্তার খুঁজুন' পেজে যান।"
-            return "ℹ️ **No upcoming follow-up visits scheduled right now.**\n\nFind verified doctors on the 'Find Doctors' page."
+                return _truncate_to_words("ℹ️ **বর্তমানে আপনার কোনো নির্ধারিত ফলো-আপ নেই।**\n\nনতুন ডাক্তারের সাথে দেখা করতে 'ডাক্তার খুঁজুন' পেজে যান।", 200)
+            return _truncate_to_words("ℹ️ **No upcoming follow-up visits scheduled right now.**\n\nFind verified doctors on the 'Find Doctors' page.", 200)
 
     rx_keywords = ["প্রেসক্রিপশন", "প্রেসকৃপশন", "প্রেসক্রিপসন", "রেকর্ড", "ইতিহাস", "prescription", "rx", "record", "history", "script"]
     if any(w in q for w in rx_keywords):
@@ -481,21 +491,23 @@ def _local_patient_reply(question, language, patient):
             rx = prescriptions[0]
             items = [f"• **{i.medicine}**: {i.dosage}, দিনে {i.frequency} বার ({i.duration_days} দিন)" for i in rx.items.all()]
             if is_bn:
-                return (
+                return _truncate_to_words(
                     f"💊 **সর্বশেষ প্রেসক্রিপশন (#{rx.pk})** — ডা. {rx.doctor.user.get_full_name()}:\n\n"
                     + "\n".join(items)
-                    + "\n\n💡 *বিস্তারিত দেখতে 'স্বাস্থ্য রেকর্ড' পৃষ্ঠায় যান।*"
+                    + "\n\n💡 *বিস্তারিত দেখতে 'স্বাস্থ্য রেকর্ড' পৃষ্ঠায় যান।*",
+                    200,
                 )
             items_en = [f"• **{i.medicine}**: {i.dosage}, {i.frequency}x/day ({i.duration_days} days)" for i in rx.items.all()]
-            return (
+            return _truncate_to_words(
                 f"💊 **Latest Prescription (#{rx.pk})** — Dr. {rx.doctor.user.get_full_name()}:\n\n"
                 + "\n".join(items_en)
-                + "\n\n💡 *View full prescription history on the 'Health Record' page.*"
+                + "\n\n💡 *View full prescription history on the 'Health Record' page.*",
+                200,
             )
         else:
             if is_bn:
-                return "ℹ️ **আপনার অ্যাকাউন্টে এখনও কোনো প্রেসক্রিপশন যোগ করা হয়নি।**"
-            return "ℹ️ **No prescription records found on your account yet.**"
+                return _truncate_to_words("ℹ️ **আপনার অ্যাকাউন্টে এখনও কোনো প্রেসক্রিপশন যোগ করা হয়নি।**", 200)
+            return _truncate_to_words("ℹ️ **No prescription records found on your account yet.**", 200)
 
     doc_keywords = ["ডাক্তার", "ডাক্তারগণ", "ডাক্তারদের", "চিকিৎসক", "doctor", "doctors", "daktar", "physician", "specialist"]
     if any(w in q for w in doc_keywords):
@@ -503,28 +515,28 @@ def _local_patient_reply(question, language, patient):
         if doctors.exists():
             lines = [f"• **Dr. {d.user.get_full_name()}** — {d.specialty or 'General Physician'} ({d.clinic_name or 'CareBridge Clinic'})" for d in doctors]
             if is_bn:
-                return "👨‍⚕️ **CareBridge-এর উপলব্ধ ডাক্তারবৃন্দ:**\n\n" + "\n".join(lines) + "\n\n💡 *'ডাক্তার খুঁজুন' পৃষ্ঠায় বুকিং দিন।*"
-            return "👨‍⚕️ **Available Doctors on CareBridge:**\n\n" + "\n".join(lines) + "\n\n💡 *Book appointments via the 'Find Doctors' page.*"
+                return _truncate_to_words("👨‍⚕️ **CareBridge-এর উপলব্ধ ডাক্তারবৃন্দ:**\n\n" + "\n".join(lines) + "\n\n💡 *'ডাক্তার খুঁজুন' পৃষ্ঠায় বুকিং দিন।*", 200)
+            return _truncate_to_words("👨‍⚕️ **Available Doctors on CareBridge:**\n\n" + "\n".join(lines) + "\n\n💡 *Book appointments via the 'Find Doctors' page.*", 200)
         else:
             if is_bn:
-                return "ℹ️ **বর্তমানে কোনো তালিকাভুক্ত ডাক্তার পাওয়া যায়নি।**"
-            return "ℹ️ **No verified doctors available at the moment.**"
+                return _truncate_to_words("ℹ️ **বর্তমানে কোনো তালিকাভুক্ত ডাক্তার পাওয়া যায়নি।**", 200)
+            return _truncate_to_words("ℹ️ **No verified doctors available at the moment.**", 200)
 
     if is_bn:
-        return (
+        return _truncate_to_words(
             f"📋 **আপনার প্রশ্নের উত্তর:**\n\n"
             f"প্রশ্ন: *\"{q}\"*\n\n"
             "• **স্বাস্থ্য পরামর্শ:** নিয়মিত সময়মতো ওষুধ সেবন করুন, পর্যাপ্ত পানি পান করুন এবং পুষ্টিকর খাবার গ্রহণ করুন।\n"
             "• **CareBridge সেবা:** আপনার প্রেসক্রিপশন দেখতে, আজকের ডোজ ট্র্যাক করতে বা অভিজ্ঞ ডাক্তারদের সিরিয়াল বুক করতে সংশ্লিষ্ট পেজে যান।\n\n"
             "💡 *গুরুতর শারীরিক অসুস্থতায় বিলম্ব না করে নিকটস্থ ডাক্তারের পরামর্শ নিন।*"
-        )
-    return (
+        , 200)
+    return _truncate_to_words(
         f"📋 **Health Query Answer:**\n\n"
         f"Question: *\"{q}\"*\n\n"
         "• **General Guidance:** Take all medications on time, stay well hydrated, and maintain adequate rest.\n"
         "• **CareBridge Services:** You can view your prescriptions, track dose reminders, or book doctor appointments.\n\n"
         "💡 *For severe or urgent symptoms, consult a specialist immediately.*"
-    )
+    , 200)
 
 
 def generate_patient_reply(question, language="bn", patient=None, history=None, image_file=None, prescription_id=None):
@@ -536,34 +548,37 @@ def generate_patient_reply(question, language="bn", patient=None, history=None, 
     if not patient:
         guest_ans = guest_reply(question, language)
         if guest_ans:
-            return guest_ans
+            return _truncate_to_words(guest_ans, 200)
 
         try:
             ai_res = GeminiAIService.chat_with_patient_vision(
-                user_message=question or "দয়া করে এই আপলোড করা নথি/প্রেসক্রিপশনের ছবি বিশ্লেষণ করে পরামর্শ দিন।",
+                user_message=question or "দয়া করে এই আপলোড করা নথি/প্রেসক্রিপশনের ছবি বিশ্লেষণ করে পরামর্শ দিন।",
                 image_file=image_file,
                 conversation_history=[],
                 preferred_language=language,
             )
             if ai_res.get("reply_text"):
-                return ai_res["reply_text"]
+                return _truncate_to_words(ai_res["reply_text"], 200)
         except Exception:
             pass
 
-        return (
-            "👋 CareBridge AI-এ স্বাগতম! নিচের বিষয়গুলি সম্পর্কে জানতে পারেন:\n"
-            "• CareBridge AI কি ও কিভাবে কাজ করে?\n"
-            "• Registration, verification, prescription system\n"
-            "• AI chatbot, voice chat, dose reminders\n"
-            "• Doctor booking ও health record management\n\n"
-            "আপনার কোনো প্রশ্ন থাকলে জিজ্ঞাসা করুন!"
-            if language == "bn" else
-            "👋 Welcome to CareBridge AI! You can ask about:\n"
-            "• What is CareBridge AI and how it works?\n"
-            "• Registration, verification, prescription system\n"
-            "• AI chatbot, voice chat, dose reminders\n"
-            "• Doctor booking and health record management\n\n"
-            "Feel free to ask any question!"
+        return _truncate_to_words(
+            (
+                "👋 CareBridge AI-এ স্বাগতম! নিচের বিষয়গুলি সম্পর্কে জানতে পারেন:\n"
+                "• CareBridge AI কি ও কিভাবে কাজ করে?\n"
+                "• Registration, verification, prescription system\n"
+                "• AI chatbot, voice chat, dose reminders\n"
+                "• Doctor booking ও health record management\n\n"
+                "আপনার কোনো প্রশ্ন থাকলে জিজ্ঞাসা করুন!"
+                if language == "bn" else
+                "👋 Welcome to CareBridge AI! You can ask about:\n"
+                "• What is CareBridge AI and how it works?\n"
+                "• Registration, verification, prescription system\n"
+                "• AI chatbot, voice chat, dose reminders\n"
+                "• Doctor booking and health record management\n\n"
+                "Feel free to ask any question!"
+            ),
+            200,
         )
 
     # Logged-in patient: full AI with patient data
@@ -627,14 +642,14 @@ def generate_patient_reply(question, language="bn", patient=None, history=None, 
             doctor_suggestion = suggest_doctors_for_query(question, language)
             if doctor_suggestion:
                 reply += f"\n\n{doctor_suggestion}"
-        return reply
+        return _truncate_to_words(reply, 200)
 
     fallback = _local_patient_reply(question, language, patient)
     if any(w in (question or "").lower() for w in ["pain", "fever", "doctor", "ডাক্তার", "prescription", "ব্যথা", "জ্বর", "medicine", "health", "test"]):
         doctor_suggestion = suggest_doctors_for_query(question, language)
         if doctor_suggestion:
             fallback += f"\n\n{doctor_suggestion}"
-    return fallback
+    return _truncate_to_words(fallback, 200)
 
 
 

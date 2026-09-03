@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 {% include 'includes/doctor_breadcrumb.html' %}
@@ -61,10 +61,10 @@
                 </div>
                 <div>
                   <p class="text-sm font-semibold text-stone-900 dark:text-stone-100 capitalize">{{ sch.get_day_of_week_display }}</p>
-                  <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"H:i" }} - {{ sch.end_time|time:"H:i" }} • {{ sch.slot_duration_minutes }} min slots</p>
+                  <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }} • {{ sch.slot_duration_minutes }} min slots</p>
                 </div>
               </div>
-              <a href="{% url 'doctors:delete_schedule' sch.pk %}" class="text-xs font-bold text-red-600 hover:text-red-700" onclick="return confirm('Delete this schedule?')">Delete</a>
+              <a href="#" class="text-xs font-bold text-red-600 hover:text-red-700" data-delete-url="{% url 'doctors:delete_schedule' sch.pk %}" onclick="event.preventDefault(); showWarningModal('{% translate_bn "Are you sure?" %}', '{% translate_bn "This action cannot be undone." %}', function() { window.location.href = this.dataset.deleteUrl; }.bind(this));">{% translate_bn "Delete" %}</a>
             </div>
           {% empty %}
             <div class="px-6 py-12 text-center">

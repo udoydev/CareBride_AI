@@ -1,0 +1,163 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+      <span class="badge badge-info px-2 py-1 font-weight-bold mb-1">Doctor ID: #{{ doctor.id }}</span>
+      <h2 class="h3 font-weight-bold text-dark mb-1">Dr. {{ doctor_name }} — Performance Report</h2>
+      <p class="text-muted small mb-0">
+        Specialty: {{ doctor.specialty|default:"General Physician" }} | BMDC: {{ doctor.registration_number|default:"N/A" }} | Phone: {{ doctor.phone_number|default:"N/A" }}
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="?export=pdf{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" target="_blank" class="btn btn-danger btn-sm px-3 font-weight-bold" style="border-radius:20px;">
+        <i class="fas fa-file-pdf mr-1"></i> Export PDF Report
+      </a>
+      <a href="{% url 'admin_doctor_tracking' %}?doctor={{ doctor.id }}" class="btn btn-teal btn-sm text-white font-weight-bold px-3" style="background:#0d9488; border-color:#0d9488; border-radius:20px;">
+        <i class="fas fa-eye mr-1"></i> Track Doctor
+      </a>
+      <a href="{% url 'admin_reports' %}" class="btn btn-outline-secondary btn-sm font-weight-bold px-3" style="border-radius:20px;">
+        <i class="fas fa-arrow-left mr-1"></i> Site Reports
+      </a>
+    </div>
+  </div>
+
+  <div class="card card-outline card-teal mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="get" class="row align-items-end">
+        <div class="col-md-4 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">Start Date</label>
+          <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-4 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">End Date</label>
+          <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-4 col-sm-12 mb-2 d-flex gap-2">
+          <button type="submit" class="btn btn-teal btn-sm text-white font-weight-bold px-4" style="background:#0d9488; border-color:#0d9488; border-radius:20px;">
+            <i class="fas fa-filter mr-1"></i> Filter
+          </button>
+          <a href="{% url 'admin_doctor_report' doctor.id %}" class="btn btn-outline-secondary btn-sm font-weight-bold px-4" style="border-radius:20px;">
+            Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-info p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Total Appts</div>
+        <div class="h4 font-weight-bold text-info mb-0">{{ total_appointments }}</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-primary p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Unique Patients</div>
+        <div class="h4 font-weight-bold text-primary mb-0">{{ unique_patients }}</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-success p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Completed</div>
+        <div class="h4 font-weight-bold text-success mb-0">{{ completed }}</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-danger p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Missed</div>
+        <div class="h4 font-weight-bold text-danger mb-0">{{ missed }}</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-warning p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Cancelled</div>
+        <div class="h4 font-weight-bold text-warning mb-0">{{ cancelled }}</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4 col-6 mb-2">
+      <div class="card border-left border-secondary p-3 shadow-sm text-center h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Pending</div>
+        <div class="h4 font-weight-bold text-secondary mb-0">{{ pending }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card p-3 shadow-sm border-left border-primary">
+        <div class="small text-muted font-weight-bold">Gross Fees Collected</div>
+        <div class="h4 font-weight-bold text-dark mb-0 mt-1">৳{{ total_fees|floatformat:0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card p-3 shadow-sm border-left border-purple" style="border-left-color:#9333ea !important;">
+        <div class="small text-muted font-weight-bold">Platform Commission</div>
+        <div class="h4 font-weight-bold mb-0 mt-1" style="color:#9333ea;">৳{{ platform_income|floatformat:0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card p-3 shadow-sm border-left border-teal" style="border-left-color:#0d9488 !important;">
+        <div class="small text-muted font-weight-bold">Doctor Payout</div>
+        <div class="h4 font-weight-bold mb-0 mt-1" style="color:#0d9488;">৳{{ doctor_payout|floatformat:0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-2">
+      <div class="card p-3 shadow-sm border-left border-danger">
+        <div class="small text-muted font-weight-bold">Refunds Issued</div>
+        <div class="h4 font-weight-bold text-danger mb-0 mt-1">৳{{ refunds|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white"><h3 class="card-title font-weight-bold mb-0">Recent Appointments for Dr. {{ doctor_name }}</h3></div>
+    <div class="table-responsive">
+      <table class="table table-hover table-striped align-middle mb-0" style="font-size:13px;">
+        <thead class="bg-light text-secondary">
+          <tr>
+            <th>Appt ID</th>
+            <th>Patient ID & Name</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Fee (BDT)</th>
+            <th>Payment Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for apt in recent_appointments %}
+          <tr>
+            <td class="font-weight-bold">#APT-{{ apt.id }}</td>
+            <td>
+              <span class="badge badge-info px-2">#PAT-{{ apt.patient.id }}</span>
+              <span class="font-weight-bold text-dark ml-1">{{ apt.patient.user.get_full_name|default:apt.patient.user.email }}</span>
+            </td>
+            <td class="font-weight-bold">{{ apt.appointment_date|date:"d M Y" }}</td>
+            <td>{{ apt.start_time|time:"H:i" }} - {{ apt.end_time|time:"H:i" }}</td>
+            <td>
+              {% if apt.status == 'completed' %}
+                <span class="badge badge-success px-2 py-1">Completed</span>
+              {% elif apt.status == 'missed' %}
+                <span class="badge badge-danger px-2 py-1">Missed</span>
+              {% elif apt.status == 'cancelled' %}
+                <span class="badge badge-warning px-2 py-1">Cancelled</span>
+              {% else %}
+                <span class="badge badge-secondary px-2 py-1">{{ apt.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="font-weight-bold">৳{{ apt.fee_bdt }}</td>
+            <td><span class="badge badge-light border">{{ apt.get_payment_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No appointments found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

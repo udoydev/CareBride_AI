@@ -1,12 +1,34 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Patient, Doctor, AIProvider
+from .models import Patient, Doctor, AIProvider, SiteSettings
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return not SiteSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        return False
+    
+    def changelist_view(self, request, extra_context=None):
+        obj = SiteSettings.get_solo()
+        return super().change_view(request, str(obj.pk), extra_context=extra_context)
+    
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        obj = SiteSettings.objects.get(pk=object_id)
+        extra_context = extra_context or {}
+        extra_context["title"] = f"Site Settings"
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
     list_display = (
+        "patient_id",
         "user",
+        "full_name",
+        "user_email",
         "phone_number",
         "district",
         "verification_status",
@@ -18,6 +40,21 @@ class PatientAdmin(admin.ModelAdmin):
     list_filter = ("verification_status", "is_verified", "district", "country")
     search_fields = ("user__first_name", "user__last_name", "user__email", "phone_number", "nid_or_birth_reg")
     actions = ["approve_and_verify_patient", "reject_patient_verification"]
+
+    def patient_id(self, obj):
+        return f"#PAT-{obj.id}"
+    patient_id.short_description = "Patient ID"
+    patient_id.admin_order_field = "id"
+
+    def full_name(self, obj):
+        return obj.user.get_full_name() or f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
+    full_name.short_description = "Full Name"
+    full_name.admin_order_field = "user__first_name"
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = "Email"
+    user_email.admin_order_field = "user__email"
 
     @admin.action(description="Approve & Verify Patient (BD Citizen Verified)")
     def approve_and_verify_patient(self, request, queryset):
@@ -49,7 +86,10 @@ class PatientAdmin(admin.ModelAdmin):
 @admin.register(Doctor)
 class DoctorAdmin(admin.ModelAdmin):
     list_display = (
+        "doctor_id",
         "user",
+        "full_name",
+        "user_email",
         "specialty",
         "registration_number",
         "verification_status",
@@ -60,7 +100,22 @@ class DoctorAdmin(admin.ModelAdmin):
     readonly_fields = ("view_certificate_link",)
     list_filter = ("verification_status", "is_verified", "specialty", "country")
     search_fields = ("user__first_name", "user__last_name", "user__email", "registration_number", "phone_number", "nid_number")
+
+    def doctor_id(self, obj):
+        return f"#DOC-{obj.id}"
+    doctor_id.short_description = "Doctor ID"
+    doctor_id.admin_order_field = "id"
     actions = ["approve_and_verify_doctor", "reject_doctor_verification"]
+
+    def full_name(self, obj):
+        return obj.user.get_full_name() or f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
+    full_name.short_description = "Full Name"
+    full_name.admin_order_field = "user__first_name"
+
+    def user_email(self, obj):
+        return obj.user.email
+    user_email.short_description = "Email"
+    user_email.admin_order_field = "user__email"
 
     @admin.action(description="Approve & Verify Doctor (BMDC & BD Citizen Verified)")
     def approve_and_verify_doctor(self, request, queryset):

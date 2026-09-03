@@ -1,22 +1,25 @@
 import json
+import os
 from decimal import Decimal
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Q
+from django.core.paginator import Paginator
+from django.db.models import Min, Max, Sum, Q
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
+from django.conf import settings
 
 from carebridge.ai_services import GeminiAIService
 from doctors.models import Appointment, DoctorSchedule
 from prescriptions.models import FollowUp, Prescription, ReminderSchedule
 from prescriptions.views import _build_prescription_pdf
 
-from accounts.models import AppNotification, Doctor, Patient
+from accounts.models import AppNotification, Doctor, News, Patient
 from accounts.decorators import never_cache_auth
 
 from .models import ChatMessage, ChatSession
@@ -80,8 +83,9 @@ DOSE_TIMES = [
 def _ensure_dose_schedules(patient):
     from prescriptions.models import Prescription, PrescriptionItem, ReminderSchedule, get_active_dose_slots
     today = timezone.localdate()
+    now = timezone.localtime(timezone.now())
 
-    active_rxs = Prescription.objects.filter(patient=patient, status="active").order_by("-issued_at")
+    active_rxs = Prescription.objects.filter(patient=patient, status__in=["active", "scheduled"]).order_by("-issued_at")
     if not active_rxs.exists():
         ReminderSchedule.objects.filter(
             prescription_item__prescription__patient=patient,
@@ -91,17 +95,39 @@ def _ensure_dose_schedules(patient):
         return
 
     latest_rx = active_rxs.first()
-    older_rxs = active_rxs.exclude(pk=latest_rx.pk)
+    use_rx = None
+
+    if latest_rx.status == "active":
+        use_rx = latest_rx
+    elif latest_rx.status == "scheduled":
+        if latest_rx.activates_at and now >= latest_rx.activates_at:
+            latest_rx.status = "active"
+            latest_rx.save(update_fields=["status"])
+            use_rx = latest_rx
+        else:
+            active_rx = active_rxs.filter(status="active").first()
+            if active_rx:
+                use_rx = active_rx
+            else:
+                ReminderSchedule.objects.filter(
+                    prescription_item__prescription__patient=patient,
+                    scheduled_date=today,
+                ).exclude(prescription_item__prescription=latest_rx).delete()
+                return
+
+    if not use_rx:
+        return
+
+    older_rxs = active_rxs.exclude(pk=use_rx.pk)
     if older_rxs.exists():
         older_rxs.update(status="completed")
 
-    # Purge schedules for today belonging to non-latest prescriptions
     ReminderSchedule.objects.filter(
         prescription_item__prescription__patient=patient,
         scheduled_date=today,
-    ).exclude(prescription_item__prescription=latest_rx).delete()
+    ).exclude(prescription_item__prescription=use_rx).delete()
 
-    items = latest_rx.items.all()
+    items = use_rx.items.all()
     for item in items:
         # Clean up legacy schedule entries without reminder_time
         ReminderSchedule.objects.filter(
@@ -110,23 +136,20 @@ def _ensure_dose_schedules(patient):
             reminder_time__isnull=True
         ).delete()
 
-        issued_date = latest_rx.issued_at.date()
+        issued_date = use_rx.issued_at.date()
         days_since = (today - issued_date).days
         if 0 <= days_since < item.duration_days:
             active_slots = get_active_dose_slots(item.dosage, item.frequency)
 
-            # Use patient custom dose times if available
             custom_times = patient.custom_dose_times or []
             if custom_times:
-                # Map custom times to active slots, preserving labels from active_slots
                 mapped_slots = []
-                custom_idx = 0
-                for slot in active_slots:
-                    if custom_idx < len(custom_times):
-                        new_slot = dict(slot)
-                        new_slot["time"] = custom_times[custom_idx] + ":00" if len(custom_times[custom_idx]) == 5 else custom_times[custom_idx]
-                        mapped_slots.append(new_slot)
-                        custom_idx += 1
+                for idx, slot in enumerate(active_slots):
+                    new_slot = dict(slot)
+                    if idx < len(custom_times):
+                        ct = custom_times[idx]
+                        new_slot["time"] = ct + ":00" if len(ct) == 5 else ct
+                    mapped_slots.append(new_slot)
                 active_slots = mapped_slots
 
             allowed_times = [slot["time"] for slot in active_slots]
@@ -172,7 +195,7 @@ def custom_dose_times(request):
         patient.custom_dose_times = valid_times
         patient.save(update_fields=["custom_dose_times"])
         messages.success(request, "Custom dose times saved successfully.")
-        return redirect("patient:doses_today")
+        return redirect("patient:custom_dose_times")
 
     current_times = patient.custom_dose_times or []
     return render(request, "patient/custom_dose_times.html", {
@@ -184,8 +207,42 @@ def custom_dose_times(request):
 def dashboard(request):
     patient = request.user.patient_profile
     today = timezone.localdate()
+    now = timezone.localtime(timezone.now())
 
     _ensure_dose_schedules(patient)
+
+    # Auto-mark today's past appointments as missed once the prescription window closes
+    from doctors.views import _auto_mark_missed_today
+    _auto_mark_missed_today(patient=patient)
+
+    # Prescription timing evaluator
+    for rx in Prescription.objects.filter(patient=patient):
+        updated = False
+        if rx.activates_at and now >= rx.activates_at and rx.status == "scheduled":
+            rx.status = "active"
+            updated = True
+        if rx.expires_at and now >= rx.expires_at and not rx.is_locked:
+            rx.is_locked = True
+            updated = True
+        if updated:
+            rx.save(update_fields=["status", "is_locked"])
+
+    # Follow-up auto-completion evaluator
+    all_followups = FollowUp.objects.filter(prescription__patient=patient)
+    for fu in all_followups:
+        doc = fu.prescription.doctor
+        has_rx = Prescription.objects.filter(
+            doctor=doc,
+            patient=patient,
+            issued_at__date__gte=fu.scheduled_date
+        ).exists()
+
+        if has_rx and fu.status != "completed":
+            fu.status = "completed"
+            fu.save()
+        elif fu.scheduled_date < today and fu.status == "upcoming":
+            fu.status = "missed"
+            fu.save()
 
     now = timezone.localtime()
     current_hour = now.hour
@@ -211,11 +268,78 @@ def dashboard(request):
         .first()
     )
 
+    # Follow-ups requiring booking (allow booking even after deadline)
+    followups_needing_booking = FollowUp.objects.filter(
+        prescription__patient=patient,
+        status="upcoming",
+        is_booking_confirmed=False,
+    ).select_related("prescription__doctor__user").order_by("scheduled_date")[:5]
+
+    # Overdue/missed follow-up bookings - allow rebooking for missed follow-ups
+    overdue_followups = FollowUp.objects.filter(
+        prescription__patient=patient,
+        status__in=["upcoming", "missed"],
+        is_booking_confirmed=False,
+        scheduled_date__lt=today,
+    ).select_related("prescription__doctor__user").order_by("scheduled_date")[:5]
+
+    # Send follow-up booking notifications (4 days before follow-up date)
+    for fu in FollowUp.objects.filter(
+        prescription__patient=patient,
+        status="upcoming",
+        notification_sent=False,
+    ).select_related("prescription__doctor__user"):
+        if fu.should_send_notification():
+            AppNotification.objects.create(
+                user=patient.user,
+                title="📅 Follow-up Reminder — Book Your Appointment",
+                message=f"Your follow-up with Dr. {fu.prescription.doctor.user.get_full_name() or fu.prescription.doctor.user.username} is scheduled for {fu.scheduled_date.strftime('%d %b %Y')}. Please book your appointment. You can book even after the suggested deadline if needed.",
+                notification_type="booking",
+                link_url=reverse("patient:follow_ups"),
+            )
+            fu.notification_sent = True
+            fu.save(update_fields=["notification_sent"])
+
     upcoming_appointments = Appointment.objects.filter(
         patient=patient,
         appointment_date__gte=timezone.localdate(),
         status__in=["pending", "confirmed"],
     ).select_related("doctor__user").order_by("appointment_date", "start_time")[:5]
+
+    # Current appointments (today) - shown separately
+    current_appointments = Appointment.objects.filter(
+        patient=patient,
+        appointment_date=today,
+        status__in=["pending", "confirmed"],
+    ).select_related("doctor__user").order_by("start_time")
+
+    # Check if patient has ANY appointment history (for empty state)
+    has_any_booking = Appointment.objects.filter(patient=patient).exists()
+
+    # Calendar data - past 90 days to next 365 days
+    calendar_start = today - timezone.timedelta(days=90)
+    calendar_end = today + timezone.timedelta(days=365)
+    
+    calendar_appointments = Appointment.objects.filter(
+        patient=patient,
+        appointment_date__gte=calendar_start,
+        appointment_date__lte=calendar_end,
+        status__in=["pending", "confirmed"],
+    ).select_related("doctor__user").order_by("appointment_date", "start_time")
+    
+    calendar_followups = FollowUp.objects.filter(
+        prescription__patient=patient,
+        scheduled_date__gte=calendar_start,
+        scheduled_date__lte=calendar_end,
+        status__in=["upcoming", "missed"],
+    ).select_related("prescription__doctor__user").order_by("scheduled_date")
+    
+    calendar_doses = ReminderSchedule.objects.filter(
+        prescription_item__prescription__patient=patient,
+        scheduled_date__gte=calendar_start,
+        scheduled_date__lte=calendar_end,
+        status="pending",
+    ).select_related("prescription_item__medicine").order_by("scheduled_date", "reminder_time")[:100]
 
     refund_notifications = AppNotification.objects.filter(
         user=request.user,
@@ -225,11 +349,20 @@ def dashboard(request):
     ).order_by("-created_at")[:5]
 
     return render(request, "patient/dashboard.html", {
+        "patient": patient,
         "doses_today": doses_today,
         "dose_reminder_message": dose_reminder_message,
         "next_follow_up": next_follow_up,
+        "followups_needing_booking": followups_needing_booking,
+        "overdue_followups": overdue_followups,
         "upcoming_appointments": upcoming_appointments,
+        "current_appointments": current_appointments,
+        "has_any_booking": has_any_booking,
         "refund_notifications": refund_notifications,
+        "calendar_appointments": calendar_appointments,
+        "calendar_followups": calendar_followups,
+        "calendar_doses": calendar_doses,
+        "news_list": News.objects.filter(is_active=True, target_audience__in=["all", "patients"]).order_by("-created_at")[:5],
     })
 
 
@@ -258,8 +391,14 @@ def prescription_detail(request, prescription_id):
         deep_analysis = analyze_prescription_deep(prescription, summary_language)
         request.session[deep_cache_key] = deep_analysis
 
+    patient_age = None
+    if prescription.patient.date_of_birth:
+        today = timezone.localdate()
+        patient_age = today.year - prescription.patient.date_of_birth.year - ((today.month, today.day) < (prescription.patient.date_of_birth.month, prescription.patient.date_of_birth.day))
+
     return render(request, "patient/prescription_detail.html", {
         "prescription": prescription,
+        "patient_age": patient_age,
         "summary_text": summary_payload.get("text", ""),
         "summary_overview": summary_payload.get("overview", ""),
         "summary_schedule": summary_payload.get("schedule", ""),
@@ -298,7 +437,122 @@ def doses_today(request):
 
         return redirect("patient:doses_today")
 
-    return render(request, "patient/doses_today.html", {"schedules": schedules})
+    total_doses = schedules.count()
+    taken_doses = schedules.filter(status="taken").count()
+    skipped_doses = schedules.filter(status="skipped").count()
+    pending_doses = total_doses - taken_doses - skipped_doses
+    completion_pct = int((taken_doses / total_doses) * 100) if total_doses else 0
+
+    dose_history = []
+    for i in range(29, -1, -1):
+        d = today - timezone.timedelta(days=i)
+        day_schedules = ReminderSchedule.objects.filter(
+            prescription_item__prescription__patient=patient,
+            scheduled_date=d,
+        )
+        day_total = day_schedules.count()
+        day_taken = day_schedules.filter(status="taken").count()
+        day_skipped = day_schedules.filter(status="skipped").count()
+        day_pending = day_total - day_taken - day_skipped
+        pct = int((day_taken / day_total) * 100) if day_total else 0
+        dose_history.append({
+            "date": d.strftime("%Y-%m-%d"),
+            "label": d.strftime("%b %d"),
+            "total": day_total,
+            "taken": day_taken,
+            "skipped": day_skipped,
+            "pending": day_pending,
+            "pct": pct,
+        })
+
+    return render(request, "patient/doses_today.html", {
+        "schedules": schedules,
+        "total_doses": total_doses,
+        "taken_doses": taken_doses,
+        "skipped_doses": skipped_doses,
+        "pending_doses": pending_doses,
+        "completion_pct": completion_pct,
+        "dose_history": dose_history,
+    })
+
+
+@login_required
+def dose_track_report(request):
+    patient = request.user.patient_profile
+    from prescriptions.models import ReminderSchedule
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+
+    today = timezone.localdate()
+    filter_date_str = request.GET.get('filter_date', '').strip()
+    view_mode = request.GET.get('view', 'single')
+
+    selected_date = today
+    if filter_date_str:
+        try:
+            selected_date = datetime.strptime(filter_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            selected_date = today
+
+    end_date = today
+    start_date = today - timedelta(days=30)
+
+    schedules_all = ReminderSchedule.objects.filter(
+        prescription_item__prescription__patient=patient,
+        scheduled_date__range=(start_date, end_date)
+    ).select_related('prescription_item__medicine').order_by('-scheduled_date', 'reminder_time')
+
+    total_doses = schedules_all.count()
+    taken_doses = schedules_all.filter(status='taken').count()
+    skipped_doses = schedules_all.filter(status='skipped').count()
+    pending_doses = schedules_all.filter(status='pending').count()
+    adherence_rate = (taken_doses / total_doses * 100) if total_doses > 0 else 0
+
+    available_dates = sorted(list(set(schedules_all.values_list('scheduled_date', flat=True))), reverse=True)
+
+    if view_mode == 'all':
+        schedules = schedules_all
+    else:
+        schedules = schedules_all.filter(scheduled_date=selected_date)
+        if not schedules.exists() and available_dates:
+            selected_date = available_dates[0]
+            schedules = schedules_all.filter(scheduled_date=selected_date)
+
+    by_date = defaultdict(list)
+    for s in schedules:
+        by_date[s.scheduled_date].append(s)
+
+    if request.GET.get('export') == 'csv':
+        import csv
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="dose_track_report_{selected_date}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Medicine', 'Time', 'Status', 'Taken At'])
+        for s in schedules_all:
+            writer.writerow([
+                s.scheduled_date,
+                s.prescription_item.medicine.brand_name if s.prescription_item.medicine else 'Unknown',
+                s.reminder_time,
+                s.get_status_display(),
+                s.taken_at.strftime('%Y-%m-%d %H:%M') if s.taken_at else ''
+            ])
+        return response
+
+    return render(request, 'patient/dose_track_report.html', {
+        'schedules': schedules,
+        'by_date': dict(by_date),
+        'available_dates': available_dates,
+        'selected_date': selected_date,
+        'view_mode': view_mode,
+        'total_doses': total_doses,
+        'taken_doses': taken_doses,
+        'skipped_doses': skipped_doses,
+        'pending_doses': pending_doses,
+        'adherence_rate': round(adherence_rate, 1),
+        'start_date': start_date,
+        'end_date': end_date,
+        'today': today,
+    })
 
 
 @login_required
@@ -327,19 +581,45 @@ def followups(request):
     if request.method == "POST":
         followup_id = request.POST.get("followup_id")
         followup = get_object_or_404(FollowUp, pk=followup_id, prescription__patient=patient)
-        followup.status = "completed"
-        followup.save()
-        messages.success(request, "✓ Follow-up marked as completed.")
+        
+        action = request.POST.get("action")
+        if action == "book":
+            # Redirect to doctor booking page (carry follow-up id so it gets confirmed)
+            return redirect(f"{reverse('patient:book_doctor', kwargs={'doctor_id': followup.prescription.doctor.pk})}?followup_id={followup.pk}")
+        elif action == "change_date":
+            # Allow patient to request date change
+            new_date_str = request.POST.get("new_date", "").strip()
+            if new_date_str:
+                try:
+                    new_date = timezone.datetime.strptime(new_date_str, "%Y-%m-%d").date()
+                    if new_date >= today:
+                        followup.scheduled_date = new_date
+                        followup.booking_deadline = new_date + timezone.timedelta(days=4)
+                        followup.save()
+                        messages.success(request, f"✓ Follow-up date changed to {new_date.strftime('%d %b %Y')}. Please book before {followup.booking_deadline.strftime('%d %b %Y')}.")
+                    else:
+                        messages.error(request, "Follow-up date cannot be in the past.")
+                except ValueError:
+                    messages.error(request, "Invalid date format.")
+            else:
+                messages.error(request, "Please select a new date.")
+        elif action == "complete":
+            followup.status = "completed"
+            followup.save()
+            messages.success(request, "✓ Follow-up marked as completed.")
+        
         return redirect("patient:follow_ups")
 
     upcoming = all_followups.filter(status="upcoming")
     completed = all_followups.filter(status="completed")
     missed = all_followups.filter(status="missed")
+    booking_required = all_followups.filter(status="booking_required")
 
     return render(request, "patient/follow_ups.html", {
         "upcoming": upcoming,
         "completed": completed,
         "missed": missed,
+        "booking_required": booking_required,
     })
 
 
@@ -400,6 +680,7 @@ def health_record(request):
 
     patient = request.user.patient_profile
     language = request.GET.get("lang") or request.session.get("site_lang") or patient.preferred_language or "en"
+    today = timezone.localdate()
 
     # 1. Handle Self-Report Upload
     if request.method == "POST" and "upload_report" in request.POST:
@@ -479,15 +760,47 @@ def health_record(request):
 
     adherence_chart = _build_adherence_data(patient)
 
+    prescriptions_paginator = Paginator(prescriptions, 10)
+    reports_paginator = Paginator(reports, 10)
+    rx_page = request.GET.get("rx_page")
+    rpt_page = request.GET.get("rpt_page")
+    prescriptions_page = prescriptions_paginator.get_page(rx_page)
+    reports_page = reports_paginator.get_page(rpt_page)
+
+    dose_history = []
+    for i in range(29, -1, -1):
+        d = today - timezone.timedelta(days=i)
+        day_schedules = ReminderSchedule.objects.filter(
+            prescription_item__prescription__patient=patient,
+            scheduled_date=d,
+        )
+        day_total = day_schedules.count()
+        day_taken = day_schedules.filter(status="taken").count()
+        day_skipped = day_schedules.filter(status="skipped").count()
+        day_pending = day_total - day_taken - day_skipped
+        pct = int((day_taken / day_total) * 100) if day_total else 0
+        dose_history.append({
+            "date": d.strftime("%Y-%m-%d"),
+            "label": d.strftime("%b %d"),
+            "total": day_total,
+            "taken": day_taken,
+            "skipped": day_skipped,
+            "pending": day_pending,
+            "pct": pct,
+        })
+
     return render(request, "patient/health_record.html", {
-        "prescriptions": prescriptions,
-        "reports": reports,
+        "prescriptions": prescriptions_page,
+        "reports": reports_page,
         "timeline_items": timeline_items,
         "ai_answer": ai_answer,
         "ai_query": ai_query,
         "history_text_summary": history_text_summary,
         "ai_available": GeminiAIService.is_ai_available(),
         "adherence_chart": adherence_chart,
+        "prescriptions_page": prescriptions_page,
+        "reports_page": reports_page,
+        "dose_history": dose_history,
     })
 
 
@@ -498,9 +811,9 @@ def doctor_list(request):
     query = request.GET.get("q", "")
     category = request.GET.get("category", "")
 
-    doctors = Doctor.objects.select_related("user").filter(is_verified=True)
+    doctors = Doctor.objects.select_related("user").filter(is_verified=True).order_by("-id")
     if query:
-        doctors = doctors.filter(user__first_name__icontains=query) | doctors.filter(specialty__icontains=query)
+        doctors = doctors.filter(Q(user__first_name__icontains=query) | Q(user__last_name__icontains=query) | Q(specialty__icontains=query))
     if category and category != "All":
         doctors = doctors.filter(specialty=category)
 
@@ -508,10 +821,15 @@ def doctor_list(request):
         Doctor.objects.exclude(specialty="").values_list("specialty", flat=True).distinct()
     )
 
+    paginator = Paginator(doctors, 12)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     return render(request, "patient/doctor_list.html", {
-        "doctors": doctors,
+        "doctors": page_obj,
         "categories": categories,
         "suggested": doctors[:2],
+        "page_obj": page_obj,
     })
 
 
@@ -541,6 +859,12 @@ def book_doctor(request, doctor_id):
     if not patient:
         messages.error(request, "Only patients can book appointments.")
         return redirect("patient:doctor_list")
+
+    # If this booking originates from a follow-up, mark it confirmed once booked.
+    followup_id = request.GET.get("followup_id") or request.POST.get("followup_id")
+    followup = None
+    if followup_id:
+        followup = FollowUp.objects.filter(pk=followup_id, prescription__patient=patient).first()
 
     schedules = DoctorSchedule.objects.filter(doctor=doctor, is_active=True).order_by("day_of_week", "start_time")
 
@@ -611,45 +935,85 @@ def book_doctor(request, doctor_id):
         )
 
         messages.success(request, f"Appointment booked successfully for {apt_date} at {start_dt.strftime('%H:%M')}. Please complete payment.")
+
+        # Confirm the originating follow-up so it moves out of the booking list
+        if followup and not followup.is_booking_confirmed:
+            followup.is_booking_confirmed = True
+            followup.save(update_fields=["is_booking_confirmed"])
+
         return redirect("accounts:payment_process", appointment_id=appointment.pk)
 
     # Generate available slots for next 14 days
     from datetime import timedelta
+    from collections import OrderedDict
     today = timezone.localdate()
+    now = timezone.localtime()
+    min_booking_time = (now + timedelta(hours=2)).time()
     available_slots = []
     for i in range(14):
         date = today + timedelta(days=i)
         day_name = date.strftime("%A").lower()
         day_schedules = DoctorSchedule.objects.filter(doctor=doctor, day_of_week=day_name, is_active=True)
         for sch in day_schedules:
-            slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, doctor, date)
+            blocked = min_booking_time if date == today else None
+            slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, doctor, date, blocked_before_time=blocked)
             available_slots.extend(slots)
+
+    grouped_slots = OrderedDict()
+    for slot in available_slots:
+        key = slot["date"]
+        grouped_slots.setdefault(key, []).append(slot)
+    grouped_slots = list(grouped_slots.items())
 
     return render(request, "patient/book_appointment.html", {
         "doctor": doctor,
         "schedules": schedules,
         "available_slots": available_slots,
+        "grouped_slots": grouped_slots,
+        "today": timezone.localdate(),
     })
 
 
-def _generate_slots(start_time, end_time, slot_duration, doctor, date):
+def _generate_slots(start_time, end_time, slot_duration, doctor, date, blocked_before_time=None, exclude_appointment_id=None):
+    """Generate available appointment time slots for a given doctor on a given date.
+
+    Args:
+        start_time: Clinic opening time for the day
+        end_time: Clinic closing time for the day
+        slot_duration: Minutes per appointment slot (e.g., 30 or 45)
+        doctor: The doctor whose schedule and appointments to check
+        date: The specific date for slot generation
+        blocked_before_time: Optional cutoff — slots before this time are blocked
+        exclude_appointment_id: ID to exclude (for edit mode, so current apt doesn't block itself)
+
+    Returns:
+        List of slot dicts with date, start/end times (AM/PM format), and availability flag.
+    """
     from datetime import datetime, timedelta
     slots = []
+    # Iterate through each slot from start_time to end_time
     current = datetime.combine(date, start_time)
     end = datetime.combine(date, end_time)
     while current + timedelta(minutes=slot_duration) <= end:
         slot_end = current + timedelta(minutes=slot_duration)
+        # Check if any appointment is already booked for this slot (pending/confirmed only)
         is_booked = Appointment.objects.filter(
             doctor=doctor,
             appointment_date=date,
             status__in=["pending", "confirmed"],
             start_time=current.time(),
-        ).exists()
+        )
+        if exclude_appointment_id:
+            is_booked = is_booked.exclude(pk=exclude_appointment_id)
+        is_booked = is_booked.exists()
+        available = not is_booked
+        if available and blocked_before_time and current.time() < blocked_before_time:
+            available = False
         slots.append({
             "date": date.strftime("%Y-%m-%d"),
-            "start": current.strftime("%H:%M"),
-            "end": slot_end.strftime("%H:%M"),
-            "available": not is_booked,
+            "start": current.strftime("%I:%M %p"),
+            "end": slot_end.strftime("%I:%M %p"),
+            "available": available,
         })
         current = slot_end
     return slots
@@ -657,30 +1021,112 @@ def _generate_slots(start_time, end_time, slot_duration, doctor, date):
 
 @login_required
 def appointments(request):
+    """Display the patient's appointment history with filtering.
+
+    Filters: status (pending/confirmed/completed/missed/cancelled), date, month, year.
+    Computes a 4h prescription window countdown for each pending/confirmed appointment,
+    showing the time remaining for the doctor to issue a prescription before the
+    appointment window expires.
+    """
     patient = getattr(request.user, "patient_profile", None)
     if not patient:
         messages.error(request, "Only patients can view appointments.")
         return redirect("home")
 
     status_filter = request.GET.get("status", "")
+    filter_type = request.GET.get("filter_type", "")
+    filter_value = request.GET.get("filter_value", "")
+    filter_month = request.GET.get("filter_month", "")
+    filter_year = request.GET.get("filter_year", "")
+
     apts_qs = Appointment.objects.filter(patient=patient).select_related("doctor__user").order_by("-appointment_date", "-start_time")
     if status_filter:
         apts_qs = apts_qs.filter(status=status_filter)
 
-    now = timezone.now()
+    if filter_type == "date" and filter_value:
+        apts_qs = apts_qs.filter(appointment_date=filter_value)
+    elif filter_type == "month" and filter_month and filter_year:
+        apts_qs = apts_qs.filter(appointment_date__startswith=f"{filter_year}-{filter_month}")
+    elif filter_type == "year" and filter_year:
+        apts_qs = apts_qs.filter(appointment_date__startswith=filter_year)
+
+    today = timezone.localdate()
+    for apt in apts_qs.filter(appointment_date__lt=today, status__in=["pending", "confirmed"]):
+        has_prescription = Prescription.objects.filter(
+            patient=patient,
+            doctor=apt.doctor,
+            issued_at__date__gte=apt.appointment_date,
+        ).exists()
+        if not has_prescription:
+            apt.status = "missed"
+            apt.save(update_fields=["status"])
+
+    now = timezone.localtime(timezone.now())
+    from accounts.models import SiteSettings
+    booking_rule = SiteSettings.get_solo().booking_edit_rule
+    enable_4h_rule = booking_rule == "enabled"
+    tz = timezone.get_current_timezone()
     apts = []
     for apt in apts_qs:
         apt_datetime = timezone.make_aware(
-            timezone.datetime.combine(apt.appointment_date, apt.start_time)
+            timezone.datetime.combine(apt.appointment_date, apt.start_time), tz
         )
+        apt_end = timezone.make_aware(
+            timezone.datetime.combine(apt.appointment_date, apt.end_time or apt.start_time), tz
+        )
+        window_end = apt_datetime + timezone.timedelta(hours=4)
         hours_until = (apt_datetime - now).total_seconds() / 3600
         apt.can_cancel = apt.status in ("pending", "confirmed") and hours_until >= 24
-        apt.can_edit = apt.status in ("pending", "confirmed") and hours_until >= 4 and apt.edit_count < 3
+        if enable_4h_rule:
+            apt.can_edit = apt.status == "pending" and hours_until >= 4 and apt.edit_count < 3
+        else:
+            apt.can_edit = apt.status == "pending" and apt.edit_count < 3
+        apt.window_expired = apt.status in ("completed", "missed", "cancelled", "refunded") or (now > window_end and apt.status in ("pending", "confirmed"))
         apts.append(apt)
 
+    paginator = Paginator(apts, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Get distinct years and months for filter dropdowns
+    all_appointments = Appointment.objects.filter(patient=patient)
+    date_aggregates = all_appointments.aggregate(
+        min_date=Min("appointment_date"),
+        max_date=Max("appointment_date"),
+    )
+    years = []
+    months = []
+    if date_aggregates["min_date"] and date_aggregates["max_date"]:
+        min_year = date_aggregates["min_date"].year
+        max_year = date_aggregates["max_date"].year
+        years = list(range(min_year, max_year + 1))
+        months = [
+            ("01", "January"), ("02", "February"), ("03", "March"), ("04", "April"),
+            ("05", "May"), ("06", "June"), ("07", "July"), ("08", "August"),
+            ("09", "September"), ("10", "October"), ("11", "November"), ("12", "December"),
+        ]
+
+    selected_month = ""
+    selected_year = ""
+    if filter_type == "month" and filter_month and filter_year:
+        selected_month = filter_month
+        selected_year = filter_year
+    elif filter_type == "year" and filter_year:
+        selected_year = filter_year
+
     return render(request, "patient/appointments.html", {
-        "appointments": apts,
+        "patient": patient,
+        "appointments": page_obj,
         "status_filter": status_filter,
+        "page_obj": page_obj,
+        "filter_type": filter_type,
+        "filter_value": filter_value,
+        "filter_month": filter_month,
+        "filter_year": filter_year,
+        "years": years,
+        "months": months,
+        "selected_month": selected_month,
+        "selected_year": selected_year,
     })
 
 
@@ -688,12 +1134,25 @@ def appointments(request):
 def appointment_detail_patient(request, appointment_id):
     patient = getattr(request.user, "patient_profile", None)
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
+    tz = timezone.get_current_timezone()
     appointment_datetime = timezone.make_aware(
-        timezone.datetime.combine(appointment.appointment_date, appointment.start_time)
+        timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
     )
-    hours_until = (appointment_datetime - timezone.now()).total_seconds() / 3600
+    appointment_end = timezone.make_aware(
+        timezone.datetime.combine(appointment.appointment_date, appointment.end_time or appointment.start_time), tz
+    )
+    window_end = appointment_datetime + timezone.timedelta(hours=4)
+    now_local = timezone.localtime(timezone.now())
+    hours_until = (appointment_datetime - now_local).total_seconds() / 3600
     appointment.can_cancel = appointment.status in ("pending", "confirmed") and hours_until >= 24
-    appointment.can_edit = appointment.status in ("pending", "confirmed") and hours_until >= 4 and appointment.edit_count < 3
+    from accounts.models import SiteSettings
+    enable_4h_rule = SiteSettings.get_solo().booking_edit_rule == "enabled"
+    if enable_4h_rule:
+        appointment.can_edit = appointment.status == "pending" and hours_until >= 4 and appointment.edit_count < 3
+    else:
+        appointment.can_edit = appointment.status == "pending" and appointment.edit_count < 3
+    appointment.window_expired = appointment.status in ("completed", "missed", "cancelled", "refunded") or (timezone.localtime(timezone.now()) > window_end and appointment.status in ("pending", "confirmed"))
+    appointment.window_end = window_end
     return render(request, "patient/appointment_detail.html", {"appointment": appointment})
 
 
@@ -727,8 +1186,17 @@ def patient_analytics_view(request):
     prescriptions_count = Prescription.objects.filter(patient=patient).count()
     follow_ups_count = FollowUp.objects.filter(prescription__patient=patient, status="upcoming").count()
 
-    recent_appointments = appointments.select_related("doctor__user").order_by("-appointment_date", "-start_time")[:10]
-    recent_prescriptions = Prescription.objects.filter(patient=patient).select_related("doctor__user").order_by("-issued_at")[:10]
+    recent_appointments_qs = appointments.select_related("doctor__user").order_by("-appointment_date", "-start_time")[:50]
+    recent_prescriptions_qs = Prescription.objects.filter(patient=patient).select_related("doctor__user").order_by("-issued_at")[:50]
+
+    recent_appointments_paginator = Paginator(recent_appointments_qs, 10)
+    recent_prescriptions_paginator = Paginator(recent_prescriptions_qs, 10)
+
+    apt_page = request.GET.get("apt_page")
+    rx_page = request.GET.get("rx_page")
+
+    recent_appointments = recent_appointments_paginator.get_page(apt_page)
+    recent_prescriptions = recent_prescriptions_paginator.get_page(rx_page)
 
     return render(request, "patient/analytics.html", {
         "total_appointments": total_appointments,
@@ -748,46 +1216,115 @@ def patient_payment_history(request):
     patient = request.user.patient_profile
     appointments = Appointment.objects.filter(patient=patient).select_related("doctor__user").order_by("-appointment_date", "-start_time")
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Payment History"
+    import io
+    from decimal import Decimal
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.pdfbase import pdfmetrics, ttfonts
 
-    headers = ["Date", "Doctor", "Specialty", "Fee (BDT)", "Platform Fee (BDT)", "Net Fee (BDT)", "Payment Status", "Transaction ID", "Consultation Type"]
-    ws.append(headers)
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-    for cell in ws[1]:
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center")
+    pdf_font_name = "Helvetica"
+    for font_path in [
+        r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\solaimanlipi.ttf",
+        r"C:\Windows\Fonts\kalpurush.ttf",
+    ]:
+        if os.path.exists(font_path):
+            try:
+                font_obj = ttfonts.TTFont("pdf_unicode_font", font_path)
+                pdfmetrics.registerFont(font_obj)
+                pdfmetrics.registerFontFamily(
+                    "pdf_unicode_font",
+                    normal="pdf_unicode_font",
+                    bold="pdf_unicode_font",
+                    italic="pdf_unicode_font",
+                    boldItalic="pdf_unicode_font",
+                )
+                pdf_font_name = "pdf_unicode_font"
+                break
+            except Exception:
+                continue
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=15 * mm, bottomMargin=15 * mm, leftMargin=15 * mm, rightMargin=15 * mm)
+    styles = getSampleStyleSheet()
+
+    teal = colors.HexColor("#0f766e")
+    dark = colors.HexColor("#1c1917")
+    slate = colors.HexColor("#57534e")
+    light_bg = colors.HexColor("#f0fdfa")
+
+    title_style = ParagraphStyle("title", parent=styles["Title"], fontSize=18, textColor=teal, spaceAfter=2, leading=22, fontName=pdf_font_name)
+    subtitle_style = ParagraphStyle("subtitle", parent=styles["Normal"], fontSize=9, textColor=slate, spaceAfter=10, leading=12, fontName=pdf_font_name)
+    header_style = ParagraphStyle("header", parent=styles["Normal"], fontSize=8, textColor=colors.white, fontName=pdf_font_name)
+    cell_style = ParagraphStyle("cell", parent=styles["Normal"], fontSize=8, textColor=dark, leading=11, fontName=pdf_font_name)
+
+    elements = []
+    elements.append(Paragraph("Patient Payment & Billing History", title_style))
+    elements.append(Paragraph(f"Patient: <b>{patient.user.get_full_name() or patient.user.email}</b> (#PAT-{patient.id}) | Date: <b>{timezone.localdate().strftime('%d %b %Y')}</b>", subtitle_style))
+
+    table_data = [
+        [
+            Paragraph("<b>Date</b>", header_style),
+            Paragraph("<b>Doctor</b>", header_style),
+            Paragraph("<b>Consultation Fee</b>", header_style),
+            Paragraph("<b>Refund Issued</b>", header_style),
+            Paragraph("<b>Payment Status</b>", header_style),
+            Paragraph("<b>Type</b>", header_style),
+        ]
+    ]
+
+    total_fee = Decimal("0.00")
+    total_refund = Decimal("0.00")
 
     for apt in appointments:
-        ws.append([
-            apt.appointment_date.strftime("%Y-%m-%d"),
-            apt.doctor.user.get_full_name() or apt.doctor.user.username,
-            apt.doctor.specialty or "General",
-            float(apt.fee_bdt),
-            float(apt.platform_fee_bdt),
-            float(apt.net_doctor_payout_bdt),
-            apt.get_payment_status_display(),
-            apt.transaction_id or "N/A",
-            apt.get_consultation_type_display(),
+        fee = Decimal(str(apt.fee_bdt or 0))
+        ref = Decimal(str(apt.refund_amount or 0))
+        total_fee += fee
+        total_refund += ref
+
+        doc_name = apt.doctor.user.get_full_name() or apt.doctor.user.username
+        
+        table_data.append([
+            Paragraph(apt.appointment_date.strftime("%d %b %Y"), cell_style),
+            Paragraph(f"Dr. {doc_name}", cell_style),
+            Paragraph(f"BDT {fee:,.2f}", cell_style),
+            Paragraph(f"BDT {ref:,.2f}", cell_style),
+            Paragraph(apt.get_payment_status_display(), cell_style),
+            Paragraph(apt.get_consultation_type_display(), cell_style),
         ])
 
-    for col in ws.columns:
-        max_length = 0
-        column = col[0].column_letter
-        for cell in col:
-            try:
-                if cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            except Exception:
-                pass
-        ws.column_dimensions[column].width = min(max_length + 2, 50)
+    table_data.append([
+        Paragraph("<b>TOTALS</b>", cell_style),
+        Paragraph("", cell_style),
+        Paragraph(f"<b>BDT {total_fee:,.2f}</b>", cell_style),
+        Paragraph(f"<b>BDT {total_refund:,.2f}</b>", cell_style),
+        Paragraph("", cell_style),
+        Paragraph("", cell_style),
+    ])
 
-    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="payment_history.xlsx"'
-    wb.save(response)
+    col_widths = [25 * mm, 50 * mm, 30 * mm, 30 * mm, 25 * mm, 20 * mm]
+    t = Table(table_data, colWidths=col_widths)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), teal),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor("#e7e5e4")),
+        ('BACKGROUND', (0, -1), (-1, -1), light_bg),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, teal),
+    ]))
+    elements.append(t)
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="patient_payment_history.pdf"'
     return response
 
 
@@ -1146,61 +1683,65 @@ def request_cancellation(request, appointment_id):
     patient = request.user.patient_profile
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
 
-    if appointment.status not in ("confirmed", "pending"):
+    if appointment.status not in ("pending", "confirmed"):
         messages.error(request, "This appointment cannot be cancelled.")
+        return redirect("patient:appointments")
+
+    tz = timezone.get_current_timezone()
+    appointment_datetime = timezone.make_aware(
+        timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
+    )
+    now_local = timezone.localtime(timezone.now())
+    hours_until = (appointment_datetime - now_local).total_seconds() / 3600
+
+    if hours_until < 24:
+        messages.error(request, "Appointments can only be cancelled at least 24 hours before the scheduled time.")
         return redirect("patient:appointments")
 
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
-        appointment_datetime = timezone.make_aware(
-            timezone.datetime.combine(appointment.appointment_date, appointment.start_time)
-        )
-        hours_until = (appointment_datetime - timezone.now()).total_seconds() / 3600
 
         if hours_until >= 24:
             appointment.status = "cancelled"
             appointment.cancellation_reason = reason
-            appointment.refund_status = "partial"
-            appointment.refund_amount = (appointment.fee_bdt * Decimal("0.35")).quantize(Decimal("0.01"))
-            appointment.net_doctor_payout_bdt = appointment.fee_bdt - appointment.platform_fee_bdt - appointment.refund_amount
-            appointment.save(update_fields=["status", "cancellation_reason", "refund_status", "refund_amount", "net_doctor_payout_bdt"])
 
-            AppNotification.objects.create(
-                user=appointment.doctor.user,
-                title="Appointment Cancelled by Patient",
-                message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT (35%) processed.",
-                notification_type="booking",
-                link_url=reverse("doctors:appointment_list"),
-            )
-            AppNotification.objects.create(
-                user=request.user,
-                title="Cancellation Confirmed",
-                message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT (35%) has been processed.",
-                notification_type="booking",
-                link_url=reverse("patient:appointments"),
-            )
-            messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded (35%).")
-        else:
-            appointment.status = "cancellation_pending"
-            appointment.cancellation_reason = reason
-            appointment.cancellation_requested_at = timezone.now()
-            appointment.save(update_fields=["status", "cancellation_reason", "cancellation_requested_at"])
+            if appointment.payment_status == "paid":
+                appointment.refund_status = "partial"
+                appointment.refund_amount = (appointment.fee_bdt * Decimal("0.35")).quantize(Decimal("0.01"))
+                appointment.payment_status = "refunded"
+                appointment.save()
 
-            AppNotification.objects.create(
-                user=appointment.doctor.user,
-                title="Cancellation Request from Patient",
-                message=f"Patient {patient.user.get_full_name()} requested cancellation for {appointment.appointment_date}. Please review. Refund policy: 35% if approved.",
-                notification_type="booking",
-                link_url=reverse("doctors:appointment_list"),
-            )
-            AppNotification.objects.create(
-                user=request.user,
-                title="Cancellation Request Sent",
-                message=f"Your cancellation request for {appointment.appointment_date} has been sent to the doctor for approval.",
-                notification_type="booking",
-                link_url=reverse("patient:appointments"),
-            )
-            messages.info(request, "Cancellation request sent to doctor for approval. You will be notified once decided.")
+                patient.balance = (patient.balance or Decimal("0")) + appointment.refund_amount
+                patient.save(update_fields=["balance"])
+
+                AppNotification.objects.create(
+                    user=request.user,
+                    title="Refund Credited to Wallet",
+                    message=f"A refund of {appointment.refund_amount} BDT has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
+                    notification_type="booking",
+                    link_url=reverse("patient:appointments"),
+                )
+
+                AppNotification.objects.create(
+                    user=appointment.doctor.user,
+                    title="Appointment Cancelled by Patient",
+                    message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT (35%) processed.",
+                    notification_type="booking",
+                    link_url=reverse("doctors:appointment_list"),
+                )
+                AppNotification.objects.create(
+                    user=request.user,
+                    title="Cancellation Confirmed",
+                    message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT (35%) has been processed.",
+                    notification_type="booking",
+                    link_url=reverse("patient:appointments"),
+                )
+                messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded (35%).")
+            else:
+                appointment.refund_status = "none"
+                appointment.refund_amount = Decimal("0.00")
+                appointment.save()
+                messages.success(request, "Appointment cancelled successfully.")
 
         return redirect("patient:appointments")
 
@@ -1209,24 +1750,37 @@ def request_cancellation(request, appointment_id):
 
 @login_required
 def edit_appointment(request, appointment_id):
+    """Allow a patient to edit their own appointment within constraints.
+
+    Constraints:
+      - Appointment must be in 'pending' status (not yet confirmed)
+      - Maximum 3 edits per appointment (tracked via edit_count)
+      - If booking_edit_rule is 'enabled', edits must be within 4h of
+        the appointment start time (prevents last-minute changes)
+    """
     patient = request.user.patient_profile
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
 
-    if appointment.status not in ("pending", "confirmed"):
-        messages.error(request, "Only pending or confirmed appointments can be edited.")
+    if appointment.status != "pending":
+        messages.error(request, "Only pending appointments can be edited. Confirmed appointments cannot be changed.")
         return redirect("patient:appointments")
 
     if appointment.edit_count >= 3:
         messages.error(request, "You have reached the maximum of 3 edits for this booking.")
         return redirect("patient:appointments")
 
-    appointment_datetime = timezone.make_aware(
-        timezone.datetime.combine(appointment.appointment_date, appointment.start_time)
-    )
-    hours_until = (appointment_datetime - timezone.now()).total_seconds() / 3600
-    if hours_until < 4:
-        messages.error(request, "Appointments can only be edited at least 4 hours before the scheduled time.")
-        return redirect("patient:appointments")
+    from accounts.models import SiteSettings
+    enable_4h_rule = SiteSettings.get_solo().booking_edit_rule == "enabled"
+    if enable_4h_rule:
+        tz = timezone.get_current_timezone()
+        appointment_datetime = timezone.make_aware(
+            timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
+        )
+        now_local = timezone.localtime(timezone.now())
+        hours_until = (appointment_datetime - now_local).total_seconds() / 3600
+        if hours_until < 4:
+            messages.error(request, "Appointments can only be edited at least 4 hours before the scheduled time.")
+            return redirect("patient:appointments")
 
     if request.method == "POST":
         new_date = request.POST.get("appointment_date", "").strip()
@@ -1296,7 +1850,7 @@ def edit_appointment(request, appointment_id):
         day_name = date.strftime("%A").lower()
         day_schedules = DoctorSchedule.objects.filter(doctor=appointment.doctor, day_of_week=day_name, is_active=True)
         for sch in day_schedules:
-            slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, appointment.doctor, date)
+            slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, appointment.doctor, date, exclude_appointment_id=appointment.pk)
             available_slots.extend(slots)
 
     return render(request, "patient/edit_appointment.html", {
@@ -1306,3 +1860,422 @@ def edit_appointment(request, appointment_id):
         "available_slots": available_slots,
         "edit_count": appointment.edit_count,
     })
+
+
+@login_required
+def reports(request):
+    from datetime import datetime
+    from doctors.models import Appointment
+    from carebridge.reports_utils import (
+        compute_appointment_report,
+        export_report_xlsx,
+        export_report_pdf,
+    )
+
+    patient = request.user.patient_profile
+    export_format = request.GET.get("export")
+    status_filter = request.GET.get("status", "").strip()
+    start_date = request.GET.get("start_date", "").strip()
+    end_date = request.GET.get("end_date", "").strip()
+    doctor_filter = request.GET.get("doctor", "").strip()
+    consultation_filter = request.GET.get("consultation_type", "").strip()
+    payment_filter = request.GET.get("payment_status", "").strip()
+
+    base_qs = Appointment.objects.filter(patient=patient).select_related("patient__user", "doctor__user")
+    if start_date:
+        try:
+            base_qs = base_qs.filter(appointment_date__gte=datetime.strptime(start_date, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            base_qs = base_qs.filter(appointment_date__lte=datetime.strptime(end_date, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if status_filter:
+        base_qs = base_qs.filter(status=status_filter)
+    if doctor_filter:
+        base_qs = base_qs.filter(doctor__pk=doctor_filter)
+    if consultation_filter:
+        base_qs = base_qs.filter(consultation_type=consultation_filter)
+    if payment_filter:
+        base_qs = base_qs.filter(payment_status=payment_filter)
+
+    if export_format == "pdf":
+        metrics = compute_appointment_report(base_qs)
+        return export_report_pdf(
+            base_qs,
+            metrics,
+            f"CareBridge Patient Report — {request.user.get_full_name() or request.user.email}",
+            "patient_report.pdf",
+            owner_type="patient",
+        )
+
+    metrics = compute_appointment_report(base_qs)
+    all_doctors = Doctor.objects.filter(is_verified=True).order_by("user__first_name")
+    return render(request, "patient/reports.html", {
+        "metrics": metrics,
+        "status_filter": status_filter,
+        "start_date": start_date,
+        "end_date": end_date,
+        "status_choices": Appointment.STATUS_CHOICES,
+        "patient_name": request.user.get_full_name() or request.user.email,
+        "balance": patient.balance,
+        "all_doctors": all_doctors,
+        "doctor_filter": doctor_filter,
+        "consultation_filter": consultation_filter,
+        "payment_filter": payment_filter,
+        "consultation_choices": Appointment.TYPE_CHOICES,
+        "payment_choices": Appointment.PAYMENT_STATUS_CHOICES,
+    })
+
+
+@login_required
+def overall_report(request):
+    from datetime import datetime
+    import io
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        HAS_MATPLOTLIB = True
+    except ImportError:
+        HAS_MATPLOTLIB = False
+
+    from doctors.models import Appointment
+    from patient.models import MedicalHistory, PatientVisit, PatientHealthReport
+    from prescriptions.models import Prescription
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image, SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.pdfbase import pdfmetrics, ttfonts
+
+    pdf_font_name = "Helvetica"
+    for font_path in [
+        r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\solaimanlipi.ttf",
+        r"C:\Windows\Fonts\kalpurush.ttf",
+    ]:
+        if os.path.exists(font_path):
+            try:
+                font_obj = ttfonts.TTFont("pdf_unicode_font", font_path)
+                pdfmetrics.registerFont(font_obj)
+                pdfmetrics.registerFontFamily(
+                    "pdf_unicode_font",
+                    normal="pdf_unicode_font",
+                    bold="pdf_unicode_font",
+                    italic="pdf_unicode_font",
+                    boldItalic="pdf_unicode_font",
+                )
+                pdf_font_name = "pdf_unicode_font"
+                break
+            except Exception:
+                continue
+
+    patient = _get_patient(request)
+    if not patient:
+        messages.error(request, "Please log in as a patient.")
+        return redirect("home")
+
+    export_format = request.GET.get("export")
+    start_date = request.GET.get("start_date", "").strip()
+    end_date = request.GET.get("end_date", "").strip()
+
+    appointments = Appointment.objects.filter(patient=patient).select_related("doctor__user").order_by("-appointment_date")
+    visits = patient.visits.select_related("doctor__user").order_by("-visited_at")
+    prescriptions = Prescription.objects.filter(patient=patient).select_related("doctor__user").prefetch_related("items__medicine").order_by("-issued_at")
+    medical_history = getattr(patient, "medical_history", None)
+    health_reports = patient.health_reports.all().order_by("-date_performed")
+
+    summary_language = request.GET.get("lang") or request.session.get("site_lang") or "en"
+
+    history_parts = []
+    if medical_history and (medical_history.chronic_conditions or medical_history.allergies or medical_history.past_surgeries or medical_history.family_medical_history):
+        history_parts.append("Medical History:")
+        if medical_history.chronic_conditions:
+            history_parts.append(f"- Chronic Conditions: {medical_history.chronic_conditions}")
+        if medical_history.allergies:
+            history_parts.append(f"- Allergies: {medical_history.allergies}")
+        if medical_history.past_surgeries:
+            history_parts.append(f"- Past Surgeries: {medical_history.past_surgeries}")
+        if medical_history.family_medical_history:
+            history_parts.append(f"- Family History: {medical_history.family_medical_history}")
+
+    recent_visits = visits[:5]
+    if recent_visits:
+        history_parts.append("Recent Visits:")
+        for v in recent_visits:
+            vitals = []
+            if v.heart_rate: vitals.append(f"HR {v.heart_rate} bpm")
+            if v.blood_pressure_systolic and v.blood_pressure_diastolic: vitals.append(f"BP {v.blood_pressure_systolic}/{v.blood_pressure_diastolic} mmHg")
+            if v.temperature_celsius: vitals.append(f"Temp {v.temperature_celsius}°C")
+            if v.weight_kg: vitals.append(f"Weight {v.weight_kg} kg")
+            if v.height_cm: vitals.append(f"Height {v.height_cm} cm")
+            if v.oxygen_saturation: vitals.append(f"SpO2 {v.oxygen_saturation}%")
+            vitals_str = ", ".join(vitals) if vitals else "No vitals recorded"
+            history_parts.append(f"- {v.visited_at.strftime('%Y-%m-%d')}: {vitals_str} with Dr. {v.doctor.user.get_full_name() or v.doctor.user.username}")
+
+    recent_prescriptions = prescriptions[:5]
+    if recent_prescriptions:
+        history_parts.append("Recent Prescriptions:")
+        for rx in recent_prescriptions:
+            meds = ", ".join([item.medicine.brand_name for item in rx.items.all()[:3]])
+            if rx.items.count() > 3:
+                meds += "..."
+            history_parts.append(f"- {rx.issued_at.strftime('%Y-%m-%d')}: {rx.diagnosis or rx.chief_complaints or 'General'} — Medicines: {meds or 'None'}")
+
+    recent_reports = health_reports[:5]
+    if recent_reports:
+        history_parts.append("Recent Health Reports:")
+        for r in recent_reports:
+            history_parts.append(f"- {r.date_performed}: {r.title} ({r.get_report_type_display()})")
+
+    history_text = "\n".join(history_parts) if history_parts else "No detailed medical history available yet."
+
+    metrics_parts = []
+    if recent_visits:
+        latest = recent_visits.first()
+        if latest.heart_rate: metrics_parts.append(f"Heart rate: {latest.heart_rate} bpm")
+        if latest.blood_pressure_systolic and latest.blood_pressure_diastolic: metrics_parts.append(f"BP: {latest.blood_pressure_systolic}/{latest.blood_pressure_diastolic} mmHg")
+        if latest.temperature_celsius: metrics_parts.append(f"Temperature: {latest.temperature_celsius}°C")
+        if latest.weight_kg: metrics_parts.append(f"Weight: {latest.weight_kg} kg")
+        if latest.height_cm: metrics_parts.append(f"Height: {latest.height_cm} cm")
+        if latest.oxygen_saturation: metrics_parts.append(f"SpO2: {latest.oxygen_saturation}%")
+    metrics_summary = "; ".join(metrics_parts) if metrics_parts else "No recent vitals on file."
+
+    ai_summary = GeminiAIService.generate_clinical_summary(
+        patient_name=patient.user.get_full_name() or patient.user.email,
+        history_text=history_text,
+        metrics_summary=metrics_summary,
+        language=summary_language,
+    )
+
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+            appointments = appointments.filter(appointment_date__gte=sd)
+            visits = visits.filter(visited_at__date__gte=sd)
+            prescriptions = prescriptions.filter(issued_at__date__gte=sd)
+            health_reports = health_reports.filter(date_performed__gte=sd)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+            appointments = appointments.filter(appointment_date__lte=ed)
+            visits = visits.filter(visited_at__date__lte=ed)
+            prescriptions = prescriptions.filter(issued_at__date__lte=ed)
+            health_reports = health_reports.filter(date_performed__lte=ed)
+        except ValueError:
+            pass
+
+    if export_format == "pdf":
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=15 * mm, bottomMargin=15 * mm, leftMargin=18 * mm, rightMargin=18 * mm)
+        styles = getSampleStyleSheet()
+        teal = colors.HexColor("#0f766e")
+        dark = colors.HexColor("#1c1917")
+        slate = colors.HexColor("#57534e")
+        light_bg = colors.HexColor("#f0fdfa")
+        line = colors.HexColor("#e7e5e4")
+        title_style = ParagraphStyle("title", parent=styles["Title"], fontSize=18, textColor=teal, spaceAfter=6, leading=22, fontName=pdf_font_name)
+        heading_style = ParagraphStyle("heading", parent=styles["Heading3"], fontSize=12, textColor=teal, spaceAfter=6, spaceBefore=10, leading=16, fontName=pdf_font_name)
+        normal_style = ParagraphStyle("normal", parent=styles["Normal"], fontSize=9, leading=13, textColor=dark, fontName=pdf_font_name)
+        small_style = ParagraphStyle("small", parent=styles["Normal"], fontSize=8, leading=11, textColor=slate, fontName=pdf_font_name)
+        elements = []
+
+        logo_path = os.path.join(settings.BASE_DIR, "carebridge", "static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            elements.append(Image(logo_path, width=16 * mm, height=16 * mm))
+            elements.append(Spacer(1, 4))
+
+        elements.append(Paragraph("Overall Medical Summary Report", title_style))
+        elements.append(Paragraph(f"Patient: {patient.user.get_full_name() or patient.user.email} | Generated: {timezone.localtime(timezone.now()).strftime('%d %b %Y, %I:%M %p')}", small_style))
+        elements.append(Spacer(1, 8))
+
+        demo_data = [
+            [Paragraph("<b>Name</b>", normal_style), Paragraph(patient.user.get_full_name() or patient.user.email, normal_style),
+             Paragraph("<b>Gender</b>", normal_style), Paragraph(patient.gender or "N/A", normal_style)],
+            [Paragraph("<b>Age</b>", normal_style), Paragraph(str(calculate_age(patient.date_of_birth)) if patient.date_of_birth else "N/A", normal_style),
+             Paragraph("<b>District</b>", normal_style), Paragraph(patient.district or "N/A", normal_style)],
+            [Paragraph("<b>Phone</b>", normal_style), Paragraph(patient.phone_number or "N/A", normal_style),
+             Paragraph("<b>Member Since</b>", normal_style), Paragraph(patient.user.date_joined.strftime("%Y-%m-%d"), normal_style)],
+        ]
+        demo_table = Table(demo_data, colWidths=[28 * mm, 52 * mm, 28 * mm, 52 * mm])
+        demo_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), light_bg), ('BACKGROUND', (2, 0), (2, -1), light_bg),
+            ('TEXTCOLOR', (0, 0), (-1, -1), dark), ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8), ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6), ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, line),
+        ]))
+        elements.append(Paragraph("Patient Demographics", heading_style))
+        elements.append(demo_table)
+        elements.append(Spacer(1, 10))
+
+        if medical_history and (medical_history.chronic_conditions or medical_history.allergies or medical_history.past_surgeries or medical_history.family_medical_history):
+            hist_data = [[Paragraph("<b>Patient Medical History</b>", normal_style), ""]]
+            if medical_history.chronic_conditions:
+                hist_data.append([Paragraph("<b>Chronic Conditions</b>", normal_style), Paragraph(medical_history.chronic_conditions, normal_style)])
+            if medical_history.allergies:
+                hist_data.append([Paragraph("<b>Allergies</b>", normal_style), Paragraph(medical_history.allergies, normal_style)])
+            if medical_history.past_surgeries:
+                hist_data.append([Paragraph("<b>Past Surgeries</b>", normal_style), Paragraph(medical_history.past_surgeries, normal_style)])
+            if medical_history.family_medical_history:
+                hist_data.append([Paragraph("<b>Family History</b>", normal_style), Paragraph(medical_history.family_medical_history, normal_style)])
+            hist_table = Table(hist_data, colWidths=[40 * mm, 60 * mm])
+            hist_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#b45309")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, line), ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#fffbeb")]),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8), ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ]))
+            elements.append(Paragraph("Medical History", heading_style))
+            elements.append(hist_table)
+            elements.append(Spacer(1, 8))
+
+        if visits.exists():
+            vitals_data = [[Paragraph("<b>Date</b>", normal_style), Paragraph("<b>HR</b>", normal_style), Paragraph("<b>BP</b>", normal_style), Paragraph("<b>Temp</b>", normal_style), Paragraph("<b>Weight</b>", normal_style), Paragraph("<b>Height</b>", normal_style), Paragraph("<b>SpO2</b>", normal_style), Paragraph("<b>Doctor</b>", normal_style)]]
+            for v in visits[:20]:
+                vitals_data.append([
+                    Paragraph(v.visited_at.strftime("%Y-%m-%d"), normal_style),
+                    Paragraph(str(v.heart_rate) if v.heart_rate else "—", normal_style),
+                    Paragraph(f"{v.blood_pressure_systolic}/{v.blood_pressure_diastolic}" if v.blood_pressure_systolic else "—", normal_style),
+                    Paragraph(str(v.temperature_celsius) if v.temperature_celsius else "—", normal_style),
+                    Paragraph(str(v.weight_kg) if v.weight_kg else "—", normal_style),
+                    Paragraph(str(v.height_cm) if v.height_cm else "—", normal_style),
+                    Paragraph(str(v.oxygen_saturation) if v.oxygen_saturation else "—", normal_style),
+                    Paragraph(v.doctor.user.get_full_name() or v.doctor.user.username, normal_style),
+                ])
+            vitals_table = Table(vitals_data, colWidths=[22*mm, 16*mm, 22*mm, 18*mm, 18*mm, 16*mm, 16*mm, 28*mm])
+            vitals_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1e40af")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, line), ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#eff6ff")]),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(Paragraph("Visit Vitals History", heading_style))
+            elements.append(vitals_table)
+            elements.append(Spacer(1, 8))
+
+        if prescriptions.exists():
+            rx_data = [[Paragraph("<b>Date</b>", normal_style), Paragraph("<b>Doctor</b>", normal_style), Paragraph("<b>Diagnosis</b>", normal_style), Paragraph("<b>Medicines</b>", normal_style)]]
+            for rx in prescriptions[:15]:
+                meds = ", ".join([item.medicine.brand_name for item in rx.items.all()[:3]])
+                if rx.items.count() > 3:
+                    meds += "..."
+                rx_data.append([
+                    Paragraph(rx.issued_at.strftime("%Y-%m-%d"), normal_style),
+                    Paragraph(rx.doctor.user.get_full_name() or rx.doctor.user.username, normal_style),
+                    Paragraph(rx.diagnosis or rx.chief_complaints or "—", normal_style),
+                    Paragraph(meds or "—", normal_style),
+                ])
+            rx_table = Table(rx_data, colWidths=[22*mm, 32*mm, 40*mm, 56*mm])
+            rx_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), teal), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, line), ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0fdfa")]),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(Paragraph("Prescriptions History", heading_style))
+            elements.append(rx_table)
+            elements.append(Spacer(1, 8))
+
+        if appointments.exists() and HAS_MATPLOTLIB:
+            status_counts = {
+                "completed": appointments.filter(status="completed").count(),
+                "missed": appointments.filter(status="missed").count(),
+                "cancelled": appointments.filter(status="cancelled").count(),
+                "pending": appointments.filter(status="pending").count(),
+                "confirmed": appointments.filter(status="confirmed").count(),
+            }
+            fig, ax = plt.subplots(figsize=(6, 3))
+            labels = [k for k, v in status_counts.items() if v > 0]
+            sizes = [v for v in status_counts.values() if v > 0]
+            colors_pie = ["#0d9488", "#e11d48", "#f97316", "#f59e0b", "#14b8a6"]
+            ax.pie(sizes, labels=labels, colors=colors_pie[:len(labels)], autopct="%1.0f%%", startangle=90)
+            ax.set_title("Appointment Status Distribution")
+            chart_buf = io.BytesIO()
+            plt.tight_layout()
+            plt.savefig(chart_buf, format="png", dpi=150, bbox_inches="tight")
+            plt.close(fig)
+            chart_buf.seek(0)
+
+            elements.append(Paragraph("Appointment Analytics", heading_style))
+            elements.append(Image(chart_buf, width=80 * mm, height=40 * mm))
+            elements.append(Spacer(1, 8))
+        elif appointments.exists():
+            elements.append(Paragraph("Appointment Analytics", heading_style))
+            elements.append(Paragraph("Charts require matplotlib. Install it to view visualizations.", small_style))
+            elements.append(Spacer(1, 8))
+
+        elements.append(Spacer(1, 12))
+        elements.append(Table([['']], colWidths=[150 * mm], rowHeights=[1], style=TableStyle([('LINEBELOW', (0, 0), (-1, 0), 1, line)])))
+        elements.append(Spacer(1, 4))
+
+        if ai_summary:
+            elements.append(Paragraph("AI Overall Health Assessment", heading_style))
+            ai_text = ai_summary.replace("\n", "<br/>")
+            ai_table_data = [[Paragraph(ai_text, normal_style)]]
+            ai_table = Table(ai_table_data, colWidths=[150 * mm])
+            ai_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f0fdfa")),
+                ('BOX', (0, 0), (-1, -1), 0.5, line),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(ai_table)
+            elements.append(Spacer(1, 8))
+
+        elements.append(Paragraph(f"Generated by CareBridge AI Clinical Network on {timezone.localtime(timezone.now()).strftime('%d %b %Y, %I:%M %p')}", small_style))
+        elements.append(Paragraph("Confidential — For authorized medical use only", small_style))
+
+        doc.build(elements)
+        buffer.seek(0)
+        return HttpResponse(buffer.read(), content_type="application/pdf")
+
+    context = {
+        "appointments": appointments[:50],
+        "visits": visits[:20],
+        "prescriptions": prescriptions[:20],
+        "medical_history": medical_history,
+        "health_reports": health_reports[:10],
+        "patient": patient,
+        "patient_age": calculate_age(patient.date_of_birth),
+        "start_date": start_date,
+        "end_date": end_date,
+        "appointment_status_counts": {
+            "completed": appointments.filter(status="completed").count(),
+            "missed": appointments.filter(status="missed").count(),
+            "cancelled": appointments.filter(status="cancelled").count(),
+            "pending": appointments.filter(status="pending").count(),
+            "confirmed": appointments.filter(status="confirmed").count(),
+        },
+        "ai_summary": ai_summary,
+        "summary_language": summary_language,
+    }
+    return render(request, "patient/overall_report.html", context)
+
+
+def calculate_age(date_of_birth):
+    if not date_of_birth:
+        return None
+    today = timezone.localdate()
+    return today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))

@@ -1,4 +1,4 @@
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 <!DOCTYPE html>
 <html lang="{{ site_lang|default:'en' }}">
 
@@ -12,56 +12,64 @@
     <link rel="apple-touch-icon" href="{% static 'images/logo.png' %}?v=20260727">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <!-- High Visibility Fonts: Outfit & Hind Siliguri for English & Bangla -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}?v=20260817">
     <style>
         body {
-            font-family: 'Outfit', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
+        html:not(.dark) .theme-icon-moon { display: none !important; }
+        html:not(.dark) .theme-icon-sun { display: inline-block !important; }
+        html.dark .theme-icon-sun { display: none !important; }
+        html.dark .theme-icon-moon { display: inline-block !important; }
     </style>
     <script>
         (function () {
             const saved = localStorage.getItem('carebridge-theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const theme = saved || (prefersDark ? 'dark' : 'light');
-            document.documentElement.classList.toggle('dark', theme === 'dark');
-            document.documentElement.dataset.theme = theme;
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+            const sun = document.querySelector('.theme-icon-sun');
+            const moon = document.querySelector('.theme-icon-moon');
+            if (sun && moon) {
+                if (theme === 'dark') {
+                    sun.style.display = 'none';
+                    moon.style.display = 'inline-block';
+                } else {
+                    sun.style.display = 'inline-block';
+                    moon.style.display = 'none';
+                }
+            }
         })();
 
-        // Anti-BFCache Security: Prevent showing cached pages when navigating via Browser Back button after logout
         window.addEventListener('pageshow', function (event) {
             if (event.persisted) {
                 window.location.reload(true);
             }
         });
 
-        // Additional protection for back button: Check if current page requires auth
         (function() {
             const protectedPaths = ['/patient/', '/doctors/', '/admin/', '/ai-providers/', '/admin-unverified/'];
             const currentPath = window.location.pathname;
             const isProtectedPage = protectedPaths.some(path => currentPath.startsWith(path));
             
             if (isProtectedPage) {
-                // Make a lightweight request to check auth status
                 fetch(window.location.href, { method: 'HEAD', redirect: 'manual' })
                     .then(response => {
-                        // If we get a redirect (302/301), user is not authenticated
                         if (response.status >= 300 && response.status < 400) {
                             window.location.href = '/';
                         }
                     })
-                    .catch(() => {
-                        // On error, don't do anything - let the page load normally
-                    });
+                    .catch(() => {});
             }
         })();
 
-        // Auto-dismiss toast messages after 3 seconds
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 const toasts = document.querySelectorAll('.toast-message');
@@ -86,7 +94,6 @@
             });
         }
 
-        // Force reload avatar images to prevent stale cache after upload
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 const hasSuccessMessage = document.querySelector('.toast-message') !== null;
@@ -114,11 +121,10 @@
             }
         }
 
-        // Session Management: Auto-logout after 2 hours of inactivity
         (function() {
-            const SESSION_TIMEOUT = 7200; // 2 hours in seconds
-            const WARNING_BEFORE = 300;   // Show warning 5 minutes before expiry
-            const PING_INTERVAL = 60000;  // Ping server every 60 seconds to keep session alive
+            const SESSION_TIMEOUT = 7200;
+            const WARNING_BEFORE = 300;
+            const PING_INTERVAL = 60000;
             
             let lastActivity = Date.now();
             let warningShown = false;
@@ -126,22 +132,15 @@
             let logoutTimer = null;
             let pingInterval = null;
             
-            // Update last activity timestamp
             function updateActivity() {
                 lastActivity = Date.now();
                 warningShown = false;
-                
-                // Clear existing timers
                 if (warningTimer) clearTimeout(warningTimer);
                 if (logoutTimer) clearTimeout(logoutTimer);
-                
-                // Schedule warning
                 warningTimer = setTimeout(showSessionWarning, (SESSION_TIMEOUT - WARNING_BEFORE) * 1000);
-                // Schedule logout
                 logoutTimer = setTimeout(autoLogout, SESSION_TIMEOUT * 1000);
             }
             
-            // Show session expiry warning
             function showSessionWarning() {
                 if (warningShown) return;
                 warningShown = true;
@@ -156,49 +155,40 @@
                                 <i class="fa-solid fa-clock text-lg"></i>
                             </div>
                             <h3 class="text-lg font-bold text-stone-900 dark:text-stone-100">
-                                {% if site_lang == 'bn' %}সেশনের সময় expires{% else %}Session Expiring Soon{% endif %}
+                                {% translate_bn "Session Expiring Soon" %}
                             </h3>
                         </div>
                         <p class="text-sm text-stone-600 dark:text-stone-400 mb-6">
-                            {% if site_lang == 'bn' %}
-                                আপনি ২ ঘণ্টা নিষ্ক্রিয় wurden。অনুগ্রহপূর্বক আবার লগইন করুন।
-                            {% else %}
-                                You will be logged out soon due to inactivity. Would you like to stay signed in?
-                            {% endif %}
+                            {% translate_bn "You will be logged out soon due to inactivity. Would you like to stay signed in?" %}
                         </p>
                         <div class="flex gap-3">
                             <button id="stay-logged-in" class="flex-1 rounded-full bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition">
-                                {% if site_lang == 'bn' %}লগইন থাকুন{% else %}Stay Logged In{% endif %}
+                                {% translate_bn "Stay Logged In" %}
                             </button>
                             <button id="logout-now" class="flex-1 rounded-full bg-stone-200 px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-300 transition dark:bg-slate-800 dark:text-stone-300 dark:hover:bg-slate-700">
-                                {% if site_lang == 'bn' %}লগ আউট{% else %}Log Out{% endif %}
+                                {% translate_bn "Log Out" %}
                             </button>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(modal);
                 
-                // Stay logged in - extend session
                 document.getElementById('stay-logged-in').addEventListener('click', function() {
                     modal.remove();
                     updateActivity();
-                    // Ping server to reset session
                     fetch('/accounts/session-ping/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
                 });
                 
-                // Logout now
                 document.getElementById('logout-now').addEventListener('click', function() {
                     modal.remove();
                     window.location.href = '/logout/';
                 });
             }
             
-            // Auto logout
             function autoLogout() {
                 window.location.href = '/logout/';
             }
             
-            // Get CSRF token
             function getCookie(name) {
                 const value = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
                 return value ? value[2] : '';
@@ -208,32 +198,26 @@
                 return meta ? meta.getAttribute('content') : getCookie('csrftoken');
             }
             
-            // Track user activity
             const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
             activityEvents.forEach(function(event) {
                 document.addEventListener(event, function() {
                     const now = Date.now();
-                    if (now - lastActivity > 60000) { // Only update if more than 1 minute since last activity
+                    if (now - lastActivity > 60000) {
                         updateActivity();
                     }
                 }, { passive: true });
             });
             
-            // Initial setup
             updateActivity();
             
-            // Ping server periodically to keep session alive
             pingInterval = setInterval(function() {
                 fetch('/accounts/session-ping/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
             }, PING_INTERVAL);
             
-            // Handle browser/tab close - clear session
             window.addEventListener('beforeunload', function() {
-                // Send beacon to clear session server-side
                 if (navigator.sendBeacon) {
                     navigator.sendBeacon('/accounts/session-end/', '');
                 }
-                // Clear client-side session data
                 sessionStorage.clear();
             });
         })();
@@ -242,7 +226,7 @@
     <script defer src="{% static 'js/script.js' %}"></script>
 </head>
 
-<body class="min-h-screen bg-gradient-to-br from-emerald-50/90 via-green-200/80 to-teal-50/80 text-stone-900 font-sans antialiased dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 flex flex-col selection:bg-teal-600 selection:text-white">
+<body class="min-h-screen bg-gradient-to-br from-emerald-100/95 via-green-300/85 to-teal-100/90 text-stone-900 font-sans antialiased dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 flex flex-col selection:bg-teal-600 selection:text-white text-[17px]">
     {% include 'includes/navbar.html' %}
 
     {% if messages %}
@@ -264,6 +248,65 @@
     {% if request.user.is_authenticated and not request.user.doctor_profile and not '/doctors/' in request.path and not '/home/' in request.path and not request.user.is_superuser and not request.user.is_staff %}
         {% include 'includes/patient_assistant.html' %}
     {% endif %}
+
+    <!-- Warning Modal -->
+    <div id="warningModal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="mx-4 max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+          </div>
+          <h3 id="warningModalTitle" class="text-lg font-bold text-stone-900 dark:text-stone-100">{% translate_bn "Are you sure?" %}</h3>
+        </div>
+        <p id="warningModalMessage" class="text-sm text-stone-600 dark:text-stone-400 mb-6">{% translate_bn "This action cannot be undone." %}</p>
+        <div class="flex gap-3">
+          <button id="warningModalCancel" class="flex-1 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-stone-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:hover:bg-slate-700">{% translate_bn "Cancel" %}</button>
+          <button id="warningModalConfirm" class="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 transition">{% translate_bn "Confirm" %}</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.showWarningModal = function(title, message, onConfirm) {
+        const modal = document.getElementById('warningModal');
+        const titleEl = document.getElementById('warningModalTitle');
+        const msgEl = document.getElementById('warningModalMessage');
+        const confirmBtn = document.getElementById('warningModalConfirm');
+        const cancelBtn = document.getElementById('warningModalCancel');
+        
+        titleEl.textContent = title || '{% translate_bn "Are you sure?" %}';
+        msgEl.textContent = message || '{% translate_bn "This action cannot be undone." %}';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        return new Promise((resolve) => {
+          const cleanup = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+          };
+          
+          modal.querySelector('#warningModalConfirm').addEventListener('click', function() {
+            cleanup();
+            if (onConfirm) onConfirm();
+            resolve(true);
+          });
+          
+          modal.querySelector('#warningModalCancel').addEventListener('click', function() {
+            cleanup();
+            resolve(false);
+          });
+          
+          modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+              cleanup();
+              resolve(false);
+            }
+          });
+        });
+      };
+    </script>
 </body>
 
 </html>

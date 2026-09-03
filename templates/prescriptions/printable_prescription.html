@@ -74,8 +74,9 @@
           {% endif %}
           <div>
             <h1 class="text-2xl font-bold text-teal-950">Dr. {{ prescription.doctor.user.get_full_name|default:prescription.doctor.user.username }}</h1>
-            <p class="text-xs font-bold text-teal-700 uppercase tracking-wide">{{ prescription.doctor.specialty|default:"General Medical Specialist" }}</p>
-            <p class="text-xs text-stone-600 font-medium mt-0.5">BMDC Registration No: {{ prescription.doctor.registration_number|default:"A-10892" }}</p>
+            <p class="text-xs font-bold text-teal-700 uppercase tracking-wide">{{ prescription.doctor.designation|default:prescription.doctor.specialty|default:"General Medical Specialist" }}</p>
+            <p class="text-xs text-stone-600 font-medium mt-0.5">{{ prescription.doctor.degrees|default:"MBBS, MD" }}</p>
+            <p class="text-xs text-stone-600 font-medium mt-0.5">Specialty: {{ prescription.doctor.specialty|default:"General Medicine" }} | BMDC Registration No: {{ prescription.doctor.registration_number|default:"A-10892" }}</p>
             <p class="text-[11px] text-stone-500 mt-1 max-w-sm">{{ prescription.doctor.bio|default:"Consultant Physician & Specialist" }}</p>
           </div>
         </div>
@@ -89,11 +90,49 @@
 
       <!-- Patient Information Bar -->
       <div class="my-4 flex flex-wrap items-center justify-between rounded-xl bg-teal-50 px-5 py-3 text-xs font-semibold text-teal-950 border border-teal-100">
-        <div>Patient Name: <span class="font-bold text-stone-900 text-sm ml-1">{{ prescription.patient.user.get_full_name|default:prescription.patient.user.email }}</span></div>
+        <div>Patient: <span class="font-bold text-stone-900 text-sm ml-1">{{ prescription.patient.user.get_full_name|default:prescription.patient.user.email }}</span></div>
+        <div>Gender: <span class="font-bold text-stone-800 ml-1">{{ prescription.patient.gender|default:"Not specified" }}</span></div>
+        {% if prescription.patient.date_of_birth %}
+        {% with age=prescription.patient.date_of_birth|timesince:"" %}
+        <div>Age: <span class="font-bold text-stone-900 ml-1">{{ age|slice:":2" }} years</span></div>
+        {% endwith %}
+        {% endif %}
+        <div>Phone: <span class="font-bold text-stone-800 ml-1">{{ prescription.patient.phone_number|default:"N/A" }}</span></div>
+        <div>Email: <span class="font-bold text-stone-900 ml-1">{{ prescription.patient.user.email|default:"N/A" }}</span></div>
         <div>District: <span class="font-bold text-stone-800 ml-1">{{ prescription.patient.district|default:"Dhaka" }}</span></div>
-        <div>Issued Date: <span class="font-bold text-stone-900 ml-1">{{ prescription.issued_at|date:"Y-m-d (h:i A)" }}</span></div>
+        <div>Issued: <span class="font-bold text-stone-900 ml-1">{{ prescription.issued_at|date:"Y-m-d (h:i A)" }}</span></div>
         <div>Rx Code: <span class="font-mono text-teal-700 font-bold ml-1">#CARE-RX-{{ prescription.pk }}</span></div>
       </div>
+
+      <!-- Visit Vitals Bar -->
+      {% with visit=prescription.visit %}
+        {% if visit %}
+        <div class="my-3 flex flex-wrap items-center gap-4 rounded-xl bg-blue-50 px-5 py-3 text-xs font-semibold text-blue-950 border border-blue-100">
+          <div class="font-bold text-blue-800 uppercase tracking-wider mr-2">Visit Vitals:</div>
+          {% if visit.heart_rate %}<div>HR: <span class="font-bold">{{ visit.heart_rate }}</span> bpm</div>{% endif %}
+          {% if visit.blood_pressure_systolic and visit.blood_pressure_diastolic %}<div>BP: <span class="font-bold">{{ visit.blood_pressure_systolic }}/{{ visit.blood_pressure_diastolic }}</span> mmHg</div>{% endif %}
+          {% if visit.temperature_celsius %}<div>Temp: <span class="font-bold">{{ visit.temperature_celsius }}</span>°C</div>{% endif %}
+          {% if visit.weight_kg %}<div>Weight: <span class="font-bold">{{ visit.weight_kg }}</span> kg</div>{% endif %}
+          {% if visit.height_cm %}<div>Height: <span class="font-bold">{{ visit.height_cm }}</span> cm</div>{% endif %}
+          {% if visit.oxygen_saturation %}<div>SpO2: <span class="font-bold">{{ visit.oxygen_saturation }}</span>%</div>{% endif %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Patient Medical History / Long-term Issues -->
+      {% with med_history=prescription.patient.medical_history %}
+        {% if med_history and (med_history.chronic_conditions or med_history.allergies or med_history.past_surgeries or med_history.family_medical_history) %}
+        <div class="my-3 rounded-xl bg-amber-50 px-5 py-3 text-xs font-semibold text-amber-950 border border-amber-100">
+          <div class="font-bold text-amber-800 uppercase tracking-wider mb-1">Patient Medical History:</div>
+          <div class="grid gap-2 sm:grid-cols-2">
+            {% if med_history.chronic_conditions %}<div><span class="font-bold">Chronic:</span> {{ med_history.chronic_conditions }}</div>{% endif %}
+            {% if med_history.allergies %}<div><span class="font-bold">Allergies:</span> {{ med_history.allergies }}</div>{% endif %}
+            {% if med_history.past_surgeries %}<div><span class="font-bold">Past Surgeries:</span> {{ med_history.past_surgeries }}</div>{% endif %}
+            {% if med_history.family_medical_history %}<div><span class="font-bold">Family History:</span> {{ med_history.family_medical_history }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      {% endwith %}
 
       <!-- Main Body: Two-Column Rx Layout -->
       <div class="grid grid-cols-12 gap-6 mt-6 min-h-[550px]">
@@ -136,6 +175,11 @@
                 As needed
               {% endif %}
             </p>
+            {% if prescription.follow_up and prescription.follow_up.booking_deadline %}
+            <p class="text-stone-600 text-[10px] mt-1">
+              <i class="fa-solid fa-clock mr-1"></i>Book by: {{ prescription.follow_up.booking_deadline|date:"d M Y" }}
+            </p>
+            {% endif %}
           </div>
           {% endif %}
 

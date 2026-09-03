@@ -1,0 +1,173 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-between mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="h3 font-weight-bold text-dark mb-1">📊 Site-wide Financial & Appointment Reports</h2>
+      <p class="text-muted small mb-0">Overview of platform revenue, appointment distributions, and doctor payouts.</p>
+    </div>
+    <div>
+      <a href="?export=pdf{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if doctor_filter %}&doctor={{ doctor_filter }}{% endif %}" target="_blank" class="btn btn-danger btn-sm px-4 shadow-sm font-weight-bold" style="border-radius:20px;">
+        <i class="fas fa-file-pdf mr-1"></i> Export PDF Report
+      </a>
+    </div>
+  </div>
+
+  <div class="card card-outline card-teal mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="get" class="row align-items-end">
+        <div class="col-md-2 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">Start Date</label>
+          <input type="date" name="start_date" value="{{ start_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">End Date</label>
+          <input type="date" name="end_date" value="{{ end_date }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">Status</label>
+          <select name="status" class="form-control form-control-sm">
+            <option value="">All Statuses</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">Income Type</label>
+          <select name="income_type" class="form-control form-control-sm">
+            {% for value, label in income_type_choices %}
+              <option value="{{ value }}" {% if income_type_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 col-sm-6 mb-2">
+          <label class="small font-weight-bold text-secondary mb-1">Doctor</label>
+          <select name="doctor" class="form-control form-control-sm">
+            <option value="">All Doctors</option>
+            {% for doc in doctor_choices %}
+              <option value="{{ doc.id }}" {% if doctor_filter == doc.id|stringformat:"d" %}selected{% endif %}>Doctor ID: #{{ doc.id }} - Dr. {{ doc.user.get_full_name|default:doc.user.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 col-sm-12 mb-2">
+          <button type="submit" class="btn btn-teal btn-sm btn-block text-white font-weight-bold" style="background:#0d9488; border-color:#0d9488; border-radius:20px;">
+            <i class="fas fa-filter mr-1"></i> Filter
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-left border-info p-3 shadow-sm h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Total Registered Patients</div>
+        <div class="h3 font-weight-bold text-info mb-0">{{ total_patients }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-left border-primary p-3 shadow-sm h-100">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Total Registered Doctors</div>
+        <div class="h3 font-weight-bold text-primary mb-0">{{ total_doctors }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-left border-teal p-3 shadow-sm h-100" style="border-left-color: #0d9488 !important;">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Gross Fees Collected</div>
+        <div class="h3 font-weight-bold mb-0" style="color: #0d9488;">৳{{ metrics.income_total|floatformat:0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="card border-left border-purple p-3 shadow-sm h-100" style="border-left-color: #9333ea !important;">
+        <div class="small font-weight-bold text-muted text-uppercase mb-1">Site Commission</div>
+        <div class="h3 font-weight-bold mb-0" style="color: #9333ea;">৳{{ metrics.site_charge|floatformat:0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-white">
+      <h3 class="card-title font-weight-bold text-dark mb-0">Financial Income Breakdown</h3>
+    </div>
+    <div class="card-body">
+      <div class="row text-center">
+        <div class="col-md-4 mb-2">
+          <div class="p-3 bg-light rounded border">
+            <div class="small text-muted font-weight-bold">Gross Appointment Fees</div>
+            <div class="h4 font-weight-bold text-dark mb-0 mt-1">৳{{ metrics.income_total|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-2">
+          <div class="p-3 bg-light rounded border">
+            <div class="small text-muted font-weight-bold">Site Commission</div>
+            <div class="h4 font-weight-bold text-purple mb-0 mt-1" style="color:#9333ea;">৳{{ metrics.site_charge|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-2">
+          <div class="p-3 bg-light rounded border">
+            <div class="small text-muted font-weight-bold">Total Doctor Payout</div>
+            <div class="h4 font-weight-bold text-teal mb-0 mt-1" style="color:#0d9488;">৳{{ metrics.revenue|floatformat:0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white"><h3 class="card-title font-weight-bold mb-0">Appointment Status Distribution</h3></div>
+        <div class="card-body"><canvas id="statusChart" height="220"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white"><h3 class="card-title font-weight-bold mb-0">Daily Site Income (BDT)</h3></div>
+        <div class="card-body"><canvas id="incomeChart" height="220"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ metrics.status_counts|json_script:"status-data" }}
+{{ metrics.daily_series|json_script:"daily-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const statusData = JSON.parse(document.getElementById("status-data").textContent);
+  const dailyData = JSON.parse(document.getElementById("daily-data").textContent);
+
+  new Chart(document.getElementById("statusChart"), {
+    type: "bar",
+    data: {
+      labels: ["Completed", "Missed", "Cancelled", "Pending", "Confirmed", "Pending Approv."],
+      datasets: [{
+        label: "Appointments",
+        data: [
+          statusData.completed, statusData.missed, statusData.cancelled,
+          statusData.pending, statusData.confirmed, statusData.cancellation_pending
+        ],
+        backgroundColor: ["#0d9488", "#e11d48", "#f97316", "#f59e0b", "#14b8a6", "#fb923c"]
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  new Chart(document.getElementById("incomeChart"), {
+    type: "line",
+    data: {
+      labels: dailyData.map(d => d.date),
+      datasets: [{
+        label: "Site Income (BDT)",
+        data: dailyData.map(d => d.site_income || 0),
+        borderColor: "#0d9488",
+        backgroundColor: "rgba(13,148,136,0.15)",
+        fill: true, tension: 0.3
+      }]
+    },
+    options: { responsive: true }
+  });
+</script>
+{% endblock %}

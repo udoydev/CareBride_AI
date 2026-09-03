@@ -20,7 +20,7 @@
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
   }
-  .chat-font { font-family: 'Outfit', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, sans-serif; }
+  .chat-font { font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   .message-bubble { line-height: 1.7; letter-spacing: 0.01em; }
 </style>
 
@@ -230,12 +230,6 @@
       <div class="message-enter flex {% if msg.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}" data-role="{{ msg.role }}" data-text="{{ msg.text|escapejs }}">
         <div class="max-w-[75%] rounded-2xl px-5 py-3.5 text-base shadow-sm message-bubble {% if msg.role == 'assistant' %}bg-teal-50 text-stone-800 dark:bg-teal-900/20 dark:text-stone-100{% else %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-100{% endif %}">
           <p class="whitespace-pre-line msg-content"></p>
-          {% if msg.role == 'assistant' %}
-          <button type="button" data-speak-text="{{ msg.text|striptags }}" data-lang="{{ msg.language|default:site_lang }}" onclick="window.CareBridgeSpeech && window.CareBridgeSpeech.speakText(this.dataset.speakText, this.dataset.lang)" class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 hover:underline dark:text-teal-300">
-            <i class="fa-solid fa-volume-high"></i>
-            {% if site_lang == 'bn' %}শুনুন{% else %}Speak{% endif %}
-          </button>
-          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -267,13 +261,8 @@
 
         <!-- Text Input -->
         <div class="flex-1 relative">
-          <textarea id="chatInput" name="message" rows="1" placeholder="{% if site_lang == 'bn' %}প্রশ্ন লিখুন বা ফাইল আপলোড করুন...{% else %}Ask about your medicines, prescriptions, or health...{% endif %}" class="chat-font w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100 resize-none" style="min-height: 48px; max-height: 120px; font-size: 15px;"></textarea>
+          <textarea id="chatInput" name="message" rows="1" placeholder="          {% if site_lang == 'bn' %}প্রশ্ন করুন, ফাইল আপলোড করুন, বা প্রেসক্রিপশন সম্পর্কে জানুন...{% else %}Ask questions, upload files, or inquire about prescriptions...{% endif %}" class="chat-font w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100 resize-none" style="min-height: 48px; max-height: 120px; font-size: 15px;"></textarea>
         </div>
-
-        <!-- Voice Input -->
-        <button type="button" data-voice-input="true" data-voice-input-target="#chatInput" data-lang="{{ site_lang }}" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:border-teal-300 hover:text-teal-600 dark:border-slate-700 dark:text-stone-400 dark:hover:border-teal-700 dark:hover:text-teal-400">
-          <i class="fa-solid fa-microphone"></i>
-        </button>
 
         <!-- Send Button -->
         <button type="submit" id="sendBtn" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm transition hover:bg-teal-700">
@@ -427,7 +416,6 @@
     div.innerHTML = `
       <div class="max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${role === 'assistant' ? 'bg-teal-50 text-stone-800 dark:bg-teal-900/20 dark:text-stone-100' : 'bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-100'}">
         <p class="whitespace-pre-line leading-7">${displayHtml}</p>
-        ${role === 'assistant' ? `<button type="button" data-speak-text="${escapeHtml(text).replace(/"/g, '&quot;')}" data-lang="{{ site_lang|default:'en' }}" onclick="window.CareBridgeSpeech && window.CareBridgeSpeech.speakText(this.dataset.speakText, this.dataset.lang)" class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-700 hover:underline dark:text-teal-300"><i class="fa-solid fa-volume-high"></i> {% if site_lang == 'bn' %}শুনুন{% else %}Speak{% endif %}</button>` : ''}
       </div>
     `;
     chatMessages.appendChild(div);

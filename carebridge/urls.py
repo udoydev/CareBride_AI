@@ -24,6 +24,10 @@ urlpatterns = [
     path("", index),
     path("home/", home, name="home"),
     path("voice/", voice_views.voice_chatbot_view, name="voice_chatbot"),
+    path("reports/admin/", views.admin_reports, name="admin_reports"),
+    path("reports/admin/doctor/<int:doctor_id>/", views.admin_doctor_report, name="admin_doctor_report"),
+    path("reports/admin/doctors/tracking/", views.admin_doctor_tracking, name="admin_doctor_tracking"),
+    path("reports/admin/doctors/<int:doctor_id>/delete/", views.admin_delete_doctor, name="admin_delete_doctor"),
     path("api/voice/stt-demo/", voice_views.voice_stt_demo_api, name="voice_stt_demo"),
     path("api/voice/explainer/", voice_views.voice_explainer_api, name="voice_explainer"),
     path("api/voice/tts/", voice_views.voice_tts_stream_api, name="voice_tts_stream"),
@@ -44,3 +48,5 @@ if settings.DEBUG:
     urlpatterns += [
         re_path(r'^media/(?P<path>.*)$', media_serve, {'document_root': settings.MEDIA_ROOT}),
     ]
+
+handler404 = 'carebridge.views.custom_404'

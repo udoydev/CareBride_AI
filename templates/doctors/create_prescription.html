@@ -11,13 +11,44 @@
     </div>
     <div class="flex items-center gap-3">
       <a href="{% url 'doctors:patient_detail' patient.id %}" class="inline-flex h-10 items-center justify-center rounded-full border border-stone-300 bg-white px-4 text-xs font-semibold text-stone-700 shadow-xs hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-300">
-        ← Cancel & Back
+        {% translate_bn "Cancel & Back" %}
       </a>
       <button type="submit" form="prescription_form" class="inline-flex h-10 items-center justify-center rounded-full bg-teal-600 px-6 text-xs font-bold text-white shadow-md transition hover:bg-teal-700">
         <i class="fa-solid fa-file-signature mr-2"></i> Save & Issue Prescription
       </button>
     </div>
   </div>
+
+  {% if not has_confirmed_appointment and not has_upcoming_followup %}
+  <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+    <div class="flex items-start gap-3">
+      <i class="fa-solid fa-triangle-exclamation text-red-500 mt-0.5"></i>
+      <div>
+        <h3 class="text-sm font-bold text-red-800 dark:text-red-300">{% translate_bn "Prescription Creation Restricted" %}</h3>
+        <p class="mt-1 text-xs text-red-700 dark:text-red-400">
+          {% translate_bn "You can only create prescriptions for patients who have a confirmed appointment or an upcoming follow-up. Please ask the patient to book an appointment first." %}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if available_appointment %}
+  <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+    <div class="flex items-start gap-3">
+      <i class="fa-solid fa-clock text-amber-500 mt-0.5"></i>
+      <div>
+        <h3 class="text-sm font-bold text-amber-800 dark:text-amber-300">{% translate_bn "Appointment Timing Rules" %}</h3>
+        <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+          {% translate_bn "Prescription will activate 4 hour before the appointment time. After 4 hours of creation, the prescription will be locked and cannot be edited." %}
+        </p>
+        <p class="mt-1 text-xs text-amber-600 dark:text-amber-500">
+          {% translate_bn "Appointment" %}: {{ available_appointment.appointment_date }} at {{ available_appointment.start_time|time:"h:i A" }}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- 2 Column Split Layout: Left Form Inputs, Right Live Real-Life Prescription Sheet Preview -->
   <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -29,15 +60,87 @@
 
         <!-- Patient Header Card -->
         <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between mb-3">
             <div>
               <span class="text-xs font-semibold uppercase text-stone-400">Patient File</span>
-              <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ patient_name }}</h2>
-              <p class="text-xs text-stone-500 dark:text-stone-400">Location: {{ patient.district|default:"Dhaka, Bangladesh" }}</p>
+              <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ patient.user.get_full_name|default:patient.user.email }}</h2>
             </div>
             <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
               Active Session
             </span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Age</label>
+              <input type="number" name="patient_age" value="{{ patient.date_of_birth|date:'Y'|add:'-1900'|default:'' }}" placeholder="Years"
+                class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Gender</label>
+              <select name="patient_gender" class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+                <option value="">Select</option>
+                <option value="male" {% if patient.gender == 'male' %}selected{% endif %}>Male</option>
+                <option value="female" {% if patient.gender == 'female' %}selected{% endif %}>Female</option>
+                <option value="other" {% if patient.gender == 'other' %}selected{% endif %}>Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Email</label>
+              <input type="email" name="patient_email" value="{{ patient.user.email|default:'' }}" placeholder="patient@email.com"
+                class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Mobile</label>
+              <input type="tel" name="patient_phone" value="{{ patient.phone_number|default:'' }}" placeholder="+880 1XXX-XXXXXX"
+                class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+          </div>
+        </div>
+
+        <!-- Visit Vitals -->
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Visit Vitals & Observations</h3>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Heart Rate (bpm)</label>
+              <input type="number" name="heart_rate" placeholder="72"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">BP Systolic</label>
+              <input type="number" name="blood_pressure_systolic" placeholder="120"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">BP Diastolic</label>
+              <input type="number" name="blood_pressure_diastolic" placeholder="80"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Temp (°C)</label>
+              <input type="number" step="0.1" name="temperature_celsius" placeholder="37.0"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Weight (kg)</label>
+              <input type="number" step="0.1" name="weight_kg" placeholder="70.0"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Height (cm)</label>
+              <input type="number" name="height_cm" placeholder="170"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">SpO2 (%)</label>
+              <input type="number" name="oxygen_saturation" placeholder="98"
+                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            </div>
+            <div class="col-span-2 sm:col-span-4">
+              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Visit Notes</label>
+              <textarea name="visit_notes" rows="2" placeholder="Observations, physical exam findings..."
+                class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"></textarea>
+            </div>
           </div>
         </div>
 
@@ -75,11 +178,19 @@
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>
-              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 <div>
                   <label class="text-[10px] text-stone-500">Dosage</label>
                   <input type="text" name="med_dosage[]" value="1+0+1" placeholder="1+0+1"
                     class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                </div>
+                <div>
+                  <label class="text-[10px] text-stone-500">Frequency</label>
+                  <select name="med_frequency[]" class="med-frequency-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                    <option value="1">1x/day</option>
+                    <option value="2" selected>2x/day</option>
+                    <option value="3">3x/day</option>
+                  </select>
                 </div>
                 <div>
                   <label class="text-[10px] text-stone-500">Timing</label>
@@ -178,7 +289,7 @@
             <span class="text-xs font-bold text-teal-900 tracking-tight">CareBridgeAI</span>
           </div>
           <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> LIVE RX PREVIEW
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Prescription Preview
           </span>
         </div>
 
@@ -203,8 +314,10 @@
           <!-- Patient Info Bar (Blue/Teal Bar) -->
           <div class="my-3 flex flex-wrap items-center justify-between bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 rounded-lg border border-teal-100">
             <div>Patient: <span id="prev_patient_name" class="font-bold text-stone-900">{{ patient_name }}</span></div>
+            <div>Age: <span id="prev_patient_age" class="font-bold">{% if patient.date_of_birth %}{{ patient.date_of_birth|timesince:""|slice:":2" }}{% else %}—{% endif %}</span></div>
+            <div>Gender: <span id="prev_patient_gender" class="font-bold">{{ patient.gender|default:"—" }}</span></div>
+            <div>Mobile: <span id="prev_patient_phone" class="font-bold">{{ patient.phone_number|default:"—" }}</span></div>
             <div>Date: <span id="prev_date" class="font-bold">{% now "Y-m-d" %}</span></div>
-            <div>Rx ID: <span class="font-mono text-teal-700">#RX-{% now "mdHi" %}</span></div>
           </div>
 
           <!-- Main Prescription Content: Left Margin & Main Body -->
@@ -223,9 +336,16 @@
               </div>
 
               <div class="border-t border-stone-200 pt-3">
-                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">Inv (Tests Required)</p>
+                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">{% translate_bn "Inv (Tests Required)" %}</p>
                 <ul id="prev_tests_list" class="list-disc list-inside text-stone-700 mt-1 space-y-1 text-[11px]">
                   <li class="text-stone-400 italic">None ordered</li>
+                </ul>
+              </div>
+
+              <div class="border-t border-stone-200 pt-3">
+                <p class="font-bold text-teal-900 uppercase tracking-wider text-[11px]">Vitals & Observations</p>
+                <ul id="prev_vitals_list" class="list-disc list-inside text-stone-700 mt-1 space-y-1 text-[11px]">
+                  <li class="text-stone-400 italic">No vitals recorded</li>
                 </ul>
               </div>
             </div>
@@ -234,7 +354,7 @@
             <div class="col-span-8 pl-3 flex flex-col justify-between">
               <div>
                 <!-- Rx Symbol -->
-                <div class="text-3xl font-serif font-bold text-teal-800 mb-3">Rx ℞</div>
+
 
                 <!-- Medicines List -->
                 <div class="space-y-3">
@@ -293,11 +413,19 @@ document.addEventListener("DOMContentLoaded", function() {
           <i class="fa-solid fa-trash-can"></i>
         </button>
       </div>
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <div>
           <label class="text-[10px] text-stone-500">Dosage</label>
           <input type="text" name="med_dosage[]" value="1+0+1" placeholder="1+0+1"
             class="med-dosage-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+        </div>
+        <div>
+          <label class="text-[10px] text-stone-500">Frequency</label>
+          <select name="med_frequency[]" class="med-frequency-field w-full rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs shadow-xs dark:border-slate-700 dark:bg-slate-900">
+            <option value="1">1x/day</option>
+            <option value="2" selected>2x/day</option>
+            <option value="3">3x/day</option>
+          </select>
         </div>
         <div>
           <label class="text-[10px] text-stone-500">Timing</label>
@@ -391,6 +519,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Live Real-Time Preview Update Function
   function updatePreview() {
+    // 0. Patient Info
+    const ageInput = document.querySelector('input[name="patient_age"]');
+    const genderInput = document.querySelector('select[name="patient_gender"]');
+    const emailInput = document.querySelector('input[name="patient_email"]');
+    const phoneInput = document.querySelector('input[name="patient_phone"]');
+
+    if (ageInput) document.getElementById("prev_patient_age").innerText = ageInput.value || "—";
+    if (genderInput) document.getElementById("prev_patient_gender").innerText = genderInput.options[genderInput.selectedIndex].text || "—";
+    if (phoneInput) document.getElementById("prev_patient_phone").innerText = phoneInput.value || "—";
+
     // 1. Complaints & Diagnosis
     const c = document.getElementById("input_complaints").value.trim();
     document.getElementById("prev_complaints").innerText = c || "Not specified";
@@ -411,6 +549,8 @@ document.addEventListener("DOMContentLoaded", function() {
     medRows.forEach(row => {
       const name = row.querySelector(".med-name-field")?.value.trim();
       const dosage = row.querySelector(".med-dosage-field")?.value.trim() || "1+0+1";
+      const freqSelect = row.querySelector(".med-frequency-field");
+      const freqText = freqSelect ? freqSelect.options[freqSelect.selectedIndex].text : "2x/day";
       const timingSelect = row.querySelector(".med-timing-field");
       const timingText = timingSelect ? timingSelect.options[timingSelect.selectedIndex].text : "After meal";
       const duration = row.querySelector(".med-duration-field")?.value || "7";
@@ -423,7 +563,7 @@ document.addEventListener("DOMContentLoaded", function() {
         li.innerHTML = `
           <div class="font-bold text-stone-900 text-sm">${count}. ${name}</div>
           <div class="text-xs font-semibold text-teal-800 mt-0.5">
-            ${dosage} &nbsp;&bull;&nbsp; ${timingText} &nbsp;&bull;&nbsp; ${duration} Days / দিন
+            ${dosage} &nbsp;&bull;&nbsp; ${freqText} &nbsp;&bull;&nbsp; ${timingText} &nbsp;&bull;&nbsp; ${duration} Days / দিন
           </div>
           ${notes ? `<div class="text-[11px] text-stone-500 italic mt-0.5">* ${notes}</div>` : ""}
         `;
@@ -451,6 +591,33 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     if (testCount === 0) {
       prevTestsList.innerHTML = `<li class="text-stone-400 italic">None ordered</li>`;
+    }
+
+    // 4. Vitals & Observations
+    const vitalsMap = [
+      { name: "heart_rate", label: "Heart Rate" },
+      { name: "blood_pressure_systolic", label: "BP Sys" },
+      { name: "blood_pressure_diastolic", label: "BP Dia" },
+      { name: "temperature_celsius", label: "Temp" },
+      { name: "weight_kg", label: "Weight" },
+      { name: "height_cm", label: "Height" },
+      { name: "oxygen_saturation", label: "SpO2" },
+    ];
+    const prevVitalsList = document.getElementById("prev_vitals_list");
+    prevVitalsList.innerHTML = "";
+    let vitalsCount = 0;
+    vitalsMap.forEach(v => {
+      const field = document.querySelector(`[name="${v.name}"]`);
+      const val = field ? field.value.trim() : "";
+      if (val) {
+        vitalsCount++;
+        const li = document.createElement("li");
+        li.innerText = `${v.label}: ${val}`;
+        prevVitalsList.appendChild(li);
+      }
+    });
+    if (vitalsCount === 0) {
+      prevVitalsList.innerHTML = `<li class="text-stone-400 italic">No vitals recorded</li>`;
     }
 
     // 5. Advice List

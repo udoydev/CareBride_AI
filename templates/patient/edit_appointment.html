@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
 {% include 'includes/patient_breadcrumb.html' %}
@@ -15,21 +15,21 @@
       {% endif %}
     </div>
     <div>
-      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Edit appointment</p>
+      <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">{% translate_bn "Edit appointment" %}</p>
       <h1 class="mt-1 text-3xl font-semibold tracking-tight">Dr. {{ doctor.user.get_full_name }}</h1>
       <p class="mt-0.5 text-teal-600 dark:text-teal-400">{{ doctor.specialty|default:"General practice" }} • {{ doctor.clinic_name|default:"CareBridge Clinic" }}</p>
-      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Edits used: {{ edit_count }}/3</p>
+      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">{% translate_bn "Edits used" %}: {{ edit_count }}/3</p>
     </div>
   </div>
 
   {% if schedules %}
     <div class="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4">Weekly Availability</h2>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4">{% translate_bn "Weekly Availability" %}</h2>
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {% for sch in schedules %}
           <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800">
             <p class="text-sm font-semibold capitalize text-stone-900 dark:text-stone-100">{{ sch.get_day_of_week_display }}</p>
-            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"H:i" }} - {{ sch.end_time|time:"H:i" }}</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }}</p>
             <p class="text-[10px] text-stone-400 mt-1">{{ sch.slot_duration_minutes }} min per slot</p>
           </div>
         {% endfor %}
@@ -38,11 +38,11 @@
   {% endif %}
 
   <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="text-lg font-semibold mb-1">Available Time Slots</h2>
-    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">Select a new date and time to reschedule.</p>
+    <h2 class="text-lg font-semibold mb-1">{% translate_bn "Available Time Slots" %}</h2>
+    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">{% translate_bn "Select a new date and time to reschedule." %}</p>
 
     {% if available_slots %}
-      <form method="post" class="space-y-4">
+      <form method="post" id="editForm" class="space-y-4">
         {% csrf_token %}
 
         {% regroup available_slots by date as date_slots %}
@@ -75,7 +75,7 @@
 
         <div class="grid gap-4 sm:grid-cols-2 mt-4">
           <div>
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Consultation Type</label>
+            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">{% translate_bn "Consultation Type" %}</label>
             <select name="consultation_type" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" required>
               <option value="in_person" selected>In-Person Chamber</option>
             </select>
@@ -83,7 +83,7 @@
         </div>
 
         <button type="submit" class="w-full inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 mt-4">
-          <i class="fa-solid fa-calendar-check mr-2"></i> Update Appointment
+          <i class="fa-solid fa-calendar-check mr-2"></i> {% translate_bn "Update Appointment" %}
         </button>
       </form>
     {% else %}
@@ -91,7 +91,7 @@
         <span class="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-stone-500 mx-auto mb-3">
           <i class="fa-regular fa-calendar-xmark text-lg"></i>
         </span>
-        <p class="text-sm text-stone-500 dark:text-stone-400">No available slots at the moment.</p>
+        <p class="text-sm text-stone-500 dark:text-stone-400">{% translate_bn "No available slots at the moment." %}</p>
       </div>
     {% endif %}
   </div>
@@ -104,6 +104,17 @@
       document.getElementById('selectedDate').value = val[0];
       document.getElementById('selectedTime').value = val[1];
     });
+  });
+
+  document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showWarningModal(
+      '{% translate_bn "Are you sure?" %}',
+      '{% translate_bn "This action cannot be undone." %}',
+      function() {
+        e.target.submit();
+      }
+    );
   });
 </script>
 {% endblock %}

@@ -17,7 +17,9 @@
     <div>
       <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Doctor profile</p>
       <h1 class="mt-1 text-3xl font-semibold tracking-tight">Dr. {{ doctor.user.get_full_name }}</h1>
-      <p class="mt-0.5 text-teal-600 dark:text-teal-400">{{ doctor.specialty|default:"General practice" }}</p>
+      <p class="mt-0.5 text-teal-600 dark:text-teal-400">{{ doctor.designation|default:doctor.specialty|default:"General practice" }}</p>
+      {% if doctor.degrees %}<p class="text-xs text-stone-500 dark:text-stone-400"><i class="fa-solid fa-graduation-cap mr-1"></i>{{ doctor.degrees }}</p>{% endif %}
+      {% if doctor.bmdc_registration_year %}<p class="text-xs text-stone-500 dark:text-stone-400"><i class="fa-solid fa-certificate mr-1"></i>BMDC Reg: {{ doctor.registration_number|default:"-" }} ({{ doctor.bmdc_registration_year }})</p>{% endif %}
     </div>
   </div>
 
@@ -41,6 +43,13 @@
         <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Consultation fee</p>
         <p class="mt-1 text-lg font-bold text-stone-900 dark:text-stone-100">{{ doctor.consultation_fee|default:0 }} BDT</p>
       </div>
+    </div>
+
+    <div class="mt-4 space-y-2 text-xs text-stone-600 dark:text-stone-400">
+      {% if doctor.designation %}<p><span class="font-semibold text-stone-700 dark:text-stone-300">Designation:</span> {{ doctor.designation }}</p>{% endif %}
+      {% if doctor.degrees %}<p><span class="font-semibold text-stone-700 dark:text-stone-300">Degrees:</span> {{ doctor.degrees }}</p>{% endif %}
+      {% if doctor.registration_number %}<p><span class="font-semibold text-stone-700 dark:text-stone-300">BMDC Reg:</span> {{ doctor.registration_number }}</p>{% endif %}
+      {% if doctor.bmdc_registration_year %}<p><span class="font-semibold text-stone-700 dark:text-stone-300">BMDC Since:</span> {{ doctor.bmdc_registration_year }}</p>{% endif %}
     </div>
   </div>
 

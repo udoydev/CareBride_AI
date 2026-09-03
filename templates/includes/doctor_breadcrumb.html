@@ -16,11 +16,6 @@
     {% elif url_name == 'appointment_list' or url_name == 'appointment_detail' %}
       <i class="fa-solid fa-chevron-right text-[8px]"></i>
       <span class="text-stone-700 dark:text-stone-300">Appointments</span>
-    {% elif url_name == 'send_emergency_notification' %}
-      <i class="fa-solid fa-chevron-right text-[8px]"></i>
-      <a href="{% url 'doctors:appointment_list' %}" class="hover:text-teal-600 dark:hover:text-teal-400">Appointments</a>
-      <i class="fa-solid fa-chevron-right text-[8px]"></i>
-      <span class="text-stone-700 dark:text-stone-300">Emergency Alert</span>
     {% elif url_name == 'notifications' %}
       <i class="fa-solid fa-chevron-right text-[8px]"></i>
       <span class="text-stone-700 dark:text-stone-300">Notifications</span>

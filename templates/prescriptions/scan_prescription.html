@@ -9,10 +9,10 @@
         ✨ Powered by Google Gemini 2.0 / 1.5 Flash Vision
       </span>
       <h1 class="mt-2 text-2xl font-bold tracking-tight text-stone-900 md:text-3xl dark:text-stone-100">
-        {% if site_lang == 'bn' %}প্রেসক্রিপশন এআই স্ক্যানার (OCR){% else %}Prescription AI OCR Scanner{% endif %}
+        {% if site_lang == 'bn' %}এআই স্বাস্থ্য সক্যান{% else %}AI Health Scanner{% endif %}
       </h1>
       <p class="mt-1 text-sm text-stone-600 dark:text-stone-300">
-        {% if site_lang == 'bn' %}হাতে লেখা বা প্রিন্ট করা প্রেসক্রিপশনের ছবি আপলোড করুন, এআই মুহূর্তেই ওষুধের নাম ও ডোজ সাজিয়ে দিবে।{% else %}Upload a photo of handwritten or printed prescription for instant AI digitization.{% endif %}
+        {% if site_lang == 'bn' %}প্রেসক্রিপশন স্ক্যান করুন বা জরুরী স্বাস্থ্য সমস্যার ছবি আপলোড করুন।{% else %}Scan prescriptions or upload emergency health issues for instant AI analysis.{% endif %}
       </p>
     </div>
   </div>
@@ -21,7 +21,7 @@
     <!-- Upload card -->
     <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">
       <h2 class="text-base font-semibold text-stone-800 dark:text-stone-200">
-        📸 {% if site_lang == 'bn' %}প্রেসক্রিপশনের ছবি আপলোড করুন{% else %}Upload Prescription Photo{% endif %}
+        📸 {% if site_lang == 'bn' %}ছবি আপলোড করুন{% else %}Upload Photo{% endif %}
       </h2>
 
       <form method="post" enctype="multipart/form-data" class="mt-4 space-y-4">
@@ -35,12 +35,18 @@
           <p class="mt-2 text-[11px] text-stone-500">JPG, PNG, WebP or PDF (Max 10MB)</p>
         </div>
 
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+          <p class="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+            {% if site_lang == 'bn' %}জরুরী: এটি প্রেসক্রিপশন স্ক্যান বা অন্য কোনো স্বাস্থ্য সমস্যার ছবি হতে পারে। এআই পরামর্শ দেবে কিন্তু ডাক্তারের পরামর্শের বিকল্প নয়।{% else %}Emergency: This can be a prescription scan or any health issue photo. AI will suggest first-aid but is not a replacement for doctor consultation.{% endif %}
+          </p>
+        </div>
+
         <button type="submit"
           class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
-          {% if site_lang == 'bn' %}এআই স্ক্যান শুরু করুন{% else %}Analyze with Gemini AI Vision{% endif %}
+          {% if site_lang == 'bn' %}এআই স্ক্যান করুন{% else %}Analyze with Gemini AI{% endif %}
         </button>
       </form>
     </div>
@@ -49,7 +55,7 @@
     <div class="space-y-6 lg:col-span-2">
       <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 class="text-base font-semibold text-stone-800 dark:text-stone-200">
-          📋 {% if site_lang == 'bn' %}স্ক্যানকৃত প্রেসক্রিপশন ও এআই ফলাফল{% else %}Scanned Prescriptions & AI Results{% endif %}
+          📋 {% if site_lang == 'bn' %}স্ক্যানকৃত রেকর্ড ও এআই ফলাফল{% else %}Scanned Records & AI Results{% endif %}
         </h2>
 
         {% if recent_scans %}
@@ -59,7 +65,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-3 dark:border-slate-700">
                   <div class="flex items-center gap-2">
                     <span class="rounded-lg bg-teal-100 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-900/50 dark:text-teal-300">
-                      Scan #{{ scan.pk }}
+                      {% if site_lang == 'bn' %}স্ক্যান{% else %}Scan{% endif %} #{{ scan.pk }}
                     </span>
                     <span class="text-xs text-stone-500">{{ scan.created_at|date:"d M Y, h:i A" }}</span>
                   </div>
@@ -68,21 +74,21 @@
                   </span>
                 </div>
 
-                {% if scan.extracted_json %}
+                {% if scan.status == "completed" and scan.extracted_json %}
                   <div class="mt-3 grid gap-3 text-xs md:grid-cols-2">
                     <div>
-                      <p class="font-semibold text-stone-700 dark:text-stone-300">👨‍⚕️ Doctor / Hospital:</p>
+                       <p class="font-semibold text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}ডাক্তার/হাসপাতাল:{% else %}Doctor / Hospital:{% endif %}</p>
                       <p class="text-stone-600 dark:text-stone-400">{{ scan.extracted_json.doctor_name|default:"Unspecified Doctor" }} ({{ scan.extracted_json.hospital_or_clinic|default:"Chamber" }})</p>
                     </div>
                     <div>
-                      <p class="font-semibold text-stone-700 dark:text-stone-300">📅 Follow-up Advice:</p>
-                      <p class="text-stone-600 dark:text-stone-400">{{ scan.extracted_json.follow_up_days|default:"7" }} days after consultation</p>
+                      <p class="font-semibold text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}ফলো-আপ পরামর্শ:{% else %}Follow-up Advice:{% endif %}</p>
+                      <p class="text-stone-600 dark:text-stone-400">{{ scan.extracted_json.follow_up_days|default:"7" }} {% if site_lang == 'bn' %}দিন{% else %}days{% endif %} {% if site_lang == 'bn' %}পরবর্তী পরামর্শ{% else %}after consultation{% endif %}</p>
                     </div>
                   </div>
 
                   {% if scan.extracted_json.medicines %}
                     <div class="mt-3">
-                      <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">💊 Extracted Medicines:</p>
+                      <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">{% if site_lang == 'bn' %}💊 নiszpd ওষুধ:{% else %}💊 Extracted Medicines:{% endif %}</p>
                       <div class="mt-2 space-y-1.5">
                         {% for med in scan.extracted_json.medicines %}
                           <div class="flex items-center justify-between rounded-xl bg-white p-2 text-xs shadow-2xs dark:bg-slate-900">
@@ -97,9 +103,24 @@
                       </div>
                     </div>
                   {% endif %}
-                {% else %}
 
-                  <p class="mt-2 text-xs text-stone-500">Processing scan image with Gemini AI Vision...</p>
+                  {% if scan.extracted_json.first_aid_advice %}
+                    <div class="mt-3 rounded-xl bg-red-50 p-3 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+                      <p class="text-xs font-bold text-red-800 dark:text-red-300">{% if site_lang == 'bn' %}🚨 জরুরী পরামর্শ:{% else %}🚨 Emergency First Aid:{% endif %}</p>
+                      <p class="text-xs text-red-700 dark:text-red-400 mt-1">{{ scan.extracted_json.first_aid_advice }}</p>
+                    </div>
+                  {% endif %}
+
+                  {% if scan.extracted_json.when_to_see_doctor %}
+                    <div class="mt-2 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30">
+                      <p class="text-xs font-bold text-amber-800 dark:text-amber-300">{% if site_lang == 'bn' %}⚠️ কখন ডাক্তার দেখাবেন:{% else %}⚠️ When to see a doctor:{% endif %}</p>
+                      <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">{{ scan.extracted_json.when_to_see_doctor }}</p>
+                    </div>
+                  {% endif %}
+                {% elif scan.status == "failed" %}
+                  <p class="mt-2 text-xs text-red-600 font-semibold">❌ {% if site_lang == 'bn' %}এআই বিশ্লেষণ ব্যর্থ হয়েছে। অনুগ্রহ করে আরও স্পষ্ট ছবি দিয়ে আবার চেষ্টা করুন।{% else %}AI analysis failed. Please try again with a clearer image.{% endif %}</p>
+                {% else %}
+                  <p class="mt-2 text-xs text-stone-500">⏳ {% if site_lang == 'bn' %}এআই স্ক্যান চলছে... অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।{% else %}Processing scan image with Gemini AI Vision... Please wait a moment.{% endif %}</p>
                 {% endif %}
               </div>
             {% endfor %}
@@ -107,7 +128,7 @@
         {% else %}
           <div class="mt-8 text-center py-8">
             <p class="text-sm text-stone-500 dark:text-stone-400">
-              {% if site_lang == 'bn' %}এখনও কোনো প্রেসক্রিপশন স্ক্যান করা হয়নি। বাম দিকের ফর্ম থেকে ছবি আপলোড করুন।{% else %}No scanned prescriptions found. Upload a photo on the left to analyze.{% endif %}
+              {% if site_lang == 'bn' %}এখনও কোনো স্ক্যান করা হয়নি। বাম দিকের ফর্ম থেকে ছবি আপলোড করুন।{% else %}No scanned records found. Upload a photo on the left to analyze.{% endif %}
             </p>
           </div>
         {% endif %}

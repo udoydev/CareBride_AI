@@ -87,3 +87,25 @@ class PatientHealthReport(models.Model):
     def __str__(self):
         return f"{self.title} ({self.get_report_type_display()}) — {self.patient}"
 
+
+class PatientVisit(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="visits")
+    appointment = models.OneToOneField("doctors.Appointment", on_delete=models.SET_NULL, null=True, blank=True, related_name="visit")
+    prescription = models.OneToOneField("prescriptions.Prescription", on_delete=models.SET_NULL, null=True, blank=True, related_name="visit")
+    doctor = models.ForeignKey("accounts.Doctor", on_delete=models.CASCADE, related_name="visits")
+    heart_rate = models.PositiveIntegerField(null=True, blank=True, help_text="BPM")
+    blood_pressure_systolic = models.PositiveIntegerField(null=True, blank=True, help_text="mmHg")
+    blood_pressure_diastolic = models.PositiveIntegerField(null=True, blank=True, help_text="mmHg")
+    temperature_celsius = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, help_text="°C")
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="kg")
+    height_cm = models.PositiveIntegerField(null=True, blank=True, help_text="cm")
+    oxygen_saturation = models.PositiveIntegerField(null=True, blank=True, help_text="SpO2 %")
+    visit_notes = models.TextField(blank=True, help_text="Doctor's observations during this visit")
+    visited_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-visited_at"]
+
+    def __str__(self):
+        return f"Visit: {self.patient} with {self.doctor} on {self.visited_at:%Y-%m-%d}"
+

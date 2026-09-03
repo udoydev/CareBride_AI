@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.urls import path
 
 from . import views
@@ -29,4 +30,8 @@ urlpatterns = [
     path("patient/appointments/<int:appointment_id>/", views.appointment_detail_patient, name="appointment_detail"),
     path("patient/appointments/<int:appointment_id>/cancel/", views.request_cancellation, name="request_cancellation"),
     path("patient/appointments/<int:appointment_id>/edit/", views.edit_appointment, name="edit_appointment"),
+    path("patient/rules/", lambda request: render(request, "patient/rules.html"), name="rules"),
+    path("patient/reports/", views.reports, name="reports"),
+    path("patient/overall-report/", views.overall_report, name="overall_report"),
+    path("patient/doses/report/", views.dose_track_report, name="dose_track_report"),
 ]

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static translation_tags %}
+
+{% block content %}
+<section class="mx-auto flex min-h-[60vh] w-full max-w-3xl flex-col items-center justify-center px-4 py-16 text-center">
+  <div class="flex h-24 w-24 items-center justify-center rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+    <i class="fa-solid fa-triangle-exclamation text-4xl"></i>
+  </div>
+  <h1 class="mt-6 text-5xl font-bold tracking-tight text-stone-900 dark:text-stone-100">404</h1>
+  <p class="mt-3 text-lg text-stone-600 dark:text-stone-400">
+    {% if site_lang == 'bn' %}দুঃখিত, এই পেজটি পাওয়া যায়নি।{% else %}Sorry, the page you are looking for does not exist.{% endif %}
+  </p>
+  <p class="mt-1 text-sm text-stone-500 dark:text-stone-500">
+    {% if site_lang == 'bn' %}লিংকটি ভুল হোক বা পেজটি মুছে ফেলা হয়েছে।{% else %}The link may be broken or the page may have been removed.{% endif %}
+  </p>
+  <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+    <a href="/" class="inline-flex h-11 items-center gap-2 rounded-full bg-teal-600 px-6 text-sm font-bold text-white shadow-sm transition hover:bg-teal-500">
+      <i class="fa-solid fa-house text-xs"></i>
+      {% if site_lang == 'bn' %}হোমপেজে যান{% else %}Go Home{% endif %}
+    </a>
+    <a href="javascript:history.back()" class="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-6 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">
+      <i class="fa-solid fa-arrow-left text-xs"></i>
+      {% if site_lang == 'bn' %}পূর্বের পেজে ফিরুন{% else %}Go Back{% endif %}
+    </a>
+  </div>
+</section>
+{% endblock %}

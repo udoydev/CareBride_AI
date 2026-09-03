@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from accounts.models import Doctor, Patient
 
 
@@ -17,10 +18,13 @@ class Prescription(models.Model):
         ("active", "Active"),
         ("completed", "Completed"),
         ("cancelled", "Cancelled"),
+        ("scheduled", "Scheduled"),
+        ("expired", "Expired"),
     ]
 
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="prescriptions")
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="prescriptions")
+    appointment = models.ForeignKey("doctors.Appointment", on_delete=models.SET_NULL, null=True, blank=True, related_name="prescriptions", help_text="Appointment this prescription is linked to")
     chief_complaints = models.TextField(blank=True, help_text="e.g. Fever x 3 days, dry cough")
     diagnosis = models.CharField(max_length=255, blank=True, help_text="e.g. Acute Bronchitis")
     tests_investigations = models.TextField(blank=True, help_text="Clinical tests e.g. CBC, Serum Creatinine")
@@ -29,6 +33,35 @@ class Prescription(models.Model):
     next_followup_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     issued_at = models.DateTimeField(auto_now_add=True)
+    activates_at = models.DateTimeField(null=True, blank=True, help_text="Time when prescription becomes active (10 min before appointment)")
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Time when prescription becomes locked (4 hours after creation)")
+    is_locked = models.BooleanField(default=False, help_text="Whether prescription editing is disabled")
+
+    @property
+    def is_edit_locked(self):
+        """Prescription editing is locked 4 hours after creation.
+
+        Checks both the stored is_locked flag AND the time-based expiry
+        (expires_at = issued_at + 4 hours). This ensures old prescriptions
+        cannot be edited even if is_locked was never set to True.
+        """
+        if self.is_locked:
+            return True
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+        return False
+
+    def save(self, *args, **kwargs):
+        if self.appointment and not self.activates_at:
+            apt_datetime = timezone.datetime.combine(
+                self.appointment.appointment_date,
+                self.appointment.start_time,
+            )
+            apt_datetime = timezone.make_aware(apt_datetime)
+            self.activates_at = apt_datetime - timezone.timedelta(minutes=10)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(hours=4)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Prescription #{self.pk or 'new'} ({self.patient})"
@@ -87,15 +120,41 @@ class FollowUp(models.Model):
         ("upcoming", "Upcoming"),
         ("completed", "Completed"),
         ("missed", "Missed"),
+        ("booking_required", "Booking Required"),
     ]
 
     prescription = models.OneToOneField(Prescription, on_delete=models.CASCADE, related_name="follow_up")
     scheduled_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="upcoming")
+    notification_sent = models.BooleanField(default=False, help_text="Whether booking notification was sent to patient")
+    booking_deadline = models.DateField(null=True, blank=True, help_text="Reference deadline (4 days from follow-up)")
+    is_booking_confirmed = models.BooleanField(default=False, help_text="Whether patient has booked appointment for follow-up")
 
     @property
     def date(self):
         return self.scheduled_date
+
+    def save(self, *args, **kwargs):
+        if not self.booking_deadline or self.booking_deadline > self.scheduled_date:
+            self.booking_deadline = self.scheduled_date
+        super().save(*args, **kwargs)
+
+    def should_send_notification(self):
+        """Check if notification should be sent to the patient.
+
+        Notification is sent 4 days before the follow-up scheduled_date,
+        giving the patient advance notice to book their appointment before
+        the booking deadline (scheduled_date + 4 days).
+
+        If today >= (scheduled_date - 4 days), a reminder notification is created
+        prompting the patient to book their follow-up appointment.
+        """
+        if self.notification_sent:
+            return False
+        today = timezone.localdate()
+        # Notify 4 days before the follow-up date (or immediately if that's already passed)
+        notification_date = self.scheduled_date - timezone.timedelta(days=4)
+        return today >= notification_date
 
     def __str__(self):
         return f"Follow-up for {self.prescription}"
