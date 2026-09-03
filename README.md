@@ -1,25 +1,81 @@
-# 🏥 CareBridge AI — Smart Telemedicine & AI Health Assistant Platform
+# 🏥 CareBridge AI — Smart Clinical Telemedicine & AI Health Assistant Platform
 
-CareBridge AI is a state-of-the-art, full-stack clinical telemedicine, prescription translation, patient dose tracking, and doctor financial analytics platform built with **Django 4.2+**, **Google Gemini AI**, **ReportLab PDF**, and **Tailwind CSS**.
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Django Version](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://www.djangoproject.com/)
+[![AI Engine](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
+
+CareBridge AI is an enterprise-grade, full-stack clinical telemedicine, prescription translation, dose tracking, and financial analytics platform built with **Django 4.2+**, **Google Gemini AI**, **ReportLab PDF**, and **Tailwind CSS**.
 
 ---
 
-## 🌟 Key Platform Features
+## 📐 System Architecture & Single Source of Truth
+
+CareBridge AI utilizes a centralized `SiteSettings` configuration engine (`accounts/models.py`) to govern all platform financial calculations, site rules, UI badges, notification messages, and PDF statements dynamically.
+
+```mermaid
+flowchart TD
+    SS[⚙️ SiteSettings Model] -->|platform_commission_rate| Calc[Financial Engine]
+    SS -->|patient_refund_percentage| Calc
+    
+    Calc -->|Auto-Compute| AptSave[Appointment.save]
+    Calc -->|Dynamic Context| ContextProc[ui_settings Context Processor]
+    Calc -->|Template Tags| Helpers[{% commission_rate %} & {% refund_percentage %}]
+    
+    ContextProc -->|Global Variables| UI[Patient, Doctor & Admin Templates]
+    Calc -->|Dynamic Messages| Notif[AppNotification System]
+```
+
+### 🔹 Single-Source-of-Truth Variables:
+- `platform_commission_rate`: Configurable platform site charge percentage (Default: `15.00%`).
+- `patient_refund_percentage`: Configurable partial refund percentage on patient-initiated cancellations (Default: `35.00%`).
+
+*Changing any rate in `SiteSettings` automatically propagates across all financial math, notification texts, user templates, and PDF reports instantly without code modification.*
+
+---
+
+## 🔄 Financial & Cancellation Flow Diagram
+
+CareBridge AI enforces strict, audit-compliant financial accounting for all transactions:
+
+```mermaid
+flowchart TD
+    Booking[💳 Patient Booking & Payment] --> PaymentCheck{Payment Status}
+    
+    PaymentCheck -->|Paid - Active| NormalFlow[Normal Appointment]
+    NormalFlow --> SiteCharge1[1. Site Commission: Fee × Commission%]
+    NormalFlow --> DocPayout1[2. Net Doctor Payout: Fee - Site Commission]
+    
+    PaymentCheck -->|Patient Cancels| PatientCancel[Patient Cancellation Flow]
+    PatientCancel --> SiteCharge2[1. Site Charge Taken First: Fee × Commission%]
+    SiteCharge2 --> Remaining[2. Remaining Money: Fee - Site Charge]
+    Remaining --> PatientRefund[3. Patient Wallet Refund: Remaining × Refund%]
+    Remaining --> DocPayout2[4. Net Doctor Payout: Remaining - Patient Refund]
+    
+    PaymentCheck -->|Doctor Cancels| DoctorCancel[Doctor Cancellation Flow]
+    DoctorCancel --> FullRefund[1. Full Patient Wallet Refund: 100% Fee]
+    DoctorCancel --> ZeroSite[2. Site Commission: ৳0.00]
+    DoctorCancel --> ZeroPayout[3. Net Doctor Payout: ৳0.00]
+```
+
+---
+
+## 🌟 Comprehensive Feature Matrix
 
 ### 👤 1. Patient Portal
-- **Interactive 2-Column Dashboard**: Displays patient ID (`#PAT-ID`), greeting, personal vitals, active dosage checklist, upcoming follow-ups, and an interactive schedule calendar.
-- **Daily Dose Tracker & Reminders**: Real-time checklist for daily medication doses with time slots (*Morning, Afternoon, Evening, Night*), reminder alerts, and adherence calculation.
-- **Follow-up Booking & Deadline Engine**: Calculates exact follow-up dates and booking deadlines to ensure patients book before deadlines.
-- **AI Health Assistant & Voice Support**: Dual Bangla and English voice chatbot for prescription interpretation, medication advice, and symptom analysis powered by Google Gemini AI.
-- **ReportLab Medical PDF Exporters**:
-  - `Overall Medical Summary Report` (Vitals, Diagnoses, Medical History, Prescriptions).
-  - `Dose Track Report` (Medication schedules, adherence percentage, taken/skipped logs).
-  - `Payment History Report` (Receipts, fees paid, wallet refund transactions).
+- **2-Column Responsive Command Center**: Displays personal `#PAT-ID`, vitals, daily medication checklist, upcoming follow-ups, and interactive schedule calendar.
+- **Daily Dose Tracker & Custom Schedule Manager**: Real-time medication adherence tracking with dose time slots (*Morning, Afternoon, Evening, Night*) and adherence percentages (`0-100%`).
+- **Follow-Up Deadline Management**: Enforces scheduled follow-up dates and booking deadline validations.
+- **CareBridge AI Virtual Health Assistant**: Multilingual (English & Bangla) voice-enabled AI assistant for prescription translation, dosage explanations, and symptom checks powered by Google Gemini AI.
+- **ReportLab PDF Exporters**:
+  - `Overall Medical Summary Report` (Vitals, Diagnoses, Medical History, Active Prescriptions).
+  - `Dose Track Report` (Medication schedules, adherence logs, taken/skipped logs).
+  - `Payment Statement Report` (Receipts, platform fees, wallet refund transactions).
 
 ### 👨‍⚕️ 2. Doctor Portal
-- **Professional 2-Column Dashboard**: Features Doctor ID (`#DOC-ID`), BMDC Verification badge, consultation fee, weekly schedule management, and pending appointment requests.
-- **Digital Prescription Builder**: Complete clinical workflow supporting visit vitals (*Heart Rate, BP, SpO2, Temp, Weight, Height*), chief complaints, diagnosis, test requirements, medications, advice rules, and follow-up scheduling.
-- **Virtual Digital Signature Box**: Every generated prescription PDF includes an official medical header, timestamped verification hash (`#CARE-RX-[id]-[timestamp]`), doctor credentials, and an embedded **Virtual Digital Signature Card**:
+- **2-Column Responsive Dashboard**: Features Doctor ID (`#DOC-ID`), BMDC Verification seal, consultation fee, weekly schedule management, and quick action controls.
+- **Digital Prescription Builder**: Clinical workflow supporting visit vitals (*Heart Rate, BP, SpO2, Temp, Weight, Height*), chief complaints, diagnosis, lab tests, medications, advice rules, and follow-ups.
+- **Virtual Digital Signature Box & Seal**: Every generated prescription PDF includes an official medical header, timestamped verification hash (`#CARE-RX-[id]-[timestamp]`), and an embedded **Virtual Digital Signature Card**:
   ```
   +---------------------------------------------------------+
   | Dr. [Doctor Full Name]                                  |
@@ -29,37 +85,18 @@ CareBridge AI is a state-of-the-art, full-stack clinical telemedicine, prescript
   | Signed Date: 03 Sep 2026, 02:30 PM                      |
   +---------------------------------------------------------+
   ```
-- **Chamber Schedule & Availability Manager**: Configure weekly time slots, consultation fees, and appointment durations.
-- **Patient Adherence Directory**: View past patient records, adherence percentages (`0-100%`), and issued prescription histories.
+- **Chamber Schedule & Slot Manager**: Configure weekly time slots, consultation fees, and appointment durations.
+- **Patient Adherence Directory**: View patient histories, adherence percentages (`0-100%`), and past prescriptions.
 
-### 🛡️ 3. Admin & Doctor Tracking Analytics
+### 🛡️ 3. Admin Analytics & System Management
 - **Role-Based Access Control (RBAC)**: Custom `RoleBasedAccessMiddleware` ensuring strict path enforcement across Patient (`/patient/`), Doctor (`/doctors/`), and Admin (`/reports/admin/`) portals.
 - **Doctor Performance & Financial Analytics**: Real-time breakdown of:
-  - **Gross Revenue (BDT)**: Total consultation fees collected.
-  - **Platform Commission (15%)**: Automated platform site fee calculations.
-  - **Net Doctor Payout (BDT)**: Net earnings allocated to doctors.
-  - **Total Refund (BDT)**: Audited patient wallet refunds.
-- **Doctor Search & Dropdown Control**: Quick search input (`#docSearchInput`) integrated alongside the doctor selection dropdown.
-- **Doctor Account Management & Safe Deletion**: Admin capability to track performance, export statements, or delete doctor profiles safely with confirmation modal protection.
-
----
-
-## 💰 Financial & Refund Accounting Logics
-
-CareBridge AI enforces strict financial accounting equations across all appointment transactions:
-
-```
-Gross Consultation Fee (BDT) = Patient Refund + Platform Fee + Net Doctor Payout
-```
-
-1. **Patient-Initiated Cancellation (35% Partial Refund)**:
-   - `Patient Refund` = `Fee * 0.35`
-   - `Platform Fee` = `Fee * 0.15`
-   - `Net Doctor Payout` = `Fee - Platform Fee - Patient Refund`
-2. **Doctor-Initiated Cancellation (100% Full Refund)**:
-   - `Patient Refund` = `Fee`
-   - `Platform Fee` = `0.00`
-   - `Net Doctor Payout` = `0.00`
+  - **Total Site Income (BDT)**: Total site commission collected across paid appointments and patient cancellations.
+  - **Monthly & Weekly Site Income**: Rolling calendar trend analytics.
+  - **Total Patient Refunds (BDT)**: Audited patient wallet refund log.
+- **Doctor Quick Search & Dropdown Control**: Quick search input (`#docSearchInput`) integrated alongside the doctor selection dropdown.
+- **Doctor Account Management & Safe Deletion**: Admin capability to track performance, export statements, or delete doctor profiles safely with modal protection.
+- **System Announcement Management**: Published news management table with **Edit & Delete CRUD controls** for updating announcements dynamically.
 
 ---
 
@@ -72,7 +109,7 @@ Gross Consultation Fee (BDT) = Patient Refund + Platform Fee + Net Doctor Payout
 | **PDF Generation Engine** | ReportLab (with TTF Unicode Font Registration) |
 | **AI Integration** | Google Gemini AI (`google-generativeai`) |
 | **Frontend Styling** | Tailwind CSS, Custom CSS Design System |
-| **Icons & Media** | FontAwesome 6 Pro, Custom Clinical Avatars |
+| **Icons & Visuals** | FontAwesome 6 Pro, Custom Clinical Avatars |
 | **Middleware** | RoleBasedAccessMiddleware, NoCacheAuthenticationMiddleware |
 
 ---
