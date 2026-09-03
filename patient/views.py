@@ -1706,8 +1706,13 @@ def request_cancellation(request, appointment_id):
             appointment.cancellation_reason = reason
 
             if appointment.payment_status == "paid":
+                from accounts.models import SiteSettings
+                settings_obj = SiteSettings.get_solo()
+                rate = Decimal(str(settings_obj.platform_commission_rate or "3.00")) / Decimal("100")
+                site_charge = (appointment.fee_bdt * rate).quantize(Decimal("0.01"))
+                remaining_money = max(Decimal("0.00"), appointment.fee_bdt - site_charge)
                 appointment.refund_status = "partial"
-                appointment.refund_amount = (appointment.fee_bdt * Decimal("0.35")).quantize(Decimal("0.01"))
+                appointment.refund_amount = (remaining_money * Decimal("0.35")).quantize(Decimal("0.01"))
                 appointment.payment_status = "refunded"
                 appointment.save()
 
