@@ -39,6 +39,18 @@ def set_site_language(request, lang):
     next_url = request.GET.get("next") or request.META.get("HTTP_REFERER") or "/home/"
     target_lang = "bn" if lang == "bn" else "en"
 
+    # Strip any existing lang parameter from next_url to avoid stale overrides
+    if "?" in next_url:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(next_url)
+        params = urllib.parse.parse_qs(parsed.query)
+        params.pop("lang", None)
+        new_query = urllib.parse.urlencode(params, doseq=True)
+        next_url = urllib.parse.urlunparse((
+            parsed.scheme, parsed.netloc, parsed.path,
+            parsed.params, new_query, parsed.fragment
+        ))
+
     request.session["site_lang"] = target_lang
     request.session[getattr(translation, "LANGUAGE_SESSION_KEY", "_language")] = target_lang
     translation.activate(target_lang)

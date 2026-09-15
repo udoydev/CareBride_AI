@@ -72,16 +72,16 @@
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Age</label>
-              <input type="number" name="patient_age" value="{{ patient.date_of_birth|date:'Y'|add:'-1900'|default:'' }}" placeholder="Years"
+              <input type="number" name="patient_age" value="{{ patient.age|default:'' }}" placeholder="Years" min="0" max="150"
                 class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
             </div>
             <div>
               <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Gender</label>
               <select name="patient_gender" class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
                 <option value="">Select</option>
-                <option value="male" {% if patient.gender == 'male' %}selected{% endif %}>Male</option>
-                <option value="female" {% if patient.gender == 'female' %}selected{% endif %}>Female</option>
-                <option value="other" {% if patient.gender == 'other' %}selected{% endif %}>Other</option>
+                <option value="Male" {% if patient.gender|lower == 'male' %}selected{% endif %}>Male</option>
+                <option value="Female" {% if patient.gender|lower == 'female' %}selected{% endif %}>Female</option>
+                <option value="Other" {% if patient.gender|lower == 'other' %}selected{% endif %}>Other</option>
               </select>
             </div>
             <div>
@@ -127,9 +127,36 @@
                 class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
             </div>
             <div>
-              <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Height (cm)</label>
-              <input type="number" name="height_cm" placeholder="170"
-                class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-semibold text-stone-700 dark:text-stone-300">Height</label>
+                <div class="flex items-center gap-1 text-[10px] font-bold">
+                  <button type="button" id="create_h_btn_ft" onclick="setCreateHeightMode('ft')" class="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition">ft/in</button>
+                  <button type="button" id="create_h_btn_cm" onclick="setCreateHeightMode('cm')" class="px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition">cm</button>
+                </div>
+              </div>
+
+              <!-- ft / in inputs -->
+              <div id="create_h_ft_wrap" class="grid grid-cols-2 gap-1.5">
+                <div class="relative">
+                  <input type="number" id="create_h_ft" name="height_ft" placeholder="5" min="1" max="8"
+                    class="w-full rounded-xl border border-stone-200 bg-white pl-2.5 pr-6 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncCreateFtInToCm()">
+                  <span class="absolute right-2 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">ft</span>
+                </div>
+                <div class="relative">
+                  <input type="number" id="create_h_in" name="height_in" placeholder="7" min="0" max="11.9" step="0.5"
+                    class="w-full rounded-xl border border-stone-200 bg-white pl-2.5 pr-6 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncCreateFtInToCm()">
+                  <span class="absolute right-2 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">in</span>
+                </div>
+              </div>
+
+              <!-- cm input -->
+              <div id="create_h_cm_wrap" class="hidden relative">
+                <input type="number" id="create_h_cm" name="height_cm" placeholder="170" min="30" max="250"
+                  class="w-full rounded-xl border border-stone-200 bg-white pl-3 pr-8 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncCreateCmToFtIn()">
+                <span class="absolute right-2.5 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">cm</span>
+              </div>
+
+              <p id="create_h_hint" class="mt-1 text-[10px] text-teal-600 dark:text-teal-400 font-medium"></p>
             </div>
             <div>
               <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">SpO2 (%)</label>
@@ -281,7 +308,7 @@
 
     <!-- RIGHT COLUMN: Sticky Real-Life Prescription Sheet Live Preview -->
     <div class="lg:col-span-6 xl:col-span-6">
-      <div class="sticky top-6 rounded-3xl border border-stone-300 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-white text-stone-900" id="rx_paper_preview">
+      <div class="sticky top-20 rounded-3xl border border-stone-300 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-white text-stone-900" id="rx_paper_preview">
         <!-- Live Badge -->
         <div class="mb-3 flex items-center justify-between border-b border-stone-200 pb-2.5">
           <div class="flex items-center gap-2.5">
@@ -314,8 +341,8 @@
           <!-- Patient Info Bar (Blue/Teal Bar) -->
           <div class="my-3 flex flex-wrap items-center justify-between bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-900 rounded-lg border border-teal-100">
             <div>Patient: <span id="prev_patient_name" class="font-bold text-stone-900">{{ patient_name }}</span></div>
-            <div>Age: <span id="prev_patient_age" class="font-bold">{% if patient.date_of_birth %}{{ patient.date_of_birth|timesince:""|slice:":2" }}{% else %}—{% endif %}</span></div>
-            <div>Gender: <span id="prev_patient_gender" class="font-bold">{{ patient.gender|default:"—" }}</span></div>
+            <div>Age: <span id="prev_patient_age" class="font-bold">{% if patient.age %}{{ patient.age }}{% else %}—{% endif %}</span></div>
+            <div>Gender: <span id="prev_patient_gender" class="font-bold">{{ patient.gender|default:"—"|capfirst }}</span></div>
             <div>Mobile: <span id="prev_patient_phone" class="font-bold">{{ patient.phone_number|default:"—" }}</span></div>
             <div>Date: <span id="prev_date" class="font-bold">{% now "Y-m-d" %}</span></div>
           </div>
@@ -526,7 +553,10 @@ document.addEventListener("DOMContentLoaded", function() {
     const phoneInput = document.querySelector('input[name="patient_phone"]');
 
     if (ageInput) document.getElementById("prev_patient_age").innerText = ageInput.value || "—";
-    if (genderInput) document.getElementById("prev_patient_gender").innerText = genderInput.options[genderInput.selectedIndex].text || "—";
+    if (genderInput) {
+      const gText = genderInput.options[genderInput.selectedIndex]?.text;
+      document.getElementById("prev_patient_gender").innerText = (gText && gText !== "Select") ? gText : "—";
+    }
     if (phoneInput) document.getElementById("prev_patient_phone").innerText = phoneInput.value || "—";
 
     // 1. Complaints & Diagnosis
@@ -612,7 +642,19 @@ document.addEventListener("DOMContentLoaded", function() {
       if (val) {
         vitalsCount++;
         const li = document.createElement("li");
-        li.innerText = `${v.label}: ${val}`;
+        if (v.name === "height_cm") {
+          const cmNum = parseInt(val, 10);
+          if (cmNum > 0) {
+            const totalInches = Math.round(cmNum / 2.54);
+            const ft = Math.floor(totalInches / 12);
+            const inch = totalInches % 12;
+            li.innerText = `Height: ${ft}′ ${inch}″ (${cmNum} cm)`;
+          } else {
+            li.innerText = `${v.label}: ${val}`;
+          }
+        } else {
+          li.innerText = `${v.label}: ${val}`;
+        }
         prevVitalsList.appendChild(li);
       }
     });
@@ -646,6 +688,67 @@ document.addEventListener("DOMContentLoaded", function() {
   attachListeners();
   updatePreview();
 });
+
+// Height conversion and toggle handlers
+function setCreateHeightMode(mode) {
+  const ftWrap = document.getElementById("create_h_ft_wrap");
+  const cmWrap = document.getElementById("create_h_cm_wrap");
+  const btnFt = document.getElementById("create_h_btn_ft");
+  const btnCm = document.getElementById("create_h_btn_cm");
+
+  if (mode === "ft") {
+    ftWrap.classList.remove("hidden");
+    cmWrap.classList.add("hidden");
+    btnFt.className = "px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition";
+    btnCm.className = "px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition";
+    syncCreateFtInToCm();
+  } else {
+    ftWrap.classList.add("hidden");
+    cmWrap.classList.remove("hidden");
+    btnCm.className = "px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition";
+    btnFt.className = "px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition";
+    syncCreateCmToFtIn();
+  }
+}
+
+function syncCreateFtInToCm() {
+  const ft = parseFloat(document.getElementById("create_h_ft")?.value) || 0;
+  const inch = parseFloat(document.getElementById("create_h_in")?.value) || 0;
+  const cmInput = document.getElementById("create_h_cm");
+  const hint = document.getElementById("create_h_hint");
+
+  if (ft > 0 || inch > 0) {
+    const totalInches = ft * 12 + inch;
+    const cm = Math.round(totalInches * 2.54);
+    if (cmInput) cmInput.value = cm;
+    if (hint) hint.innerText = `≈ ${cm} cm`;
+  } else {
+    if (cmInput) cmInput.value = "";
+    if (hint) hint.innerText = "";
+  }
+  updatePreview();
+}
+
+function syncCreateCmToFtIn() {
+  const cm = parseFloat(document.getElementById("create_h_cm")?.value) || 0;
+  const ftInput = document.getElementById("create_h_ft");
+  const inInput = document.getElementById("create_h_in");
+  const hint = document.getElementById("create_h_hint");
+
+  if (cm > 0) {
+    const totalInches = Math.round(cm / 2.54);
+    const ft = Math.floor(totalInches / 12);
+    const inch = totalInches % 12;
+    if (ftInput) ftInput.value = ft;
+    if (inInput) inInput.value = inch;
+    if (hint) hint.innerText = `≈ ${ft}′ ${inch}″`;
+  } else {
+    if (ftInput) ftInput.value = "";
+    if (inInput) inInput.value = "";
+    if (hint) hint.innerText = "";
+  }
+  updatePreview();
+}
 
 // Helper for Follow-up Days Preset
 function setFollowUpDays(days) {

@@ -10,9 +10,14 @@
       <h1 class="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">History of Appointments</h1>
       <p class="mt-2 text-stone-600 dark:text-stone-400">Your appointments, spending, and health metrics at a glance.</p>
     </div>
-    <a href="{% url 'patient:payment_history_export' %}" class="inline-flex h-10 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-800 shadow-sm transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
-      <i class="fa-solid fa-file-export"></i> Export Payments
-    </a>
+    <div class="inline-flex rounded-full shadow-sm">
+      <a href="{% url 'patient:payment_history_export' %}?export=pdf" target="_blank" class="inline-flex h-10 items-center gap-2 rounded-l-full border border-r-0 border-stone-200 bg-white px-4 text-xs sm:text-sm font-bold text-stone-800 transition hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+        <i class="fa-solid fa-file-pdf text-teal-600"></i> Export Payments (PDF)
+      </a>
+      <a href="{% url 'patient:payment_history_export' %}?export=csv" class="inline-flex h-10 items-center border border-stone-200 bg-white px-3 rounded-r-full text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" title="Export as CSV">
+        <i class="fa-solid fa-file-csv text-emerald-600"></i> CSV
+      </a>
+    </div>
   </div>
 
   <!-- Stats Cards -->
@@ -108,7 +113,7 @@
         {% for apt in recent_appointments %}
         <div class="flex items-center justify-between border-b border-stone-100 pb-3 dark:border-slate-800">
           <div>
-            <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">Dr. {{ apt.doctor.user.get_full_name|default:apt.doctor.user.username }}</p>
+            <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">{{ apt.doctor.get_full_name }}</p>
              <p class="text-xs text-stone-500 dark:text-stone-400">{{ apt.appointment_date|date:"d M Y" }} &bull; {{ apt.start_time|time:"h:i A" }}</p>
           </div>
           <span class="rounded-full px-2.5 py-0.5 text-xs font-bold
@@ -122,14 +127,20 @@
         {% endfor %}
       </div>
       {% if recent_appointments.has_other_pages %}
-      <div class="mt-4 flex items-center justify-center gap-2">
-        {% if recent_appointments.has_previous %}
-          <a href="?apt_page={{ recent_appointments.previous_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-        {% endif %}
-        <span class="text-xs font-medium text-stone-600 dark:text-stone-400">Page {{ recent_appointments.number }} of {{ recent_appointments.paginator.num_pages }}</span>
-        {% if recent_appointments.has_next %}
-          <a href="?apt_page={{ recent_appointments.next_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-        {% endif %}
+      <div class="mt-4 flex items-center justify-between text-xs select-none">
+        <span class="text-xs text-stone-500 dark:text-stone-400">Page {{ recent_appointments.number }} of {{ recent_appointments.paginator.num_pages }}</span>
+        <div class="flex items-center gap-1.5">
+          {% if recent_appointments.has_previous %}
+            <a href="?apt_page={{ recent_appointments.previous_page_number }}" class="inline-flex h-7 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800 transition shadow-2xs">Prev</a>
+          {% else %}
+            <span class="inline-flex h-7 items-center rounded-lg border border-stone-100 bg-stone-50 px-2.5 text-xs font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">Prev</span>
+          {% endif %}
+          {% if recent_appointments.has_next %}
+            <a href="?apt_page={{ recent_appointments.next_page_number }}" class="inline-flex h-7 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800 transition shadow-2xs">Next</a>
+          {% else %}
+            <span class="inline-flex h-7 items-center rounded-lg border border-stone-100 bg-stone-50 px-2.5 text-xs font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">Next</span>
+          {% endif %}
+        </div>
       </div>
       {% endif %}
       {% else %}
@@ -149,7 +160,7 @@
         {% for rx in recent_prescriptions %}
         <div class="flex items-center justify-between border-b border-stone-100 pb-3 dark:border-slate-800">
           <div>
-            <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">Dr. {{ rx.doctor.user.get_full_name|default:rx.doctor.user.username }}</p>
+            <p class="text-sm font-semibold text-stone-900 dark:text-stone-100">{{ rx.doctor.get_full_name }}</p>
             <p class="text-xs text-stone-500 dark:text-stone-400">{{ rx.issued_at|date:"d M Y" }} &bull; {{ rx.status|title }}</p>
           </div>
           <span class="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
@@ -159,14 +170,20 @@
         {% endfor %}
       </div>
       {% if recent_prescriptions.has_other_pages %}
-      <div class="mt-4 flex items-center justify-center gap-2">
-        {% if recent_prescriptions.has_previous %}
-          <a href="?rx_page={{ recent_prescriptions.previous_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-        {% endif %}
-        <span class="text-xs font-medium text-stone-600 dark:text-stone-400">Page {{ recent_prescriptions.number }} of {{ recent_prescriptions.paginator.num_pages }}</span>
-        {% if recent_prescriptions.has_next %}
-          <a href="?rx_page={{ recent_prescriptions.next_page_number }}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-        {% endif %}
+      <div class="mt-4 flex items-center justify-between text-xs select-none">
+        <span class="text-xs text-stone-500 dark:text-stone-400">Page {{ recent_prescriptions.number }} of {{ recent_prescriptions.paginator.num_pages }}</span>
+        <div class="flex items-center gap-1.5">
+          {% if recent_prescriptions.has_previous %}
+            <a href="?rx_page={{ recent_prescriptions.previous_page_number }}" class="inline-flex h-7 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800 transition shadow-2xs">Prev</a>
+          {% else %}
+            <span class="inline-flex h-7 items-center rounded-lg border border-stone-100 bg-stone-50 px-2.5 text-xs font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">Prev</span>
+          {% endif %}
+          {% if recent_prescriptions.has_next %}
+            <a href="?rx_page={{ recent_prescriptions.next_page_number }}" class="inline-flex h-7 items-center rounded-lg border border-stone-200 bg-white px-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800 transition shadow-2xs">Next</a>
+          {% else %}
+            <span class="inline-flex h-7 items-center rounded-lg border border-stone-100 bg-stone-50 px-2.5 text-xs font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">Next</span>
+          {% endif %}
+        </div>
       </div>
       {% endif %}
       {% else %}

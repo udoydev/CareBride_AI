@@ -132,8 +132,10 @@ function speakText(text, lang) {
   });
 }
 
-function getVoiceModal() {
+function getVoiceModal(lang) {
   let modal = document.getElementById("carebridgeVoiceModal");
+  const isEn = lang === "en" || document.documentElement.lang === "en";
+
   if (!modal) {
     modal = document.createElement("div");
     modal.id = "carebridgeVoiceModal";
@@ -143,35 +145,61 @@ function getVoiceModal() {
         <div id="carebridgeVoiceIcon" class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal-500/20 text-teal-400 ring-4 ring-teal-500/30 animate-pulse">
           <i class="fa-solid fa-microphone-lines text-2xl"></i>
         </div>
-        <h3 id="carebridgeVoiceTitle" class="mt-4 text-lg font-bold">শুনছি... (বাংলা ভয়েস)</h3>
-        <p id="carebridgeVoiceStatus" class="mt-2 text-xs text-slate-300">বলুন: ড্যাশবোর্ড, ওষুধ, প্রেসক্রিপশন স্ক্যান, ফলো আপ, ডাক্তার, চ্যাট...</p>
+        <h3 id="carebridgeVoiceTitle" class="mt-4 text-lg font-bold"></h3>
+        <p id="carebridgeVoiceStatus" class="mt-2 text-xs text-slate-300"></p>
 
-        <!-- Quick command pills -->
+        <!-- Dynamic navbar command pills -->
         <div id="carebridgeVoicePills" class="mt-4 flex flex-wrap justify-center gap-1.5 text-xs">
-          <button type="button" onclick="window.location.href='/prescriptions/scan/'" class="rounded-full bg-teal-500/30 px-3 py-1 font-bold text-teal-300 hover:bg-teal-600 hover:text-white">📄 স্ক্যান / Scan</button>
-          <button type="button" onclick="window.location.href='/patient/dashboard/'" class="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white">ড্যাশবোর্ড / Dashboard</button>
-          <button type="button" onclick="window.location.href='/patient/doses/today/'" class="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white">ওষুধ / Today</button>
-          <button type="button" onclick="window.location.href='/patient/health-record/'" class="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white">রেকর্ড / Records</button>
-          <button type="button" onclick="window.location.href='/patient/doctors/'" class="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white">ডাক্তার / Doctors</button>
-          <button type="button" onclick="window.location.href='/patient/chat/'" class="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white">চ্যাট / Chat</button>
         </div>
 
         <div class="mt-5 flex justify-center">
           <button id="carebridgeVoiceCloseBtn" type="button" class="rounded-full bg-white/10 px-5 py-2 text-xs font-semibold text-white transition hover:bg-white/20">
-            বাতিল / Cancel
+            ${isEn ? "Cancel" : "বাতিল / Cancel"}
           </button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
   }
+  
+  const closeBtn = modal.querySelector("#carebridgeVoiceCloseBtn");
+  if (closeBtn) {
+    closeBtn.textContent = isEn ? "Cancel" : "বাতিল / Cancel";
+  }
+
   return modal;
 }
 
-function showVoiceModal(title, status) {
-  const modal = getVoiceModal();
+function renderVoiceModalPills(commands, lang) {
+  const pillsContainer = document.getElementById("carebridgeVoicePills");
+  if (!pillsContainer) return;
+
+  const isEn = lang === "en" || document.documentElement.lang === "en";
+
+  pillsContainer.innerHTML = "";
+  (commands || []).forEach((cmd) => {
+    if (!cmd.url || cmd.url.includes("/chat") || cmd.url.includes("chatbot")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.onclick = () => { window.location.href = cmd.url; };
+    const isScan = cmd.url.includes("scan");
+    btn.className = isScan
+      ? "rounded-full bg-teal-500/30 px-3 py-1 font-bold text-teal-300 hover:bg-teal-600 hover:text-white transition"
+      : "rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-teal-600 hover:text-white transition";
+    
+    let label = isEn ? (cmd.labelEn || cmd.label) : (cmd.labelBn || cmd.label);
+    btn.textContent = label || (cmd.terms && cmd.terms[0]) || "Nav";
+    pillsContainer.appendChild(btn);
+  });
+}
+
+function showVoiceModal(title, status, commands, lang) {
+  const modal = getVoiceModal(lang);
   document.getElementById("carebridgeVoiceTitle").textContent = title;
   document.getElementById("carebridgeVoiceStatus").textContent = status;
+  if (commands) {
+    renderVoiceModalPills(commands, lang);
+  }
   modal.classList.remove("opacity-0", "pointer-events-none");
   modal.classList.add("opacity-100");
 }
@@ -187,12 +215,12 @@ function hideVoiceModal() {
 async function startSpeechRecognition(options) {
   const Recognition = getSpeechRecognition();
   if (!Recognition) {
-    alert("আপনার ব্রাউজারে ভয়েস সাপোর্ট পাওয়া যায়নি। অনুগ্রহ করে গুগল ক্রোম ব্যবহার করুন।");
+    alert("Voice recognition is not supported on this browser. Please use Chrome or Edge.");
     return null;
   }
 
   const recognition = new Recognition();
-  recognition.lang = options.lang || "bn-BD";
+  recognition.lang = options.lang || "en-US";
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.maxAlternatives = 5;
@@ -231,32 +259,56 @@ function matchVoiceTarget(text, alternatives, targets) {
 }
 
 const DEFAULT_VOICE_COMMANDS = [
-  { terms: ["scan", "ocr", "প্রেসক্রিপশন স্ক্যান", "স্ক্যান", "ছবি স্ক্যান", "প্রেসক্রিপশন", "ওষুধ স্ক্যান"], url: "/prescriptions/scan/" },
-  { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "main", "মেইন", "মূল পাতা"], url: "/patient/dashboard/" },
-  { terms: ["today", "আজ", "আজকের ওষুধ", "ডোজ", "medicine", "oshud", "osud", "doses", "ওষুধ"], url: "/patient/doses/today/" },
-  { terms: ["records", "record", "health record", "রেকর্ড", "স্বাস্থ্য", "মেডিকেল হিস্ট্রি"], url: "/patient/health-record/" },
-  { terms: ["follow", "follow up", "ফলো আপ", "ফলোআপ", "appointment", "অ্যাপয়েন্টমেন্ট"], url: "/patient/follow-ups/" },
-  { terms: ["doctor", "doctors", "ডাক্তার", "daktar", "physician", "ডাক্তার তালিকা", "ডাক্তার খুঁজুন"], url: "/patient/doctors/" },
-  { terms: ["chat", "assistant", "চ্যাট", "সহায়তা", "help", "এআই চ্যাট", "কথা বলুন", "সহকারী"], url: "/patient/chat/" },
-  { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট", "আমার প্রোফাইল"], url: "/accounts/profile/" },
-  { terms: ["unverified", "আনভেরিফাইড", "ভেরিফিকেশন", "admin unverified"], url: "/admin-unverified/" },
-  { terms: ["logout", "log out", "exit", "বের হন", "লগ আউট"], url: "/accounts/logout/" }
+  { terms: ["scan", "ocr", "prescription scan", "প্রেসক্রিপশন স্ক্যান", "স্ক্যান", "ছবি স্ক্যান", "প্রেসক্রিপশন"], url: "/prescriptions/scan/", labelEn: "📄 Scan", labelBn: "📄 স্ক্যান / Scan" },
+  { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "main page"], url: "/patient/dashboard/", labelEn: "Dashboard", labelBn: "ড্যাশবোর্ড / Dashboard" },
+  { terms: ["today", "doses", "ডোজ", "আজ", "আজকের ওষুধ", "medicine", "oshud", "osud", "ওষুধ"], url: "/patient/doses/today/", labelEn: "Today's Doses", labelBn: "ওষুধ / Today" },
+  { terms: ["records", "record", "health record", "রেকর্ড", "স্বাস্থ্য", "মেডিকেল হিস্ট্রি"], url: "/patient/health-record/", labelEn: "Health Records", labelBn: "রেকর্ড / Records" },
+  { terms: ["appointments", "appointment", "অ্যাপয়েন্টমেন্ট", "ফলো আপ", "ফলোআপ", "visit"], url: "/patient/appointments/", labelEn: "Appointments", labelBn: "অ্যাপয়েন্টমেন্ট / Appointments" },
+  { terms: ["analytics", "অ্যানালিটিক্স", "report", "রিপোর্ট"], url: "/patient/analytics/", labelEn: "Analytics", labelBn: "অ্যানালিটিক্স / Analytics" },
+  { terms: ["overall report", "overall", "ওভারঅল রিপোর্ট"], url: "/patient/overall-report/", labelEn: "Overall Report", labelBn: "ওভারঅল / Overall Report" },
+  { terms: ["doctor", "doctors", "ডাক্তার", "daktar", "physician", "ডাক্তার তালিকা", "ডাক্তার খুঁজুন"], url: "/patient/doctors/", labelEn: "Doctors", labelBn: "ডাক্তার / Doctors" },
+  { terms: ["rules", "রুলস", "নিয়মাবলী", "নিয়ম"], url: "/patient/rules/", labelEn: "Rules", labelBn: "নিয়মাবলী / Rules" },
+  { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট", "আমার প্রোফাইল"], url: "/accounts/profile/", labelEn: "Profile", labelBn: "প্রোফাইল / Profile" },
+  { terms: ["logout", "log out", "exit", "বের হন", "লগ আউট"], url: "/accounts/logout/", labelEn: "Log out", labelBn: "লগ আউট / Logout" }
 ];
 
 function getVoiceConfig() {
   const dynamic = (window.CAREBRIDGE_VOICE_COMMANDS && window.CAREBRIDGE_VOICE_COMMANDS.patient) || [];
-  return dynamic.length ? dynamic : DEFAULT_VOICE_COMMANDS;
+  let baseConfig = dynamic.length ? dynamic : DEFAULT_VOICE_COMMANDS;
+  
+  // Filter out chat links completely
+  baseConfig = baseConfig.filter(cmd => !cmd.url.includes("/chat") && !(cmd.terms && cmd.terms.some(t => t === "chat" || t === "চ্যাট")));
+
+  // Dynamically attach labels if missing
+  baseConfig.forEach(cmd => {
+    if (!cmd.labelEn || !cmd.labelBn) {
+      const matchDefault = DEFAULT_VOICE_COMMANDS.find(d => d.url === cmd.url);
+      if (matchDefault) {
+        cmd.labelEn = cmd.labelEn || matchDefault.labelEn;
+        cmd.labelBn = cmd.labelBn || matchDefault.labelBn;
+      } else {
+        const fallback = cmd.terms && cmd.terms[0] ? cmd.terms[0] : "Nav";
+        cmd.labelEn = cmd.labelEn || fallback;
+        cmd.labelBn = cmd.labelBn || fallback;
+      }
+    }
+  });
+
+  return baseConfig;
 }
 
 async function runVoiceNavigation(button) {
-  const lang = button?.dataset.lang || "bn";
+  const pageLang = document.documentElement.lang || "en";
+  const lang = button?.dataset.lang || pageLang;
+  const isEn = lang === "en" || pageLang === "en";
   const config = getVoiceConfig();
-  const isBn = true; // Default to Bangladeshi Bangla voice navigation
 
-  showVoiceModal(
-    "বাংলা ভয়েস কমান্ডে শুনছি...",
-    "বলুন: প্রেসক্রিপশন স্ক্যান, ড্যাশবোর্ড, আজকের ওষুধ, রেকর্ড, ফলো আপ, ডাক্তার, চ্যাট..."
-  );
+  const initialTitle = isEn ? "Listening to Voice Command..." : "বাংলা ভয়েস কমান্ডে শুনছি...";
+  const initialStatus = isEn
+    ? "Say: Scan, Dashboard, Doses, Records, Appointments, Doctors..."
+    : "বলুন: প্রেসক্রিপশন স্ক্যান, ড্যাশবোর্ড, ওষুধ, রেকর্ড, অ্যাপয়েন্টমেন্ট, ডাক্তার...";
+
+  showVoiceModal(initialTitle, initialStatus, config, lang);
 
   const closeBtn = document.getElementById("carebridgeVoiceCloseBtn");
   let canceled = false;
@@ -268,8 +320,11 @@ async function runVoiceNavigation(button) {
   }
 
   try {
+    const primaryLang = isEn ? "en-US" : "bn-BD";
+    const secondaryLang = isEn ? "bn-BD" : "en-US";
+
     let res = await startSpeechRecognition({
-      lang: "bn-BD",
+      lang: primaryLang,
     }).catch(() => null);
 
     let matched = res && res.primary ? matchVoiceTarget(res.primary, res.alternatives, config) : null;
@@ -277,7 +332,7 @@ async function runVoiceNavigation(button) {
 
     if (!matched && !canceled) {
       const secondaryRes = await startSpeechRecognition({
-        lang: "en-US",
+        lang: secondaryLang,
       }).catch(() => null);
 
       if (secondaryRes && secondaryRes.primary) {
@@ -292,13 +347,15 @@ async function runVoiceNavigation(button) {
     }
 
     if (matched?.url) {
-      showVoiceModal(
-        "কমান্ড সনাক্ত হয়েছে!",
-        `শোনা গেছে: "${spoken}". নিয়ে যাচ্ছি...`
-      );
+      const titleRecognized = isEn ? "Command Recognized!" : "কমান্ড সনাক্ত হয়েছে!";
+      const statusRecognized = isEn
+        ? `Heard: "${spoken}". Navigating...`
+        : `শোনা গেছে: "${spoken}". নিয়ে যাচ্ছি...`;
+
+      showVoiceModal(titleRecognized, statusRecognized, config, lang);
       
-      const confirmSpeech = "কমান্ড গ্রহণ করা হয়েছে। নেভিগেট করা হচ্ছে।";
-      speakText(confirmSpeech, "bn-BD");
+      const confirmSpeech = isEn ? "Command accepted. Navigating now." : "কমান্ড গ্রহণ করা হয়েছে। নেভিগেট করা হচ্ছে।";
+      speakText(confirmSpeech, primaryLang);
 
       setTimeout(() => {
         hideVoiceModal();
@@ -308,16 +365,20 @@ async function runVoiceNavigation(button) {
     }
 
     if (spoken) {
-      showVoiceModal(
-        "কমান্ড মেলেনি",
-        `শোনা গেছে: "${spoken}"\nনিচের যেকোনো অপশনে ক্লিক করুন:`
-      );
-      speakText("দুঃখিত, কোনো কমান্ড মেলেনি।", "bn-BD");
+      const titleUnmatched = isEn ? "No Matching Command" : "কমান্ড মেলেনি";
+      const statusUnmatched = isEn
+        ? `Heard: "${spoken}". Click any option below:`
+        : `শোনা গেছে: "${spoken}"\nনিচের যেকোনো অপশনে ক্লিক করুন:`;
+
+      showVoiceModal(titleUnmatched, statusUnmatched, config, lang);
+      speakText(isEn ? "Sorry, no matching command found." : "দুঃখিত, কোনো কমান্ড মেলেনি।", primaryLang);
     } else {
-      showVoiceModal(
-        "কিছু শোনা যায়নি",
-        "নিচের বাটনে ক্লিক করে পেজে যেতে পারেন:"
-      );
+      const titleNoSpeech = isEn ? "No Speech Detected" : "কিছু শোনা যায়নি";
+      const statusNoSpeech = isEn
+        ? "Click any option below to navigate:"
+        : "নিচের বাটনে ক্লিক করে পেজে যেতে পারেন:";
+
+      showVoiceModal(titleNoSpeech, statusNoSpeech, config, lang);
     }
 
     setTimeout(() => {
@@ -325,10 +386,12 @@ async function runVoiceNavigation(button) {
     }, 4000);
   } catch (error) {
     if (!canceled) {
-      showVoiceModal(
-        "ভয়েস নেভিগেশন",
-        "নিচের অপশনে ক্লিক করে নেভিগেট করুন:"
-      );
+      const titleError = isEn ? "Voice Navigation" : "ভয়েস নেভিগেশন";
+      const statusError = isEn
+        ? "Click any option below to navigate:"
+        : "নিচের অপশনে ক্লিক করে নেভিগেট করুন:";
+
+      showVoiceModal(titleError, statusError, config, lang);
       setTimeout(() => {
         if (!canceled) hideVoiceModal();
       }, 4000);
@@ -346,15 +409,16 @@ async function runVoiceInput(button) {
   button.classList.add("opacity-70");
 
   try {
+    const isEn = document.documentElement.lang === "en";
     const res = await startSpeechRecognition({
-      lang: "bn-BD",
+      lang: isEn ? "en-US" : "bn-BD",
     });
     if (res && res.primary) {
       input.value = res.primary;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     }
   } catch (error) {
-    alert("ভয়েস ইনপুট নেওয়া সম্ভব হয়নি। আবার চেষ্টা করুন।");
+    alert("Voice input failed. Please try again.");
   } finally {
     button.disabled = false;
     button.classList.remove("opacity-70");
@@ -375,12 +439,29 @@ window.CareBridgeTheme = {
 
 function bindInteractions() {
   const menuBtn = document.getElementById("menuBtn");
-  if (menuBtn) {
-    menuBtn.addEventListener("click", () => {
-      const mobileMenu = document.getElementById("mobileMenu");
-      if (!mobileMenu) return;
+  const mobileMenu = document.getElementById("mobileMenu");
+
+  if (menuBtn && mobileMenu) {
+    menuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const isOpen = !mobileMenu.classList.contains("hidden");
       setMenuState(!isOpen);
+    });
+
+    mobileMenu.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => setMenuState(false));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!mobileMenu.classList.contains("hidden") && !mobileMenu.contains(e.target) && !menuBtn.contains(e.target)) {
+        setMenuState(false);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth >= 768 && !mobileMenu.classList.contains("hidden")) {
+        setMenuState(false);
+      }
     });
   }
 

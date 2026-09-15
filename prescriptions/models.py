@@ -38,6 +38,18 @@ class Prescription(models.Model):
     is_locked = models.BooleanField(default=False, help_text="Whether prescription editing is disabled")
 
     @property
+    def tests_list(self):
+        if not self.tests_investigations:
+            return []
+        return [t.strip() for t in self.tests_investigations.splitlines() if t.strip()]
+
+    @property
+    def advice_list(self):
+        if not self.advice_rules:
+            return []
+        return [a.strip() for a in self.advice_rules.splitlines() if a.strip()]
+
+    @property
     def is_edit_locked(self):
         """Prescription editing is locked 4 hours after creation.
 

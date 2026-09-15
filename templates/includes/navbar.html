@@ -1,190 +1,346 @@
-{% load static tailwind_tags %}
-<header class="sticky top-0 z-50 border-b border-slate-200 bg-white text-slate-900 backdrop-blur dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
-  <div class="mx-auto flex h-16 max-w-[1600px] w-full items-center justify-between gap-4 px-4 sm:px-8 lg:px-12">
-    <a href="{% if dashboard_url %}{{ dashboard_url }}{% else %}{% url 'home' %}{% endif %}" class="flex items-center gap-3">
-      <img src="{% static 'images/logo.png' %}?v=20260727" alt="CareBridge AI logo" class="h-10 w-10 rounded-2xl border border-slate-200 bg-white object-contain shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div class="leading-tight">
-        <span class="block text-lg font-semibold tracking-tight">CareBridge</span>
-        <span class="block text-xs uppercase tracking-[0.24em] text-teal-600 dark:text-teal-400">AI</span>
+{% load static tailwind_tags translation_tags %}
+<header id="mainHeader" class="sticky top-0 z-50 border-b border-slate-200 bg-white text-slate-900 shadow-xs dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-all duration-300 relative">
+  <div class="mx-auto flex h-16 max-w-[1600px] w-full items-center justify-between gap-1.5 px-3 sm:px-4 lg:px-8">
+
+    <!-- Brand Logo -->
+    <a href="{% if dashboard_url %}{{ dashboard_url }}{% else %}{% url 'home' %}{% endif %}" class="flex items-center gap-2 shrink-0 transition hover:opacity-90">
+      <img src="{% static 'images/logo.png' %}?v=20260727" alt="CareBridge AI logo" class="h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 rounded-2xl border border-slate-200 bg-white object-contain shadow-xs dark:border-slate-800 dark:bg-slate-900 shrink-0">
+      <div class="leading-tight shrink-0">
+        <span class="block text-sm sm:text-base lg:text-lg font-bold tracking-tight">CareBridge</span>
+        <span class="block text-[9px] sm:text-[10px] uppercase tracking-[0.24em] text-teal-600 dark:text-teal-400 font-extrabold">AI</span>
       </div>
     </a>
 
-    <nav class="hidden items-center gap-2 lg:flex">
+    <!-- Center Desktop & Laptop Navigation Links (Visible on Laptop & Tablet screens: 768px+) -->
+    <nav class="hidden items-center gap-1 lg:gap-2 md:flex overflow-x-auto py-1 no-scrollbar">
+      {% if not request.user.is_authenticated %}
+      <a href="{% url 'home' %}" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0"><i class="fa-solid fa-house text-[10px]"></i><span>{% translate_bn "Home" %}</span></a>
+      {% endif %}
       {% if request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Admin Dashboard" %}</a>
+        <a href="{% url 'admin:index' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Admin Dashboard" %}</a>
+        <a href="{% url 'accounts:admin_unverified_dashboard' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-amber-600 transition hover:bg-slate-100 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-amber-300 whitespace-nowrap shrink-0">{% translate_bn "Unverified" %}</a>
       {% elif request.user.is_authenticated and request.user.patient_profile %}
-        <a href="{% url 'patient:dashboard' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Dashboard" %}</a>
-        <a href="{% url 'patient:doses_today' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Doses" %}</a>
-        <a href="{% url 'patient:health_record' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-teal-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold"><i class="fa-solid fa-notes-medical mr-0.5 text-[10px]"></i>{% translate_bn "Records" %}</a>
-        <a href="{% url 'patient:appointments' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Appointments" %}</a>
-        <a href="{% url 'patient:analytics' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-teal-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold">{% translate_bn "Analytics" %}</a>
-        <a href="{% url 'patient:overall_report' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-teal-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold">{% translate_bn "Overall Report" %}</a>
-        <a href="{% url 'patient:doctor_list' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Doctors" %}</a>
-        <a href="{% url 'patient:rules' %}" class="rounded-full px-3 py-1.5 text-xs font-medium text-amber-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold">{% translate_bn "Rules" %}</a>
+        {% if request.user.patient_profile.is_verified %}
+          <a href="{% url 'patient:dashboard' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Dashboard" %}</a>
+          <a href="{% url 'patient:doses_today' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Doses" %}</a>
+          <a href="{% url 'patient:health_record' %}" class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-teal-600 transition hover:bg-slate-100 hover:text-teal-700 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-teal-300 whitespace-nowrap shrink-0"><i class="fa-solid fa-notes-medical text-[10px]"></i><span>{% translate_bn "Records" %}</span></a>
+          <a href="{% url 'patient:appointments' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Appointments" %}</a>
+          <a href="{% url 'patient:overall_report' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-teal-600 transition hover:bg-slate-100 hover:text-teal-700 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-teal-300 whitespace-nowrap shrink-0">{% translate_bn "Overall Report" %}</a>
+          <a href="{% url 'patient:doctor_list' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Doctors" %}</a>
+          <a href="{% url 'patient:rules' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-amber-600 transition hover:bg-slate-100 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-amber-300 whitespace-nowrap shrink-0">{% translate_bn "Rules" %}</a>
+        {% else %}
+          <a href="{% url 'accounts:verification_pending' %}" class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+            <span>⏳</span> <span>{% translate_bn "Verification Pending" %}</span>
+          </a>
+        {% endif %}
       {% elif request.user.is_authenticated and request.user.doctor_profile %}
-        <a href="{% url 'doctors:dashboard' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Dashboard" %}</a>
-        <a href="{% url 'doctors:patient_list' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Patient List" %}</a>
-        <a href="{% url 'doctors:schedule_management' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Schedule" %}</a>
-        <a href="{% url 'doctors:appointment_list' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Appointments" %}</a>
-        <a href="{% url 'doctors:history' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "History" %}</a>
-        <a href="{% url 'accounts:doctor_analytics' %}" class="rounded-full px-4 py-2 text-sm font-medium text-teal-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold">{% translate_bn "Analytics" %}</a>
-        <a href="{% url 'doctors:notifications' %}" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Notifications" %}</a>
-        <a href="{% url 'doctors:rules' %}" class="rounded-full px-4 py-2 text-sm font-medium text-amber-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-white font-bold">{% translate_bn "Rules" %}</a>
+        {% if request.user.doctor_profile.is_verified %}
+          <a href="{% url 'doctors:dashboard' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Dashboard" %}</a>
+          <a href="{% url 'accounts:doctor_analytics' %}" class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-teal-600 transition hover:bg-slate-100 hover:text-teal-700 dark:text-teal-400 dark:hover:bg-slate-800 dark:hover:text-teal-300 whitespace-nowrap shrink-0"><i class="fa-solid fa-chart-line text-[10px]"></i><span>{% translate_bn "Analytics" %}</span></a>
+          <a href="{% url 'doctors:patient_list' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Patient List" %}</a>
+          <a href="{% url 'doctors:schedule_management' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Schedule" %}</a>
+          <a href="{% url 'doctors:appointment_list' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Appointments" %}</a>
+          <a href="{% url 'doctors:history' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "History" %}</a>
+          <a href="{% url 'doctors:notifications' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Notifications" %}</a>
+          <a href="{% url 'doctors:rules' %}" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-bold text-amber-600 transition hover:bg-slate-100 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800 dark:hover:text-amber-300 whitespace-nowrap shrink-0">{% translate_bn "Rules" %}</a>
+        {% else %}
+          <a href="{% url 'accounts:verification_pending' %}" class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+            <span>⏳</span> <span>{% translate_bn "Verification Pending" %}</span>
+          </a>
+        {% endif %}
       {% else %}
-        <a href="{% url 'home' %}#how-it-works" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "How it works" %}</a>
-        <a href="{% url 'home' %}#features" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "Features" %}</a>
-        <a href="{% url 'home' %}#for-doctors" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "For doctors" %}</a>
-        <a href="{% url 'home' %}#faq" class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">{% translate_bn "About" %}</a>
+        <a href="{% url 'home' %}#how-it-works" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "How it works" %}</a>
+        <a href="{% url 'home' %}#features" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "Features" %}</a>
+        <a href="{% url 'home' %}#for-doctors" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "For doctors" %}</a>
+        <a href="{% url 'home' %}#faq" class="rounded-full px-2.5 py-1 lg:px-3 lg:py-1.5 text-[11px] lg:text-xs font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white whitespace-nowrap shrink-0">{% translate_bn "About" %}</a>
       {% endif %}
     </nav>
 
-    <div class="hidden items-center gap-2 md:flex">
-      {% if request.user.is_authenticated and request.user.patient_profile %}
+    <!-- Right Actions Bar (Fully Responsive) -->
+    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+
+      <!-- Voice Navigation Button (For All Authenticated Users) -->
+      {% if request.user.is_authenticated %}
       <button type="button" data-voice-nav="true" data-lang="{{ site_lang|default:'en' }}" title="{% translate_bn 'Voice Navigation' %}"
-        class="inline-flex h-11 items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 text-xs font-bold text-teal-700 transition hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
-        <i class="fa-solid fa-microphone-lines text-sm animate-pulse text-teal-500"></i>
-        <span>{% translate_bn "Voice Command" %}</span>
+        class="inline-flex h-8 sm:h-9 lg:h-10 items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 sm:px-3 text-[11px] lg:text-xs font-bold text-teal-700 transition hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300 shrink-0">
+        <i class="fa-solid fa-microphone-lines text-xs sm:text-sm animate-pulse text-teal-500"></i>
+        <span class="hidden xl:inline">{% translate_bn "Voice Command" %}</span>
       </button>
       {% endif %}
 
+      <!-- Language Selector (EN / BN) -->
       {% if site_lang == 'bn' %}
-      <a href="{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">EN</a>
+      <a href="{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[11px] lg:text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0">EN</a>
       {% else %}
-      <a href="{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">BN</a>
+      <a href="{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[11px] lg:text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0">BN</a>
       {% endif %}
+
+      <!-- Theme Button (Light / Dark) -->
       <button id="themeBtnDesktop" type="button" aria-label="{% translate_bn 'Switch theme' %}"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-        <i class="fa-solid fa-sun theme-icon-sun text-amber-500 text-lg transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
-        <i class="fa-solid fa-moon theme-icon-moon text-teal-400 text-lg transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
+        class="inline-flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0">
+        <i class="fa-solid fa-sun theme-icon-sun text-amber-500 text-sm sm:text-base transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
+        <i class="fa-solid fa-moon theme-icon-moon text-teal-400 text-sm sm:text-base transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
       </button>
 
+      <!-- Notifications Bell (Patients & Doctors) -->
       {% if request.user.is_authenticated and not request.user.is_superuser and not request.user.is_staff %}
-      <a href="{% if request.user.doctor_profile %}{% url 'doctors:notifications' %}{% else %}{% url 'patient:notifications' %}{% endif %}" class="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" title="Notifications">
-        <i class="fa-solid fa-bell text-sm"></i>
+      <a href="{% if request.user.doctor_profile %}{% url 'doctors:notifications' %}{% else %}{% url 'patient:notifications' %}{% endif %}" class="relative inline-flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0" title="{% translate_bn 'Notifications' %}">
+        <i class="fa-solid fa-bell text-xs sm:text-sm"></i>
         {% if unread_notifications_count > 0 %}
-          <span class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-xs animate-pulse">
+          <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-xs animate-pulse">
             {{ unread_notifications_count }}
           </span>
         {% endif %}
       </a>
       {% endif %}
 
+      <!-- User Profile Badge & Authentication Actions -->
       {% if request.user.is_authenticated and request.user.patient_profile %}
-        <a href="{% url 'accounts:profile' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        <a href="{% url 'accounts:profile' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 p-0.5 sm:px-2.5 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0">
           {% if request.user.patient_profile.avatar %}
-            <img src="{{ request.user.patient_profile.avatar.url }}?v={{ request.user.patient_profile.avatar_updated_at|date:'U' }}" alt="Patient photo" class="h-8 w-8 rounded-full object-cover">
+            <img src="{{ request.user.patient_profile.avatar.url }}?v={{ request.user.patient_profile.avatar_updated_at|date:'U' }}" alt="Patient photo" class="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover">
           {% else %}
-            <img src="{% static 'images/Patient Photo.png' %}" alt="Patient photo" class="h-8 w-8 rounded-full object-cover">
+            <img src="{% static 'images/Patient Photo.png' %}" alt="Patient photo" class="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover">
           {% endif %}
-          <span class="ml-2 hidden sm:inline">{% translate_bn "Profile" %}</span>
+          <span class="hidden 2xl:inline">{% translate_bn "Profile" %}</span>
         </a>
-        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full bg-teal-600 px-3 sm:px-4 text-[11px] lg:text-xs font-semibold text-white shadow-xs transition hover:bg-teal-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-right-from-bracket text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign Out" %}</span></a>
       {% elif request.user.is_authenticated and request.user.doctor_profile %}
-        <a href="{% url 'doctors:profile_edit' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        <a href="{% url 'doctors:profile_edit' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 p-0.5 sm:px-2.5 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0">
           {% if request.user.doctor_profile.avatar %}
-            <img src="{{ request.user.doctor_profile.avatar.url }}?v={{ request.user.doctor_profile.avatar_updated_at|date:'U' }}" alt="Doctor Photo" class="h-8 w-8 rounded-full object-cover border border-teal-500" oncontextmenu="return false;" draggable="false">
+            <img src="{{ request.user.doctor_profile.avatar.url }}?v={{ request.user.doctor_profile.avatar_updated_at|date:'U' }}" alt="Doctor Photo" class="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover border border-teal-500" oncontextmenu="return false;" draggable="false">
           {% else %}
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">Dr</div>
+            <div class="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">Dr</div>
           {% endif %}
-          <span class="ml-2 hidden sm:inline">{% translate_bn "Profile" %}</span>
+          <span class="hidden 2xl:inline">{% translate_bn "Profile" %}</span>
         </a>
-        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full bg-teal-600 px-3 sm:px-4 text-[11px] lg:text-xs font-semibold text-white shadow-xs transition hover:bg-teal-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-right-from-bracket text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign Out" %}</span></a>
       {% elif request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 bg-slate-100 px-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-          <i class="fa-solid fa-user-shield mr-2"></i>{% translate_bn "Admin" %}
+        <a href="{% url 'admin:index' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-1.5 rounded-full border border-stone-200 bg-slate-100 px-2.5 sm:px-3 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0">
+          <i class="fa-solid fa-user-shield"></i><span>{% translate_bn "Admin" %}</span>
         </a>
-        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full bg-teal-600 px-3 sm:px-4 text-[11px] lg:text-xs font-semibold text-white shadow-xs transition hover:bg-teal-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-right-from-bracket text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign Out" %}</span></a>
       {% elif request.user.is_authenticated %}
-        <a href="{% url 'accounts:logout' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+        <a href="{% url 'accounts:logout' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full bg-teal-600 px-3 sm:px-4 text-[11px] lg:text-xs font-semibold text-white shadow-xs transition hover:bg-teal-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-right-from-bracket text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign Out" %}</span></a>
       {% else %}
-        <a href="{% url 'accounts:login' %}" class="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">{% translate_bn "Log in" %}</a>
-        <a href="{% url 'accounts:register' %}" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">{% translate_bn "Get started" %}</a>
-      {% endif %}
-    </div>
-
-    <div class="flex items-center gap-2 md:hidden">
-      {% if request.user.is_authenticated and request.user.patient_profile %}
-      <button type="button" data-voice-nav="true" data-lang="{{ site_lang|default:'en' }}" title="{% translate_bn 'Voice Navigation' %}"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-teal-200 bg-teal-50 text-teal-700 transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
-        <i class="fa-solid fa-microphone-lines animate-pulse text-teal-500" aria-hidden="true"></i>
-      </button>
+        <a href="{% url 'accounts:login' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 sm:px-4 text-[11px] lg:text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-right-to-bracket text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign In" %}</span></a>
+        <a href="{% url 'accounts:register' %}" class="inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center gap-2 rounded-full bg-teal-600 px-3.5 sm:px-4 text-[11px] lg:text-xs font-semibold text-white shadow-xs transition hover:bg-teal-700 whitespace-nowrap shrink-0"><i class="fa-solid fa-user-plus text-[10px] sm:text-xs"></i><span>{% translate_bn "Sign Up" %}</span></a>
       {% endif %}
 
-      {% if site_lang == 'bn' %}
-      <a href="{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">EN</a>
-      {% else %}
-      <a href="{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">BN</a>
-      {% endif %}
-
-      <button id="themeBtnMobile" type="button" aria-label="{% translate_bn 'Switch theme' %}"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-        <i class="fa-solid fa-sun theme-icon-sun text-amber-500 text-lg transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
-        <i class="fa-solid fa-moon theme-icon-moon text-teal-400 text-lg transition-transform duration-200 hover:scale-110" aria-hidden="true"></i>
-      </button>
+      <!-- Hamburger Menu Toggle Button (Visible ONLY on mobile / lower than tablet displays: md:hidden) -->
       <button id="menuBtn" type="button" aria-controls="mobileMenu" aria-expanded="false" aria-label="{% translate_bn 'Open navigation menu' %}"
-        class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-        <i class="fa-solid fa-bars" aria-hidden="true"></i>
+        class="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0 md:hidden">
+        <i class="fa-solid fa-bars text-sm sm:text-base" aria-hidden="true"></i>
       </button>
     </div>
   </div>
 
-  <div id="mobileMenu" class="hidden border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 md:hidden">
-    <div class="mx-auto max-w-[1600px] w-full px-4 py-4 sm:px-8 lg:px-12">
-      <div class="grid gap-2 rounded-3xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+  <!-- Mobile Menu Dropdown (Visible ONLY when menuBtn clicked on mobile screens < 768px: md:hidden) -->
+  <div id="mobileMenu" class="hidden border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 md:hidden shadow-xl transition-all">
+    <div class="mx-auto max-w-[1600px] w-full px-4 py-4 sm:px-6">
+      <div class="grid gap-2 rounded-3xl border border-slate-200 bg-slate-50/90 p-3.5 dark:border-slate-800 dark:bg-slate-900/90">
+        {% if not request.user.is_authenticated %}
+        <a href="{% url 'home' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-house text-teal-600"></i><span>{% translate_bn "Home" %}</span></a>
+        {% endif %}
         {% if request.user.is_authenticated and request.user.is_superuser or request.user.is_staff %}
-          <a href="{% url 'admin:index' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Admin Dashboard" %}</a>
-          <a href="{% url 'accounts:admin_unverified_dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800">{% translate_bn "Unverified Accounts" %}</a>
-          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+          <a href="{% url 'admin:index' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-user-shield text-teal-600"></i><span>{% translate_bn "Admin Dashboard" %}</span></a>
+          <a href="{% url 'accounts:admin_unverified_dashboard' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800"><i class="fa-solid fa-user-clock text-amber-500"></i><span>{% translate_bn "Unverified Accounts" %}</span></a>
+          <a href="{% url 'accounts:logout' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700 mt-1"><i class="fa-solid fa-right-from-bracket"></i><span>{% translate_bn "Sign Out" %}</span></a>
         {% elif request.user.is_authenticated and request.user.patient_profile %}
-          <a href="{% url 'patient:dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Dashboard" %}</a>
-          <a href="{% url 'patient:doses_today' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Doses" %}</a>
-          <a href="{% url 'patient:health_record' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800"><i class="fa-solid fa-notes-medical mr-1 text-teal-500"></i>{% translate_bn "Records" %}</a>
-          <a href="{% url 'patient:follow_ups' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Follow-up" %}</a>
-          <a href="{% url 'patient:appointments' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Appointments" %}</a>
-          <a href="{% url 'patient:analytics' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800">{% translate_bn "Analytics" %}</a>
-          <a href="{% url 'patient:doctor_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Doctors" %}</a>
-          <a href="{% url 'patient:rules' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800 font-bold">{% translate_bn "Rules" %}</a>
-          <a href="{% url 'accounts:profile' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Profile" %}</a>
-          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+          {% if request.user.patient_profile.is_verified %}
+            <a href="{% url 'patient:dashboard' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-chart-pie text-teal-600"></i><span>{% translate_bn "Dashboard" %}</span></a>
+            <a href="{% url 'patient:doses_today' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-pills text-teal-600"></i><span>{% translate_bn "Doses" %}</span></a>
+            <a href="{% url 'patient:health_record' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800"><i class="fa-solid fa-notes-medical text-teal-500"></i><span>{% translate_bn "Records" %}</span></a>
+            <a href="{% url 'patient:appointments' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-calendar-check text-teal-600"></i><span>{% translate_bn "Appointments" %}</span></a>
+            <a href="{% url 'patient:overall_report' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800"><i class="fa-solid fa-file-medical text-teal-500"></i><span>{% translate_bn "Overall Report" %}</span></a>
+            <a href="{% url 'patient:doctor_list' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-user-doctor text-teal-600"></i><span>{% translate_bn "Doctors" %}</span></a>
+            <a href="{% url 'patient:rules' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800"><i class="fa-solid fa-book text-amber-500"></i><span>{% translate_bn "Rules" %}</span></a>
+            <a href="{% url 'accounts:profile' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-user text-teal-600"></i><span>{% translate_bn "Profile" %}</span></a>
+          {% else %}
+            <a href="{% url 'accounts:verification_pending' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800">⏳ <span>{% translate_bn "Verification Pending" %}</span></a>
+          {% endif %}
+          <a href="{% url 'accounts:logout' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700 mt-1"><i class="fa-solid fa-right-from-bracket"></i><span>{% translate_bn "Sign Out" %}</span></a>
         {% elif request.user.is_authenticated and request.user.doctor_profile %}
-          <a href="{% url 'doctors:dashboard' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Dashboard" %}</a>
-          <a href="{% url 'doctors:patient_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Patient List" %}</a>
-          <a href="{% url 'doctors:schedule_management' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Schedule" %}</a>
-          <a href="{% url 'doctors:appointment_list' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Appointments" %}</a>
-          <a href="{% url 'doctors:history' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "History" %}</a>
-          <a href="{% url 'accounts:doctor_analytics' %}" class="rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800">{% translate_bn "Analytics" %}</a>
-          <a href="{% url 'doctors:notifications' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Notifications" %}</a>
-          <a href="{% url 'doctors:rules' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800 font-bold">{% translate_bn "Rules" %}</a>
-          <a href="{% url 'doctors:profile_edit' %}" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Profile" %}</a>
-          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+          {% if request.user.doctor_profile.is_verified %}
+            <a href="{% url 'doctors:dashboard' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-chart-pie text-teal-600"></i><span>{% translate_bn "Dashboard" %}</span></a>
+            <a href="{% url 'accounts:doctor_analytics' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-teal-600 transition hover:bg-slate-100 dark:text-teal-400 dark:hover:bg-slate-800"><i class="fa-solid fa-chart-line text-teal-500"></i><span>{% translate_bn "Analytics" %}</span></a>
+            <a href="{% url 'doctors:patient_list' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-users text-teal-600"></i><span>{% translate_bn "Patient List" %}</span></a>
+            <a href="{% url 'doctors:schedule_management' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-clock text-teal-600"></i><span>{% translate_bn "Schedule" %}</span></a>
+            <a href="{% url 'doctors:appointment_list' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-calendar-check text-teal-600"></i><span>{% translate_bn "Appointments" %}</span></a>
+            <a href="{% url 'doctors:history' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-clock-rotate-left text-teal-600"></i><span>{% translate_bn "History" %}</span></a>
+            <a href="{% url 'doctors:notifications' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-bell text-teal-600"></i><span>{% translate_bn "Notifications" %}</span></a>
+            <a href="{% url 'doctors:rules' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800"><i class="fa-solid fa-book text-amber-500"></i><span>{% translate_bn "Rules" %}</span></a>
+            <a href="{% url 'doctors:profile_edit' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-user-doctor text-teal-600"></i><span>{% translate_bn "Profile" %}</span></a>
+          {% else %}
+            <a href="{% url 'accounts:verification_pending' %}" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-amber-600 transition hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800">⏳ <span>{% translate_bn "Verification Pending" %}</span></a>
+          {% endif %}
+          <a href="{% url 'accounts:logout' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700 mt-1"><i class="fa-solid fa-right-from-bracket"></i><span>{% translate_bn "Sign Out" %}</span></a>
         {% elif request.user.is_authenticated %}
-          <a href="{% url 'accounts:logout' %}" class="rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">{% translate_bn "Log out" %}</a>
+          <a href="{% url 'accounts:logout' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700"><i class="fa-solid fa-right-from-bracket"></i><span>{% translate_bn "Sign Out" %}</span></a>
         {% else %}
-          <a href="{% url 'home' %}#how-it-works" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "How it works" %}</a>
-          <a href="{% url 'home' %}#features" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "Features" %}</a>
-          <a href="{% url 'home' %}#for-doctors" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "For doctors" %}</a>
-          <a href="{% url 'home' %}#faq" class="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{% translate_bn "About" %}</a>
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <a href="{% url 'accounts:login' %}" class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">{% translate_bn "Log in" %}</a>
-            <a href="{% url 'accounts:register' %}" class="rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700">{% translate_bn "Get started" %}</a>
+          <a href="{% url 'home' %}#how-it-works" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-circle-info text-teal-600"></i><span>{% translate_bn "How it works" %}</span></a>
+          <a href="{% url 'home' %}#features" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-star text-teal-600"></i><span>{% translate_bn "Features" %}</span></a>
+          <a href="{% url 'home' %}#for-doctors" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-user-doctor text-teal-600"></i><span>{% translate_bn "For doctors" %}</span></a>
+          <a href="{% url 'home' %}#faq" class="inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><i class="fa-solid fa-question-circle text-teal-600"></i><span>{% translate_bn "About" %}</span></a>
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <a href="{% url 'accounts:login' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><i class="fa-solid fa-right-to-bracket text-xs"></i><span>{% translate_bn "Sign In" %}</span></a>
+            <a href="{% url 'accounts:register' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-teal-700"><i class="fa-solid fa-user-plus text-xs"></i><span>{% translate_bn "Sign Up" %}</span></a>
           </div>
         {% endif %}
       </div>
     </div>
   </div>
+  {% if site_news_list %}
+  <div class="w-full flex justify-center pointer-events-auto">
+    <div class="w-[95%] sm:w-[80%] md:w-[60%] border-x border-b border-red-500/30 rounded-b-xl bg-gradient-to-r from-red-950 via-stone-900 to-red-950 text-white shadow-md overflow-hidden">
+      <div class="flex h-8 sm:h-8.5 w-full items-center overflow-hidden px-2.5 sm:px-4">
+
+        <!-- Scrolling Marquee Ticker (Continuous, Centered 60% width, with smooth edge fade) -->
+        <div class="relative flex-1 overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)]">
+          <div class="inline-flex animate-ticker-tape items-center text-xs font-medium text-stone-200">
+            <div class="inline-flex items-center shrink-0">
+              {% for news in site_news_list %}
+                <div class="inline-flex items-center gap-2">
+                  <span class="font-bold text-amber-300">
+                    <i class="fa-solid fa-bullhorn text-[10px] mr-1 text-red-400"></i>
+                    <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">{{ news.title }}:</span>
+                    <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">{{ news.title_display_bn }}:</span>
+                  </span>
+                  <span class="text-stone-100">
+                    <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">{{ news.message }}</span>
+                    <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">{{ news.message_display_bn }}</span>
+                  </span>
+                  {% if news.is_urgent %}
+                    <span class="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-black uppercase text-white tracking-wider">
+                      <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">URGENT</span>
+                      <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">জরুরী</span>
+                    </span>
+                  {% endif %}
+                </div>
+                <span class="text-red-500/60 font-black mx-8">&bull;</span>
+              {% endfor %}
+            </div>
+            <div class="inline-flex items-center shrink-0">
+              {% for news in site_news_list %}
+                <div class="inline-flex items-center gap-2">
+                  <span class="font-bold text-amber-300">
+                    <i class="fa-solid fa-bullhorn text-[10px] mr-1 text-red-400"></i>
+                    <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">{{ news.title }}:</span>
+                    <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">{{ news.title_display_bn }}:</span>
+                  </span>
+                  <span class="text-stone-100">
+                    <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">{{ news.message }}</span>
+                    <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">{{ news.message_display_bn }}</span>
+                  </span>
+                  {% if news.is_urgent %}
+                    <span class="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-black uppercase text-white tracking-wider">
+                      <span class="news-text-en {% if site_lang == 'bn' %}hidden{% endif %}">URGENT</span>
+                      <span class="news-text-bn {% if site_lang != 'bn' %}hidden{% endif %}">জরুরী</span>
+                    </span>
+                  {% endif %}
+                </div>
+                <span class="text-red-500/60 font-black mx-8">&bull;</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- News Language Toggle (বাং / EN) -->
+        <div class="flex items-center shrink-0 ml-2.5 pl-2 border-l border-red-500/30 text-[10px] font-bold z-10">
+          <div class="inline-flex items-center rounded-full bg-black/50 p-0.5 border border-white/15 shadow-inner">
+            <button type="button" onclick="setNewsLanguage('en')" id="news_btn_en" title="View News in English"
+              class="rounded-full px-2 py-0.5 transition-all duration-150 {% if site_lang != 'bn' %}bg-amber-400 text-stone-950 font-black shadow-xs{% else %}text-stone-400 hover:text-white{% endif %}">
+              EN
+            </button>
+            <button type="button" onclick="setNewsLanguage('bn')" id="news_btn_bn" title="বাংলায় সংবাদ দেখুন"
+              class="rounded-full px-2 py-0.5 transition-all duration-150 {% if site_lang == 'bn' %}bg-amber-400 text-stone-950 font-black shadow-xs{% else %}text-stone-400 hover:text-white{% endif %}">
+              বাং
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </header>
 
 <script>
+  (function() {
+    function initNavbarScrollBlur() {
+      const header = document.getElementById('mainHeader');
+      if (!header) return;
+
+      function onScroll() {
+        if (window.scrollY > 8) {
+          header.classList.add('shadow-md', 'shadow-slate-900/10', 'dark:shadow-black/70', 'border-slate-300', 'dark:border-slate-800', 'bg-white', 'dark:bg-slate-950');
+          header.classList.remove('shadow-xs');
+        } else {
+          header.classList.remove('shadow-md', 'shadow-slate-900/10', 'dark:shadow-black/70', 'border-slate-300', 'dark:border-slate-800');
+          header.classList.add('shadow-xs', 'bg-white', 'dark:bg-slate-950');
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initNavbarScrollBlur);
+    } else {
+      initNavbarScrollBlur();
+    }
+  })();
+
+  // Live News Language Switcher (Bangla <-> English)
+  function setNewsLanguage(lang) {
+    const enTexts = document.querySelectorAll('.news-text-en');
+    const bnTexts = document.querySelectorAll('.news-text-bn');
+    const btnEn = document.getElementById('news_btn_en');
+    const btnBn = document.getElementById('news_btn_bn');
+
+    const activeClass = "rounded-full px-2 py-0.5 transition-all duration-150 bg-amber-400 text-stone-950 font-black shadow-xs";
+    const inactiveClass = "rounded-full px-2 py-0.5 transition-all duration-150 text-stone-400 hover:text-white";
+
+    if (lang === 'bn') {
+      enTexts.forEach(el => el.classList.add('hidden'));
+      bnTexts.forEach(el => el.classList.remove('hidden'));
+      if (btnBn) btnBn.className = activeClass;
+      if (btnEn) btnEn.className = inactiveClass;
+    } else {
+      bnTexts.forEach(el => el.classList.add('hidden'));
+      enTexts.forEach(el => el.classList.remove('hidden'));
+      if (btnEn) btnEn.className = activeClass;
+      if (btnBn) btnBn.className = inactiveClass;
+    }
+
+    try {
+      localStorage.setItem('news_site_lang', lang);
+      // Sync with server session in background
+      fetch('/language/' + lang + '/?next=' + encodeURIComponent(window.location.pathname), { credentials: 'same-origin' });
+    } catch(e) {}
+  }
+
+  // Restore preferred news language on load if previously set
+  (function() {
+    try {
+      const saved = localStorage.getItem('news_site_lang');
+      if (saved && (saved === 'bn' || saved === 'en')) {
+        setNewsLanguage(saved);
+      }
+    } catch(e) {}
+  })();
+
   window.CAREBRIDGE_URLS = {
     patient: {
       dashboard: "{% url 'patient:dashboard' %}",
       today: "{% url 'patient:doses_today' %}",
       records: "{% url 'patient:health_record' %}",
-      followups: "{% url 'patient:follow_ups' %}",
       appointments: "{% url 'patient:appointments' %}",
       analytics: "{% url 'patient:analytics' %}",
+      overall_report: "{% url 'patient:overall_report' %}",
       doctors: "{% url 'patient:doctor_list' %}",
-      chat: "{% url 'patient:chatbot' %}",
+      rules: "{% url 'patient:rules' %}",
       profile: "{% url 'accounts:profile' %}",
       logout: "{% url 'accounts:logout' %}",
     },
@@ -192,14 +348,15 @@
 
   window.CAREBRIDGE_VOICE_COMMANDS = {
     patient: [
-      { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "মেইন পেজ", "main page"], url: window.CAREBRIDGE_URLS.patient.dashboard },
+      { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম"
+      , "মেইন পেজ", "main page"], url: window.CAREBRIDGE_URLS.patient.dashboard },
       { terms: ["today", "আজ", "আজকের ওষুধ", "ডোজ", "medicine today", "oshud", "osud", "aajker oshud", "doses"], url: window.CAREBRIDGE_URLS.patient.today },
       { terms: ["records", "health record", "রেকর্ড", "স্বাস্থ্য", "স্বাস্থ্য রেকর্ড", "history", "itihes"], url: window.CAREBRIDGE_URLS.patient.records },
-      { terms: ["follow", "follow up", "ফলো আপ", "ফলোআপ", "appointment", "visit"], url: window.CAREBRIDGE_URLS.patient.followups },
-      { terms: ["appointment", "visit"], url: window.CAREBRIDGE_URLS.patient.appointments },
+      { terms: ["appointments", "appointment", "অ্যাপয়েন্টমেন্ট", "ফলো আপ", "ফলোআপ", "visit"], url: window.CAREBRIDGE_URLS.patient.appointments },
       { terms: ["analytics", "অ্যানালিটিক্স", "report", "রিপোর্ট"], url: window.CAREBRIDGE_URLS.patient.analytics },
+      { terms: ["overall report", "overall", "ওভারঅল রিপোর্ট"], url: window.CAREBRIDGE_URLS.patient.overall_report },
       { terms: ["doctor", "doctors", "ডাক্তার", "ডাক্তার খুঁজুন", "daktar", "physician"], url: window.CAREBRIDGE_URLS.patient.doctors },
-      { terms: ["chat", "assistant", "চ্যাট", "সহায়তা", "কথা বলুন", "help"], url: window.CAREBRIDGE_URLS.patient.chat },
+      { terms: ["rules", "রুলস", "নিয়মাবলী", "নিয়ম"], url: window.CAREBRIDGE_URLS.patient.rules },
       { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট"], url: window.CAREBRIDGE_URLS.patient.profile },
       { terms: ["logout", "log out", "sign out", "বের হন", "লগ আউট"], url: window.CAREBRIDGE_URLS.patient.logout },
     ],

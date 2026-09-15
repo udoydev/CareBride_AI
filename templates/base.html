@@ -26,6 +26,20 @@
         html:not(.dark) .theme-icon-sun { display: inline-block !important; }
         html.dark .theme-icon-sun { display: none !important; }
         html.dark .theme-icon-moon { display: inline-block !important; }
+
+        @keyframes tickerTape {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-ticker-tape {
+            display: inline-flex;
+            white-space: nowrap;
+            will-change: transform;
+            animation: tickerTape 20s linear infinite;
+        }
+        .animate-ticker-tape:hover {
+            animation-play-state: paused;
+        }
     </style>
     <script>
         (function () {
@@ -223,7 +237,7 @@
         })();
     </script>
 
-    <script defer src="{% static 'js/script.js' %}"></script>
+    <script defer src="{% static 'js/script.js' %}?v={% now 'U' %}"></script>
 </head>
 
 <body class="min-h-screen bg-gradient-to-br from-emerald-100/95 via-green-300/85 to-teal-100/90 text-stone-900 font-sans antialiased dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100 flex flex-col selection:bg-teal-600 selection:text-white text-[17px]">
@@ -307,6 +321,74 @@
         });
       };
     </script>
+    {% if site_lang == 'bn' %}
+    <script>
+      (function() {
+        const dictionary = {
+          "Dashboard": "ড্যাশবোর্ড",
+          "Doses": "ওষুধ",
+          "Records": "রেকর্ড",
+          "Appointments": "অ্যাপয়েন্টমেন্ট",
+          "Overall Report": "ওভারঅল রিপোর্ট",
+          "Doctors": "ডাক্তার",
+          "Rules": "নিয়মাবলী",
+          "Log out": "লগ আউট",
+          "Log in": "লগ ইন",
+          "Get started": "শুরু করুন",
+          "Profile": "প্রোফাইল",
+          "Notifications": "বিজ্ঞপ্তি",
+          "Patient List": "রোগী তালিকা",
+          "Schedule": "সময়সূচী",
+          "History": "ইতিহাস",
+          "Book Now": "বুক করুন",
+          "Book Appointment": "অ্যাপয়েন্টমেন্ট বুক করুন",
+          "Cancel": "বাতিল",
+          "Confirm": "নিশ্চিত করুন",
+          "Edit": "সম্পাদনা",
+          "Delete": "মুছুন",
+          "Save Changes": "পরিবর্তন সংরক্ষণ করুন",
+          "View Details": "বিস্তারিত দেখুন",
+          "Search": "অনুসন্ধান",
+          "Filter": "ফিল্টার",
+          "Total": "মোট",
+          "Completed": "সম্পূর্ণ",
+          "Pending": "অপেক্ষাধীন",
+          "Confirmed": "নিশ্চিত",
+          "Cancelled": "বাতিল",
+          "Visited": "পরিদর্শন",
+          "Missed": "মিস",
+          "Paid": "পেইড",
+          "Free": "ফ্রি",
+          "Today": "আজ",
+          "Upcoming": "আসন্ন"
+        };
+
+        function translateNode(node) {
+          if (!node || node.nodeType !== Node.TEXT_NODE) return;
+          const parent = node.parentElement;
+          if (!parent || ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT'].includes(parent.tagName)) return;
+          const text = node.nodeValue.trim();
+          if (text && dictionary[text]) {
+            node.nodeValue = node.nodeValue.replace(text, dictionary[text]);
+          }
+        }
+
+        function runTranslation() {
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+          let node;
+          while (node = walker.nextNode()) {
+            translateNode(node);
+          }
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', runTranslation);
+        } else {
+          runTranslation();
+        }
+      })();
+    </script>
+    {% endif %}
 </body>
 
 </html>

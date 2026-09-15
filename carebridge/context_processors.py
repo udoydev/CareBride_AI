@@ -4,14 +4,17 @@ from django.utils import translation
 
 
 def ui_settings(request):
-    cookie_lang = request.COOKIES.get(getattr(settings, "LANGUAGE_COOKIE_NAME", "django_language"))
-    site_lang = request.session.get("site_lang") or cookie_lang
+    site_lang = request.session.get("site_lang")
 
     if not site_lang and request.user.is_authenticated:
         if hasattr(request.user, "patient_profile") and request.user.patient_profile:
             site_lang = getattr(request.user.patient_profile, "preferred_language", None)
         elif hasattr(request.user, "doctor_profile") and request.user.doctor_profile:
             site_lang = getattr(request.user.doctor_profile, "preferred_language", None)
+
+    if not site_lang:
+        cookie_lang = request.COOKIES.get(getattr(settings, "LANGUAGE_COOKIE_NAME", "django_language"))
+        site_lang = cookie_lang
 
     if not site_lang:
         current_active = translation.get_language()
@@ -33,7 +36,7 @@ def ui_settings(request):
 
     is_patient = request.user.is_authenticated and hasattr(request.user, "patient_profile") and bool(request.user.patient_profile)
 
-    from accounts.models import SiteSettings
+    from accounts.models import SiteSettings, News
     try:
         settings_obj = SiteSettings.get_solo()
         comm_rate = settings_obj.platform_commission_rate
@@ -42,10 +45,34 @@ def ui_settings(request):
         comm_rate = 15.00
         refund_pct = 35.00
 
+    site_news_list = []
+    try:
+        active_news_qs = News.objects.filter(is_active=True)
+        if request.user.is_authenticated:
+            if hasattr(request.user, "patient_profile") and request.user.patient_profile:
+                active_news_qs = active_news_qs.filter(target_audience__in=["all", "patients"])
+            elif hasattr(request.user, "doctor_profile") and request.user.doctor_profile:
+                active_news_qs = active_news_qs.filter(target_audience__in=["all", "doctors"])
+            else:
+                active_news_qs = active_news_qs.filter(target_audience="all")
+        else:
+            active_news_qs = active_news_qs.filter(target_audience="all")
+        site_news_list = list(active_news_qs[:5])
+    except Exception:
+        site_news_list = []
+
+    try:
+        from carebridge.ai_services import GeminiAIService
+        ai_available = GeminiAIService.is_ai_available()
+    except Exception:
+        ai_available = True
+
     return {
         "site_lang": target_lang,
         "dashboard_url": dashboard_url,
         "is_patient_portal": is_patient,
         "site_commission_rate": comm_rate,
         "site_refund_percentage": refund_pct,
+        "site_news_list": site_news_list,
+        "ai_available": ai_available,
     }

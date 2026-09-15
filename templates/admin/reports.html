@@ -94,21 +94,33 @@
     </div>
     <div class="card-body">
       <div class="row text-center">
-        <div class="col-md-4 mb-2">
+        <div class="col-md-2.4 col-sm-6 mb-2" style="flex: 1;">
           <div class="p-3 bg-light rounded border">
-            <div class="small text-muted font-weight-bold">Gross Appointment Fees</div>
+            <div class="small text-muted font-weight-bold">Gross Fees Collected</div>
             <div class="h4 font-weight-bold text-dark mb-0 mt-1">৳{{ metrics.income_total|floatformat:0 }}</div>
           </div>
         </div>
-        <div class="col-md-4 mb-2">
+        <div class="col-md-2.4 col-sm-6 mb-2" style="flex: 1;">
           <div class="p-3 bg-light rounded border">
-            <div class="small text-muted font-weight-bold">Site Commission</div>
+            <div class="small text-muted font-weight-bold">Gross Commission</div>
             <div class="h4 font-weight-bold text-purple mb-0 mt-1" style="color:#9333ea;">৳{{ metrics.site_charge|floatformat:0 }}</div>
           </div>
         </div>
-        <div class="col-md-4 mb-2">
+        <div class="col-md-2.4 col-sm-6 mb-2" style="flex: 1;">
           <div class="p-3 bg-light rounded border">
-            <div class="small text-muted font-weight-bold">Total Doctor Payout</div>
+            <div class="small text-muted font-weight-bold">Patient Refunds</div>
+            <div class="h4 font-weight-bold text-danger mb-0 mt-1">৳{{ metrics.refund_total|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-md-2.4 col-sm-6 mb-2" style="flex: 1;">
+          <div class="p-3 bg-light rounded border" style="border-color:#10b981 !important; background:#f0fdf4 !important;">
+            <div class="small text-muted font-weight-bold" style="color:#047857;">Net Site Income</div>
+            <div class="h4 font-weight-bold mb-0 mt-1" style="color:#047857;">৳{{ metrics.site_charge|add:"-metrics.refund_total"|default:metrics.site_charge|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-md-2.4 col-sm-6 mb-2" style="flex: 1;">
+          <div class="p-3 bg-light rounded border">
+            <div class="small text-muted font-weight-bold">Doctor Payouts</div>
             <div class="h4 font-weight-bold text-teal mb-0 mt-1" style="color:#0d9488;">৳{{ metrics.revenue|floatformat:0 }}</div>
           </div>
         </div>

@@ -3,108 +3,131 @@
 
 {% block content %}
 {% include 'includes/patient_breadcrumb.html' %}
-<section class="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
-  <div class="space-y-4 sm:space-y-5">
-    
+<section class="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+  <div class="space-y-6">
+
     <!-- Hero Banner Card: Patient Greeting, Personal Info & Quick Actions -->
     {% with patient=request.user.patient_profile %}
-    <div class="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div class="flex items-center gap-2">
+    <div class="rounded-3xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
+        <!-- Left Details -->
+        <div class="space-y-3.5 text-left">
+          <div class="flex flex-wrap items-center gap-2">
             <span class="font-mono text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
               {% if site_lang == 'bn' %}রোগী পোর্টাল{% else %}Patient Portal{% endif %}
             </span>
             {% if patient %}
-            <span class="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 font-mono text-[11px] font-bold text-teal-700 dark:border-teal-800/80 dark:bg-teal-950/60 dark:text-teal-300">
+            <span class="rounded-md border border-teal-200 bg-teal-50 px-2.5 py-0.5 font-mono text-[11px] font-bold text-teal-700 dark:border-teal-800/80 dark:bg-teal-950/60 dark:text-teal-300">
               #PAT-{{ patient.id }}
             </span>
+            {% if patient.is_verified %}
+            <span class="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-800/80 dark:bg-emerald-950/60 dark:text-emerald-300">
+              ✓ {% if site_lang == 'bn' %}যাচাইকৃত নাগরিক{% else %}BD Citizen Verified{% endif %}
+            </span>
+            {% endif %}
             {% endif %}
           </div>
-          <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl dark:text-stone-100">
+
+          <h1 class="text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl dark:text-stone-100">
             {% if site_lang == 'bn' %}স্বাগতম, {{ request.user.get_full_name|default:request.user.username }}!{% else %}Welcome back, {{ request.user.get_full_name|default:request.user.username }}!{% endif %}
           </h1>
-          <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
-            {% if site_lang == 'bn' %}আপনার আজকের স্বাস্থ্য সংক্ষিপ্তসার এবং সময়সূচী{% else %}Your daily health summary, prescriptions, and schedule at a glance.{% endif %}
+          <p class="text-xs text-stone-500 dark:text-stone-400 max-w-xl">
+            {% if site_lang == 'bn' %}আপনার আজকের স্বাস্থ্য সংক্ষিপ্তসার, প্রেসক্রিপশন এবং সময়সূচী এক নজরে দেখুন।{% else %}Your daily health summary, prescriptions, and schedule at a glance.{% endif %}
           </p>
 
-          {% if patient and patient.date_of_birth %}
-          <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-stone-600 dark:text-stone-300 border-t border-stone-100 pt-2 dark:border-slate-800">
-            <div><span class="text-stone-400">DOB:</span> <strong class="text-stone-800 dark:text-stone-200">{{ patient.date_of_birth|date:"d M Y" }}</strong></div>
-            <div><span class="text-stone-400">Gender:</span> <strong class="text-stone-800 dark:text-stone-200">{{ patient.gender|default:"Not specified" }}</strong></div>
-            <div><span class="text-stone-400">Age:</span> <strong class="text-stone-800 dark:text-stone-200">{{ patient.date_of_birth|age }} yrs</strong></div>
-            <div><span class="text-stone-400">District:</span> <strong class="text-stone-800 dark:text-stone-200">{{ patient.district|default:"Dhaka" }}</strong></div>
+          <!-- Patient Profile Info Pills -->
+          {% if patient %}
+          <div class="pt-1 flex flex-wrap items-center gap-2.5 text-xs">
+          
+            <!-- DOB -->
+            <div class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100/80 px-3 py-1.5 text-stone-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <i class="fa-solid fa-cake-candles text-teal-600 dark:text-teal-400 text-xs"></i>
+              <span class="text-stone-500 dark:text-stone-400 font-medium">{% if site_lang == 'bn' %}জন্ম তারিখ:{% else %}DOB:{% endif %}</span>
+              <strong class="font-bold text-stone-900 dark:text-white">
+                {% if patient.date_of_birth %}{{ patient.date_of_birth|date:"d M Y" }}{% else %}{% if site_lang == 'bn' %}নির্ধারিত নয়{% else %}Not specified{% endif %}{% endif %}
+              </strong>
+            </div>
+            <!-- Gender -->
+            <div class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100/80 px-3 py-1.5 text-stone-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <i class="fa-solid fa-venus-mars text-teal-600 dark:text-teal-400 text-xs"></i>
+              <span class="text-stone-500 dark:text-stone-400 font-medium">{% if site_lang == 'bn' %}লিঙ্গ:{% else %}Gender:{% endif %}</span>
+              <strong class="font-bold text-stone-900 dark:text-white">
+                {% if site_lang == 'bn' %}
+                  {% if patient.gender == 'male' %}পুরুষ{% elif patient.gender == 'female' %}নারী{% else %}অন্যান্য{% endif %}
+                {% else %}
+                  {{ patient.gender|default:"Not specified"|capfirst }}
+                {% endif %}
+              </strong>
+            </div>
+            <!-- Age -->
+            <div class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100/80 px-3 py-1.5 text-stone-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <i class="fa-solid fa-hourglass-half text-teal-600 dark:text-teal-400 text-xs"></i>
+              <span class="text-stone-500 dark:text-stone-400 font-medium">{% if site_lang == 'bn' %}বয়স:{% else %}Age:{% endif %}</span>
+              <strong class="font-bold text-stone-900 dark:text-white">
+                {% if patient.date_of_birth %}{{ patient.date_of_birth|age }} {% if site_lang == 'bn' %}বছর{% else %}yrs{% endif %}{% else %}N/A{% endif %}
+              </strong>
+            </div>
+            <!-- District -->
+            <div class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-100/80 px-3 py-1.5 text-stone-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <i class="fa-solid fa-location-dot text-teal-600 dark:text-teal-400 text-xs"></i>
+              <span class="text-stone-500 dark:text-stone-400 font-medium">{% if site_lang == 'bn' %}জেলা:{% else %}District:{% endif %}</span>
+              <strong class="font-bold text-stone-900 dark:text-white">{{ patient.district|default:"Dhaka" }}</strong>
+            </div>
           </div>
           {% endif %}
         </div>
 
-        <!-- Quick Action Buttons -->
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
-          <a href="{% url 'patient:rules' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3.5 text-xs font-bold text-amber-800 hover:bg-amber-100 transition dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-            <i class="fa-solid fa-book text-amber-600"></i> {% translate_bn "Rules" %}
+        <!-- Right: Quick Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0 self-start md:self-center pt-2 md:pt-0">
+          <a href="{% url 'patient:doctor_list' %}" class="inline-flex h-9 items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 text-xs font-bold text-white hover:bg-teal-700 transition shadow-xs">
+            <i class="fa-solid fa-calendar-plus"></i> {% if site_lang == 'bn' %}ডাক্তার বুকিং{% else %}Book Doctor{% endif %}
           </a>
-          <a href="{% url 'patient:reports' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full bg-teal-600 px-4 text-xs font-bold text-white hover:bg-teal-700 transition shadow-2xs">
-            <i class="fa-solid fa-chart-column"></i> {% translate_bn "Reports" %}
+          <a href="{% url 'patient:chat_ui' %}" class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition shadow-2xs dark:border-indigo-900/40 dark:bg-indigo-950/40 dark:text-indigo-300">
+            <i class="fa-solid fa-robot"></i> {% if site_lang == 'bn' %}AI সহকারী{% else %}AI Assistant{% endif %}
           </a>
-          <a href="{% url 'patient:dose_track_report' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 text-xs font-bold text-teal-700 hover:bg-teal-100 transition dark:border-teal-900/40 dark:bg-teal-950/30 dark:text-teal-300">
-            <i class="fa-solid fa-pills"></i> Dose Report
+          <a href="{% url 'patient:appointments' %}" class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-xs font-bold text-stone-700 hover:bg-stone-100 transition shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <i class="fa-solid fa-list-check"></i> {% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্টসমূহ{% else %}Appointments{% endif %}
+          </a>
+          <a href="{% url 'patient:reports' %}" class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-xs font-bold text-stone-700 hover:bg-stone-100 transition shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <i class="fa-solid fa-chart-column"></i> {% if site_lang == 'bn' %}রিপোর্টসমূহ{% else %}Reports{% endif %}
+          </a>
+          <a href="{% url 'patient:rules' %}" class="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 text-xs font-bold text-amber-800 hover:bg-amber-100 transition shadow-2xs dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300">
+            <i class="fa-solid fa-book"></i> {% if site_lang == 'bn' %}নিয়মাবলী{% else %}Rules{% endif %}
           </a>
         </div>
+
       </div>
     </div>
     {% endwith %}
 
     <!-- Main Dashboard Grid: Left Content (Alerts, Doses, Appointments) vs Right Content (Calendar, Follow-up) -->
-    <div class="grid gap-4 sm:gap-5 lg:grid-cols-12 items-start">
-      
-      <!-- Left Column (7 cols on lg) -->
-      <div class="lg:col-span-7 space-y-4">
+    <div class="grid gap-6 lg:grid-cols-12 items-start">
 
-        <!-- Urgent News Alerts -->
-        {% if news_list %}
-        <div class="space-y-2.5">
-          {% for news in news_list %}
-          <div class="rounded-2xl border {% if news.is_urgent %}border-red-200 bg-red-50/90 dark:border-red-900/50 dark:bg-red-950/30{% else %}border-stone-200 bg-white dark:border-slate-800 dark:bg-slate-900{% endif %} p-3.5 shadow-2xs">
-            <div class="flex items-start gap-3">
-              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {% if news.is_urgent %}bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400{% else %}bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400{% endif %}">
-                <i class="fa-solid {% if news.is_urgent %}fa-bell{% else %}fa-newspaper{% endif %} text-xs"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <h3 class="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">{{ news.title }}</h3>
-                  {% if news.is_urgent %}
-                  <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 dark:bg-red-900/40 dark:text-red-300">Urgent</span>
-                  {% endif %}
-                </div>
-                <p class="mt-0.5 text-xs text-stone-600 dark:text-stone-400">{{ news.message }}</p>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
+      <!-- Left Column (7 cols on lg) -->
+      <div class="lg:col-span-7 space-y-5">
 
         <!-- Follow-up Booking Required Banner -->
         {% if followups_needing_booking %}
-        <div class="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 dark:border-amber-900/40 dark:bg-amber-950/30 shadow-2xs">
-          <div class="flex items-start gap-3">
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              <i class="fa-solid fa-calendar-plus text-sm"></i>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 sm:p-5 dark:border-amber-900/40 dark:bg-amber-950/30 shadow-2xs">
+          <div class="flex items-start gap-3.5">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+              <i class="fa-solid fa-calendar-plus text-base"></i>
             </span>
-            <div class="flex-1">
-              <h3 class="text-xs font-bold text-amber-800 dark:text-amber-300">{% translate_bn "Follow-up Booking Required" %}</h3>
-              <ul class="mt-2 space-y-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">{% translate_bn "Follow-up Booking Required" %}</h3>
+              <ul class="mt-2.5 space-y-2.5">
                 {% for fu in followups_needing_booking %}
-                <li class="text-xs text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-950/50 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-900/40">
+                <li class="text-xs text-amber-800 dark:text-amber-300 bg-white/80 dark:bg-amber-950/60 p-3 rounded-xl border border-amber-200/80 dark:border-amber-900/50">
                   <p class="font-medium text-amber-900 dark:text-amber-200">
-                    Your follow-up is scheduled for <strong>{{ fu.scheduled_date|date:"d M Y" }}</strong>.
+                    {% if site_lang == 'bn' %}আপনার ফলো-আপ আগামী <strong>{{ fu.scheduled_date|date:"d M Y" }}</strong> তারিখে নির্ধারিত রয়েছে।{% else %}Your follow-up is scheduled for <strong>{{ fu.scheduled_date|date:"d M Y" }}</strong>.{% endif %}
                   </p>
-                  <p class="text-[11px] text-amber-700 dark:text-amber-400 mt-1 flex items-center justify-between">
-                    <span>Doctor: <strong>{% if "Dr." in fu.prescription.doctor.user.get_full_name %}{{ fu.prescription.doctor.user.get_full_name }}{% else %}Dr. {{ fu.prescription.doctor.user.get_full_name|default:fu.prescription.doctor.user.username }}{% endif %}</strong></span>
-                    <a href="{% url 'patient:book_doctor' fu.prescription.doctor.pk %}" class="inline-flex items-center gap-1 text-xs text-teal-700 dark:text-teal-400 font-bold hover:underline">
+                  <div class="text-[11px] text-amber-700 dark:text-amber-400 mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-amber-100/80 pt-2 dark:border-amber-900/40">
+                    <span>{% if site_lang == 'bn' %}ডাক্তার:{% else %}Doctor:{% endif %} <strong>{{ fu.prescription.doctor.get_full_name }}</strong></span>
+                    <a href="{% url 'patient:book_doctor' fu.prescription.doctor.pk %}" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1 text-xs font-bold text-white hover:bg-teal-700 transition shadow-2xs">
                       <i class="fa-solid fa-calendar-check"></i> {% translate_bn "Book Now" %}
                     </a>
-                  </p>
+                  </div>
                 </li>
                 {% endfor %}
               </ul>
@@ -115,25 +138,25 @@
 
         <!-- Overdue Follow-ups Banner -->
         {% if overdue_followups %}
-        <div class="rounded-2xl border border-red-200 bg-red-50/90 p-4 dark:border-red-900/40 dark:bg-red-950/30 shadow-2xs">
-          <div class="flex items-start gap-3">
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-              <i class="fa-solid fa-triangle-exclamation text-sm"></i>
+        <div class="rounded-2xl border border-red-200 bg-red-50/90 p-4 sm:p-5 dark:border-red-900/40 dark:bg-red-950/30 shadow-2xs">
+          <div class="flex items-start gap-3.5">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+              <i class="fa-solid fa-triangle-exclamation text-base"></i>
             </span>
-            <div class="flex-1">
-              <h3 class="text-xs font-bold text-red-800 dark:text-red-300">{% translate_bn "Overdue Follow-up Booking" %}</h3>
-              <ul class="mt-2 space-y-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-red-800 dark:text-red-300">{% translate_bn "Overdue Follow-up Booking" %}</h3>
+              <ul class="mt-2.5 space-y-2.5">
                 {% for fu in overdue_followups %}
-                <li class="text-xs text-red-800 dark:text-red-300 bg-red-100/60 dark:bg-red-950/50 p-2.5 rounded-xl border border-red-200/60 dark:border-red-900/40">
+                <li class="text-xs text-red-800 dark:text-red-300 bg-white/80 dark:bg-red-950/60 p-3 rounded-xl border border-red-200/80 dark:border-red-900/50">
                   <p class="font-medium text-red-900 dark:text-red-200">
                     Follow-up date was <strong>{{ fu.scheduled_date|date:"d M Y" }}</strong>.
                   </p>
-                  <p class="text-[11px] text-red-700 dark:text-red-400 mt-1 flex items-center justify-between">
-                    <span>Doctor: <strong>{% if "Dr." in fu.prescription.doctor.user.get_full_name %}{{ fu.prescription.doctor.user.get_full_name }}{% else %}Dr. {{ fu.prescription.doctor.user.get_full_name|default:fu.prescription.doctor.user.username }}{% endif %}</strong></span>
-                    <a href="{% url 'patient:book_doctor' fu.prescription.doctor.pk %}" class="inline-flex items-center gap-1 text-xs text-red-700 dark:text-red-400 font-bold hover:underline">
+                  <div class="text-[11px] text-red-700 dark:text-red-400 mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-red-100/80 pt-2 dark:border-red-900/40">
+                    <span>Doctor: <strong>{{ fu.prescription.doctor.get_full_name }}</strong></span>
+                    <a href="{% url 'patient:book_doctor' fu.prescription.doctor.pk %}" class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700 transition shadow-2xs">
                       <i class="fa-solid fa-calendar-check"></i> {% translate_bn "Book Now" %}
                     </a>
-                  </p>
+                  </div>
                 </li>
                 {% endfor %}
               </ul>
@@ -143,9 +166,9 @@
         {% endif %}
 
         <!-- Today's Appointments Section (If Any) -->
-        {% if has_any_booking and current_appointments %}
+        {% if current_appointments %}
         <div class="rounded-2xl border border-blue-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-blue-900/40 dark:bg-slate-900">
-          <div class="flex items-center gap-3 mb-3">
+          <div class="flex items-center gap-3 mb-4 border-b border-stone-100 pb-3 dark:border-slate-800">
             <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
               <i class="fa-solid fa-calendar-check text-base"></i>
             </span>
@@ -158,31 +181,48 @@
               </h2>
             </div>
           </div>
-          <div class="space-y-2.5">
+          <div class="space-y-3">
             {% for apt in current_appointments %}
-            <div class="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-stone-100 bg-stone-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/50">
               <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                  <div class="text-center leading-none">
-                     <p class="text-[11px] font-bold">{{ apt.start_time|time:"h:i" }}</p>
-                     <p class="text-[9px] uppercase">{{ apt.start_time|time:"A" }}</p>
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  <div class="text-center leading-tight">
+                     <p class="text-xs font-bold">{{ apt.start_time|time:"h:i" }}</p>
+                     <p class="text-[9px] uppercase font-bold">{{ apt.start_time|time:"A" }}</p>
                   </div>
                 </div>
                 <div>
-                  <p class="text-xs font-bold text-stone-900 dark:text-stone-100">
-                    {% if "Dr." in apt.doctor.user.get_full_name %}{{ apt.doctor.user.get_full_name }}{% else %}Dr. {{ apt.doctor.user.get_full_name|default:apt.doctor.user.username }}{% endif %}
+                  <p class="text-sm font-bold text-stone-900 dark:text-stone-100">
+                    {{ apt.doctor.get_full_name }}
                   </p>
-                  <p class="text-[11px] text-stone-500 dark:text-stone-400">{{ apt.doctor.specialty|default:"General" }} &bull; {{ apt.get_consultation_type_display }}</p>
+                  <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{{ apt.doctor.specialty|default:"General" }} &bull; {{ apt.get_consultation_type_display }}</p>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold
+              <div class="flex flex-wrap items-center gap-2 self-end sm:self-center">
+                {% if apt.is_appeal_pending %}
+                <span class="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                  <i class="fa-solid fa-hourglass-half"></i> Appeal Pending
+                </span>
+                {% elif apt.is_verification_overdue %}
+                <a href="{% url 'patient:submit_payment_appeal' apt.id %}" class="inline-flex h-8 items-center gap-1 rounded-full bg-rose-600 px-3 text-xs font-bold text-white hover:bg-rose-700 shadow-xs">
+                  <i class="fa-solid fa-triangle-exclamation"></i> Appeal Overdue
+                </a>
+                {% elif apt.payment_status == 'pending_verification' %}
+                <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                  <i class="fa-solid fa-clock"></i> Verification Pending
+                </span>
+                {% elif apt.payment_status == 'paid' %}
+                <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  <i class="fa-solid fa-check"></i> Paid
+                </span>
+                {% endif %}
+                <span class="rounded-full px-3 py-1 text-xs font-bold
                   {% if apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
                   {% elif apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
                   {% else %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300{% endif %}">
                   {{ apt.get_status_display }}
                 </span>
-                <a href="{% url 'patient:appointment_detail' apt.pk %}" class="inline-flex h-8 items-center rounded-full border border-stone-200 px-3 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
+                <a href="{% url 'patient:appointment_detail' apt.pk %}" class="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3.5 text-xs font-bold text-stone-800 hover:bg-stone-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700">
                   View
                 </a>
               </div>
@@ -195,7 +235,7 @@
         <!-- Doses Due Today Card -->
         {% if doses_today %}
         <article class="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-          <div class="flex items-center justify-between mb-3 border-b border-stone-100 pb-2.5 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-4 border-b border-stone-100 pb-3 dark:border-slate-800">
             <div class="flex items-center gap-2.5">
               <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
                 <i class="fa-solid fa-pills text-base"></i>
@@ -212,22 +252,22 @@
             </a>
           </div>
 
-          <ul class="space-y-2 text-xs text-stone-600 dark:text-stone-400">
+          <ul class="space-y-2.5 text-xs text-stone-600 dark:text-stone-400">
             {% for schedule in doses_today %}
-              <li class="flex items-center justify-between border-b border-stone-50 pb-2 dark:border-slate-800/50">
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-stone-800 dark:text-slate-200">{{ schedule.prescription_item.medicine }}</span>
-                  <span class="rounded bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+              <li class="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-bold text-stone-900 dark:text-slate-100">{{ schedule.prescription_item.medicine }}</span>
+                  <span class="rounded-md bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950 dark:text-teal-300">
                     {% if site_lang == 'bn' %}{{ schedule.time_label.bn }}{% else %}{{ schedule.time_label.en }}{% endif %}
                     {% if schedule.reminder_time %}({{ schedule.reminder_time|time:"h:i A" }}){% endif %}
                   </span>
                 </div>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold {% if schedule.status == 'taken' %}bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300{% elif schedule.status == 'skipped' %}bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300{% else %}bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300{% endif %}">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 {% if schedule.status == 'taken' %}bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300{% elif schedule.status == 'skipped' %}bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300{% endif %}">
                   {{ schedule.get_status_display }}
                 </span>
               </li>
             {% empty %}
-              <li class="text-stone-500 py-3 text-center italic">{% if site_lang == 'bn' %}আজকের জন্য কোনো ওষুধ নেই।{% else %}No doses scheduled today.{% endif %}</li>
+              <li class="text-stone-500 py-4 text-center italic">{% if site_lang == 'bn' %}আজকের জন্য কোনো ওষুধ নেই।{% else %}No doses scheduled today.{% endif %}</li>
             {% endfor %}
           </ul>
         </article>
@@ -247,11 +287,11 @@
               <p class="text-[11px] text-amber-700 dark:text-amber-400">Wallet Credits</p>
             </div>
           </div>
-          <ul class="space-y-2 text-xs text-stone-700 dark:text-stone-300">
+          <ul class="space-y-2.5 text-xs text-stone-700 dark:text-stone-300">
             {% for note in refund_notifications %}
-              <li class="border-b border-amber-100 pb-2 dark:border-amber-900/30">
+              <li class="border-b border-amber-100/80 pb-2.5 dark:border-amber-900/30 last:border-none">
                 <p class="font-bold text-amber-900 dark:text-amber-300">{{ note.title }}</p>
-                <p class="text-xs text-stone-600 dark:text-stone-400 mt-0.5">{{ note.message|truncatechars:120 }}</p>
+                <p class="text-xs text-stone-600 dark:text-stone-400 mt-0.5 leading-relaxed">{{ note.message|truncatechars:120 }}</p>
               </li>
             {% endfor %}
           </ul>
@@ -261,21 +301,21 @@
       </div>
 
       <!-- Right Column: Interactive Calendar & Next Follow-up (5 cols on lg) -->
-      <div class="lg:col-span-5 space-y-4">
-        
+      <div class="lg:col-span-5 space-y-5">
+
         <!-- Interactive Full Calendar -->
         <div class="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-          <div class="flex items-center justify-between mb-3 border-b border-stone-100 pb-2.5 dark:border-slate-800">
-            <div class="flex items-center gap-2">
+          <div class="flex items-center justify-between mb-4 border-b border-stone-100 pb-3 dark:border-slate-800">
+            <div class="flex items-center gap-2.5">
               <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300">
                 <i class="fa-solid fa-calendar-days text-sm"></i>
               </span>
               <div>
-                <h3 class="font-bold text-sm text-stone-900 dark:text-stone-100">Schedule Calendar</h3>
+                <h3 class="font-bold text-sm text-stone-900 dark:text-stone-100">{% translate_bn "Health Calendar" %}</h3>
               </div>
             </div>
-            <button type="button" onclick="resetCalendarToToday()" class="text-[11px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
-              Today
+            <button type="button" onclick="resetCalendarToToday()" class="text-[11px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-800 transition">
+              {% translate_bn "Today" %}
             </button>
           </div>
 
@@ -294,19 +334,19 @@
                 <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">
                   {% if site_lang == 'bn' %}পরবর্তী ফলো-আপ{% else %}Next Follow-up{% endif %}
                 </h2>
-                <p class="text-[11px] text-stone-500 dark:text-stone-400">Upcoming Visit</p>
+                <p class="text-[11px] text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}আসন্ন ডাক্তার পরামর্শ{% else %}Upcoming Visit{% endif %}</p>
               </div>
             </div>
             <a href="{% url 'patient:follow_ups' %}" class="text-xs font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300">
-              View All &rarr;
+              {% translate_bn "View all follow-ups" %} &rarr;
             </a>
           </div>
-          <div class="bg-teal-50/60 p-3.5 rounded-xl border border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/30">
+          <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 dark:bg-teal-950/20 dark:border-teal-900/30">
             <p class="text-sm font-bold text-teal-950 dark:text-teal-300">
               {{ next_follow_up.scheduled_date|date:"d M Y" }}
             </p>
-            <p class="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
-              Doctor: <strong>{% if "Dr." in next_follow_up.prescription.doctor.user.get_full_name %}{{ next_follow_up.prescription.doctor.user.get_full_name }}{% else %}Dr. {{ next_follow_up.prescription.doctor.user.get_full_name }}{% endif %}</strong>
+            <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">
+              {% if site_lang == 'bn' %}ডাক্তার:{% else %}Doctor:{% endif %} <strong>{{ next_follow_up.prescription.doctor.get_full_name }}</strong>
             </p>
           </div>
         </article>
@@ -324,27 +364,38 @@
                 <h2 class="text-base font-bold text-stone-900 dark:text-stone-100">
                   {% if site_lang == 'bn' %}আসন্ন অ্যাপয়েন্টমেন্ট{% else %}Upcoming Appointments{% endif %}
                 </h2>
-                <p class="text-[11px] text-stone-500 dark:text-stone-400">Future Bookings</p>
+                <p class="text-[11px] text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}ভবিষ্যতের বুকিংসমূহ{% else %}Future Bookings{% endif %}</p>
               </div>
             </div>
             <a href="{% url 'patient:appointments' %}" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-              View All &rarr;
+              {% translate_bn "View all appointments" %} &rarr;
             </a>
           </div>
-          <ul class="space-y-2 text-xs text-stone-600 dark:text-stone-400">
+          <ul class="space-y-2.5 text-xs text-stone-600 dark:text-stone-400">
             {% for apt in upcoming_appointments %}
-              <li class="flex items-center justify-between border-b border-stone-50 pb-2 dark:border-slate-800/50">
-                <div class="flex flex-col">
-                  <span class="font-bold text-stone-800 dark:text-slate-200">
-                    {% if "Dr." in apt.doctor.user.get_full_name %}{{ apt.doctor.user.get_full_name }}{% else %}Dr. {{ apt.doctor.user.get_full_name|default:apt.doctor.user.username }}{% endif %}
+              <li class="flex items-center justify-between gap-2 rounded-xl border border-stone-100 bg-stone-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <div class="flex flex-col gap-0.5">
+                  <span class="font-bold text-stone-900 dark:text-slate-100">
+                    {{ apt.doctor.get_full_name }}
                   </span>
                   <span class="text-[11px] text-stone-500 dark:text-stone-400">
                      {{ apt.appointment_date|date:"d M Y" }} &bull; {{ apt.start_time|time:"h:i A" }}
                   </span>
                 </div>
-                 <a href="{% url 'patient:appointment_detail' apt.pk %}" class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-stone-200 px-2.5 py-0.5 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
-                   View
-                 </a>
+                <div class="flex items-center gap-2">
+                  {% if apt.payment_status == 'pending_verification' %}
+                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    {% translate_bn "Pending" %}
+                  </span>
+                  {% elif apt.payment_status == 'paid' %}
+                  <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    {% translate_bn "Paid" %}
+                  </span>
+                  {% endif %}
+                  <a href="{% url 'patient:appointment_detail' apt.pk %}" class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-bold text-stone-800 hover:bg-stone-50 transition dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700">
+                    {% translate_bn "View" %}
+                  </a>
+                </div>
               </li>
             {% endfor %}
           </ul>
@@ -367,20 +418,24 @@
 
       const eventDates = {};
       {% for apt in calendar_appointments %}
+        {% if apt.appointment_date %}
         (function() {
           const key = "{{ apt.appointment_date|date:'Y-n-j' }}";
           if (!eventDates[key]) eventDates[key] = [];
-          const docName = "{% if 'Dr.' in apt.doctor.user.get_full_name %}{{ apt.doctor.user.get_full_name|escapejs }}{% else %}Dr. {{ apt.doctor.user.get_full_name|escapejs }}{% endif %}";
+          const docName = "{{ apt.doctor.get_full_name|escapejs }}";
           eventDates[key].push({ type: "appointment", label: "Appt with " + docName, time: "{{ apt.start_time|time:'h:i A' }}" });
         })();
+        {% endif %}
       {% endfor %}
       {% for fu in calendar_followups %}
+        {% if fu.scheduled_date %}
         (function() {
-          const docName = "{% if 'Dr.' in fu.prescription.doctor.user.get_full_name %}{{ fu.prescription.doctor.user.get_full_name|escapejs }}{% else %}Dr. {{ fu.prescription.doctor.user.get_full_name|escapejs }}{% endif %}";
+          const docName = "{{ fu.prescription.doctor.get_full_name|escapejs }}";
           const keyScheduled = "{{ fu.scheduled_date|date:'Y-n-j' }}";
           if (!eventDates[keyScheduled]) eventDates[keyScheduled] = [];
-          eventDates[keyScheduled].push({ type: "followup", label: "Follow-up Date: " + docName, time: "" });
+          eventDates[keyScheduled].push({ type: "followup", label: "Follow-up: " + docName, time: "" });
         })();
+        {% endif %}
       {% endfor %}
 
       function renderFullCalendar() {
@@ -394,8 +449,8 @@
         let html = '<div class="mb-3 flex items-center justify-between">';
         html += '<span class="text-sm font-extrabold text-stone-900 dark:text-stone-100">' + monthNamesEN[currentMonth] + ' ' + currentYear + '</span>';
         html += '<div class="flex gap-1">';
-        html += '<button onclick="changeCalendarMonth(-1)" type="button" class="flex h-7 w-7 items-center justify-center rounded border border-stone-200 bg-stone-50 text-xs text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700 font-bold">&lt;</button>';
-        html += '<button onclick="changeCalendarMonth(1)" type="button" class="flex h-7 w-7 items-center justify-center rounded border border-stone-200 bg-stone-50 text-xs text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700 font-bold">&gt;</button>';
+        html += '<button onclick="changeCalendarMonth(-1)" type="button" class="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700 font-bold">&lt;</button>';
+        html += '<button onclick="changeCalendarMonth(1)" type="button" class="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:hover:bg-slate-700 font-bold">&gt;</button>';
         html += '</div></div>';
 
         // Day of Week Header
@@ -431,10 +486,10 @@
             let dots = "";
             const hasAppt = events.some(e => e.type === "appointment");
             const hasFU = events.some(e => e.type === "followup");
-            
+
             if (hasAppt) dots += '<span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>';
             if (hasFU) dots += '<span class="h-1.5 w-1.5 rounded-full ' + (isToday ? 'bg-white' : 'bg-amber-500') + '"></span>';
-            
+
             dotHtml = '<div class="flex items-center justify-center gap-0.5">' + dots + '</div>';
           }
 
@@ -464,7 +519,7 @@
           html += '<p class="text-[11px] font-bold text-stone-500 dark:text-stone-400 mb-1">Scheduled Events (' + monthEvents.length + '):</p>';
           for (const evt of monthEvents) {
             const dotColor = evt.type === "appointment" ? "bg-blue-500" : "bg-amber-500";
-            html += '<div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-slate-800 p-1.5 rounded-lg border border-stone-100 dark:border-slate-700/50">';
+            html += '<div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-slate-800 p-2 rounded-lg border border-stone-100 dark:border-slate-700/50">';
             html += '<span class="h-2 w-2 rounded-full ' + dotColor + ' shrink-0"></span>';
             html += '<span class="font-bold min-w-[45px] text-teal-700 dark:text-teal-400 text-[11px]">' + evt.date + ' ' + monthNamesEN[currentMonth].substring(0,3) + '</span>';
             html += '<span class="text-xs truncate flex-1 font-medium">' + evt.label + '</span>';
@@ -472,7 +527,7 @@
             html += '</div>';
           }
         } else {
-          html += '<p class="text-xs text-stone-400 text-center py-1.5 italic">No appointments or follow-ups in ' + monthNamesEN[currentMonth] + '.</p>';
+          html += '<p class="text-xs text-stone-400 text-center py-2 italic">No appointments or follow-ups in ' + monthNamesEN[currentMonth] + '.</p>';
         }
         html += '</div>';
 
@@ -507,7 +562,7 @@
           let html = '<p class="text-[11px] font-bold text-teal-600 dark:text-teal-400 mb-1">Events on ' + day + ' ' + monthNamesEN[currentMonth] + ' ' + currentYear + ' (' + events.length + '):</p>';
           for (const evt of events) {
             const dotColor = evt.type === "appointment" ? "bg-blue-500" : "bg-amber-500";
-            html += '<div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300 bg-teal-50/50 dark:bg-teal-950/30 p-1.5 rounded-lg border border-teal-200 dark:border-teal-800">';
+            html += '<div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300 bg-teal-50/50 dark:bg-teal-950/30 p-2 rounded-lg border border-teal-200 dark:border-teal-800">';
             html += '<span class="h-2 w-2 rounded-full ' + dotColor + ' shrink-0"></span>';
             html += '<span class="text-xs truncate flex-1 font-bold">' + evt.label + '</span>';
             if (evt.time) html += '<span class="text-[10px] font-mono text-stone-500 dark:text-stone-400">' + evt.time + '</span>';
@@ -526,3 +581,4 @@
   </script>
 </section>
 {% endblock %}
+

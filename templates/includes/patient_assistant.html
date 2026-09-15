@@ -45,39 +45,15 @@
       </div>
     </div>
 
-    <!-- AI Voice Control Bar (ON, OFF, RESTART) -->
-    <div class="flex items-center justify-between border-b border-stone-200/80 bg-stone-100/90 px-4 py-2 text-xs dark:border-slate-800 dark:bg-slate-950">
-      <div class="flex items-center gap-1.5">
-        <span class="font-semibold text-stone-600 dark:text-stone-300">{% if site_lang == 'bn' %}ভয়েস কন্ট্রোল:{% else %}AI Voice:{% endif %}</span>
-        <span id="assistantVoiceState" class="font-bold text-emerald-600 dark:text-emerald-400">ON</span>
-      </div>
-
-      <div class="flex items-center gap-1.5">
-        <button type="button" id="btnVoiceOn"
-          class="rounded-xl bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-500 shadow-sm transition">
-          🟢 ON
-        </button>
-        <button type="button" id="btnVoiceOff"
-          class="rounded-xl bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-rose-500 shadow-sm transition">
-          🔴 OFF
-        </button>
-        <button type="button" id="btnVoiceRestart"
-          class="rounded-xl bg-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-100 hover:bg-slate-600 shadow-sm transition"
-          title="{% if site_lang == 'bn' %}ভয়েস পুনঃপ্রচার করুন{% else %}Replay voice response{% endif %}">
-          🔄 RESTART
-        </button>
-      </div>
-    </div>
-
     <!-- Messages -->
     <div id="assistantMessages" class="flex-1 space-y-4 overflow-y-auto px-4 py-4 scroll-smooth">
       <div id="assistantWelcome" class="rounded-2xl border border-dashed border-teal-200 bg-teal-50/60 p-4 text-sm leading-relaxed text-stone-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-stone-300">
         {% if site_lang == 'bn' %}
           <p class="font-semibold text-teal-800 dark:text-teal-300">👋 স্বাগতম!</p>
-          <p class="mt-2">আমি আপনার প্রেসক্রিপশন, ওষুধ, ডোজ, ফলো-আপ, ডাক্তার, বা CareBridge সম্পর্কে যেকোনো প্রশ্নের উত্তর দিতে পারি। লিখুন বা 🎙️ মাইকে বলুন।</p>
+          <p class="mt-2">আমি আপনার প্রেসক্রিপশন, ওষুধ, ডোজ, ফলো-আপ, ডাক্তার, বা CareBridge সম্পর্কে যেকোনো প্রশ্নের উত্তর দিতে পারি। লিখুন বা ছবি আপলোড করুন।</p>
         {% else %}
           <p class="font-semibold text-teal-800 dark:text-teal-300">👋 Welcome!</p>
-          <p class="mt-2">Ask me anything about your prescriptions, doses, follow-ups, doctors, or how to use CareBridge. Type or tap 🎙️ to speak.</p>
+          <p class="mt-2">Ask me anything about your prescriptions, doses, follow-ups, doctors, or how to use CareBridge. Type your query or attach a photo.</p>
         {% endif %}
       </div>
     </div>
@@ -115,12 +91,6 @@
           <i class="fa-solid fa-paperclip text-lg"></i>
         </label>
 
-        <button type="button" id="assistantMicBtn" data-lang="{{ site_lang|default:'en' }}"
-          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-white text-teal-600 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-teal-400"
-          title="{% if site_lang == 'bn' %}ভয়েস ইনপুট (ON/OFF){% else %}Voice Input (ON/OFF){% endif %}">
-          <i class="fa-solid fa-microphone text-lg" id="assistantMicIcon"></i>
-        </button>
-
         <textarea id="assistantInput" rows="1" placeholder="{% if site_lang == 'bn' %}প্রশ্ন লিখুন বা ছবি আপলোড করুন...{% else %}Ask anything or attach a photo...{% endif %}"
           class="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100"></textarea>
 
@@ -132,7 +102,7 @@
 
       <div class="mt-2 flex items-center justify-between px-1">
         <span class="text-xs font-medium text-stone-500 dark:text-stone-400">
-          🔊 {% if site_lang == 'bn' %}এইচডি বাংলা/ইংরেজি ভয়েস সক্রিয়{% else %}HD Voice Output Active{% endif %}
+          🔇 {% if site_lang == 'bn' %}ভয়েস ডিফল্ট বন্ধ (শুনতে ম্যাসেজের প্লে বাটনে চাপুন){% else %}Voice Default OFF (Click play on message to hear sound){% endif %}
         </span>
         <span class="text-[10px] text-stone-400">Enter = {% if site_lang == 'bn' %}পাঠান{% else %}Send{% endif %}</span>
       </div>
@@ -148,6 +118,7 @@
       history: "{% url 'patient:chat_api_history' %}",
       send: "{% url 'patient:chat_api_send' %}",
       clear: "{% url 'patient:chat_api_clear' %}",
+      translate: "{% url 'patient:chat_api_translate' %}",
       setLangEn: "{% url 'set_language' 'en' %}?next={{ request.get_full_path|urlencode }}",
       setLangBn: "{% url 'set_language' 'bn' %}?next={{ request.get_full_path|urlencode }}",
     },
@@ -160,4 +131,4 @@
     },
   };
 </script>
-<script defer src="{% static 'js/assistant.js' %}?v=6.0.0"></script>
+<script defer src="{% static 'js/assistant.js' %}?v={% now 'U' %}"></script>

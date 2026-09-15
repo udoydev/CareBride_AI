@@ -7,16 +7,17 @@ from django.core.exceptions import ValidationError
 from .models import BD_DISTRICT_CHOICES
 
 FIELD_CLASSES = (
-    "w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-xs "
-    "focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 "
-    "dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100"
+    "w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 shadow-2xs "
+    "placeholder:text-stone-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100 dark:placeholder:text-stone-500 "
+    "dark:focus:border-teal-400 dark:focus:ring-teal-400/20 transition"
 )
 
 FILE_CLASSES = (
-    "block w-full rounded-xl border border-dashed border-stone-300 bg-white px-4 py-2.5 text-sm "
-    "file:mr-4 file:rounded-full file:border-0 file:bg-teal-600 file:px-4 file:py-1.5 "
-    "file:text-xs file:font-semibold file:text-white hover:file:bg-teal-700 "
-    "dark:border-slate-700 dark:bg-slate-900 dark:text-stone-100"
+    "block w-full rounded-xl border border-dashed border-stone-300 bg-stone-50/50 px-3.5 py-2 text-sm text-stone-800 "
+    "file:mr-3.5 file:rounded-full file:border-0 file:bg-teal-600 file:px-4 file:py-1.5 "
+    "file:text-xs file:font-bold file:text-white hover:file:bg-teal-700 "
+    "dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 cursor-pointer transition"
 )
 
 BD_PHONE_REGEX = re.compile(r"^(?:\+8801|01)[3-9]\d{8}$")
@@ -147,7 +148,7 @@ class RegisterForm(forms.Form):
             self.fields["experience_years"].required = False
             self.fields["consultation_fee"].required = False
         elif role == "doctor":
-            self.fields["bmdc_number"].required = True
+            self.fields["bmdc_number"].required = False
             self.fields["bmdc_certificate"].required = True
             self.fields["specialty"].required = True
             self.fields["experience_years"].required = True
@@ -156,8 +157,11 @@ class RegisterForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
+        email_pattern = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+        if not email_pattern.match(email):
+            raise ValidationError("Please enter a valid email address (e.g. user@example.com).")
         if User.objects.filter(email__iexact=email).exists():
-            raise ValidationError("An account with this email address already exists.")
+            raise ValidationError("An account with this email address already exists. Please log in.")
         return email
 
     def clean_phone_number(self):
@@ -172,6 +176,16 @@ class RegisterForm(forms.Form):
         if clean_phone.startswith("01"):
             clean_phone = "+88" + clean_phone
 
+        from accounts.models import Doctor, Patient
+        raw_phone = clean_phone.replace("+88", "")
+        if (
+            User.objects.filter(username=clean_phone).exists()
+            or User.objects.filter(username=raw_phone).exists()
+            or Patient.objects.filter(phone_number__in=[clean_phone, raw_phone]).exists()
+            or Doctor.objects.filter(phone_number__in=[clean_phone, raw_phone]).exists()
+        ):
+            raise ValidationError("An account with this mobile number already exists. Please log in.")
+
         return clean_phone
 
     def clean_first_name(self):
@@ -180,10 +194,14 @@ class RegisterForm(forms.Form):
             raise ValidationError("First name is required.")
         if len(first_name) < 2:
             raise ValidationError("First name must be at least 2 characters.")
+        if not re.match(r"^[a-zA-Z\s\.\-'\u0980-\u09FF]+$", first_name):
+            raise ValidationError("First name can only contain letters and standard characters.")
         return first_name
 
     def clean_last_name(self):
         last_name = self.cleaned_data.get("last_name", "").strip()
+        if last_name and not re.match(r"^[a-zA-Z\s\.\-'\u0980-\u09FF]+$", last_name):
+            raise ValidationError("Last name can only contain letters and standard characters.")
         return last_name or ""
 
     def clean_password(self):
@@ -192,14 +210,17 @@ class RegisterForm(forms.Form):
         if len(password) < 8:
             raise ValidationError("Password must be at least 8 characters long.")
 
-        if not re.search(r'[A-Z]', password):
-            raise ValidationError("Password must contain at least one uppercase letter.")
+        if re.search(r"\s", password):
+            raise ValidationError("Password cannot contain spaces.")
 
-        if not re.search(r'[a-z]', password):
-            raise ValidationError("Password must contain at least one lowercase letter.")
+        if not re.search(r"[A-Z]", password):
+            raise ValidationError("Password must contain at least one uppercase letter (A-Z).")
 
-        if not re.search(r'\d', password):
-            raise ValidationError("Password must contain at least one number.")
+        if not re.search(r"[a-z]", password):
+            raise ValidationError("Password must contain at least one lowercase letter (a-z).")
+
+        if not re.search(r"\d", password):
+            raise ValidationError("Password must contain at least one number (0-9).")
 
         if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\'\\:"|,.<>\/?`~]', password):
             raise ValidationError("Password must contain at least one special character (!@#$%^&*...).")
@@ -214,6 +235,47 @@ class RegisterForm(forms.Form):
             raise ValidationError("Passwords do not match. Please try again.")
 
         return password2
+
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data.get("date_of_birth")
+        if not dob:
+            raise ValidationError("Date of birth is required.")
+        from django.utils import timezone
+        today = timezone.localdate()
+        if dob >= today:
+            raise ValidationError("Date of birth must be in the past.")
+        if dob.year < 1900:
+            raise ValidationError("Please enter a valid date of birth (year 1900 or later).")
+
+        role = self.cleaned_data.get("role") or self.data.get("role") or "patient"
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        if role == "doctor" and age < 21:
+            raise ValidationError("Medical practitioners must be at least 21 years old to register as a doctor.")
+        if role == "patient" and age > 125:
+            raise ValidationError("Please enter a valid date of birth.")
+        return dob
+
+    def clean_patient_nid_or_birth_reg(self):
+        nid = self.cleaned_data.get("patient_nid_or_birth_reg", "").strip()
+        if nid:
+            clean_nid = re.sub(r"[\s-]", "", nid)
+            if not clean_nid.isdigit() or len(clean_nid) not in (10, 13, 17):
+                raise ValidationError("Bangladeshi NID must be 10, 13, or 17 digits (or 17 digits for birth certificate).")
+            return clean_nid
+        return ""
+
+    def clean_bmdc_number(self):
+        role = self.cleaned_data.get("role") or self.data.get("role")
+        bmdc = self.cleaned_data.get("bmdc_number", "").strip()
+        if role == "doctor":
+            if not bmdc:
+                raise ValidationError("BMDC Registration Number is required for doctor registration.")
+            clean_bmdc = bmdc.upper().strip()
+            from accounts.models import Doctor
+            if Doctor.objects.filter(registration_number__iexact=clean_bmdc).exists():
+                raise ValidationError("A doctor with this BMDC Registration Number already exists.")
+            return clean_bmdc
+        return bmdc
 
 
 class LoginForm(forms.Form):

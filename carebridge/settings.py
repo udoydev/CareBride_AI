@@ -23,7 +23,18 @@ if hasattr(sys.stderr, "reconfigure"):
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+# Ensure .env is read into os.environ before DATABASES is configured
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    with open(env_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, val = line.split('=', 1)
+                os.environ[key.strip()] = val.strip()
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 SECRET_KEY = 'django-insecure-#n_63m^237fjg5n&t(e-d2v4u%$68ged54tq*4!u1r5)nof3g0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -177,17 +188,40 @@ if DATABASE_URL:
                 'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
-elif DB_ENGINE == "postgresql" or os.getenv("DB_NAME"):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'carebridge_db'),
-            'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
+elif DB_ENGINE.lower() == "postgresql":
+    pg_name = os.getenv('DB_NAME', 'carebridge_db')
+    pg_user = os.getenv('DB_USER', 'postgres')
+    pg_pass = os.getenv('DB_PASSWORD', 'postgres')
+    pg_host = os.getenv('DB_HOST', 'localhost')
+    pg_port = os.getenv('DB_PORT', '5432')
+
+    use_pg = False
+    try:
+        import psycopg2
+        conn = psycopg2.connect(dbname=pg_name, user=pg_user, password=pg_pass, host=pg_host, port=pg_port, connect_timeout=3)
+        conn.close()
+        use_pg = True
+    except Exception as err:
+        print(f"[CareBridge DB Notice] PostgreSQL authentication/connection failed ({err}). Falling back to SQLite db.sqlite3.")
+
+    if use_pg:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': pg_name,
+                'USER': pg_user,
+                'PASSWORD': pg_pass,
+                'HOST': pg_host,
+                'PORT': pg_port,
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
     DATABASES = {
         'default': {
@@ -195,6 +229,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -222,9 +257,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / 'carebridge' / 'static',
     BASE_DIR / 'static',
 ]
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

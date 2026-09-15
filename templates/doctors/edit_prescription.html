@@ -34,6 +34,120 @@
   <form method="post" class="space-y-6">
     {% csrf_token %}
 
+    <!-- Patient Header Card -->
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-xs font-semibold uppercase text-stone-400">Patient Details</span>
+          <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">{{ patient.user.get_full_name|default:patient.user.email }}</h2>
+        </div>
+        <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+          Demographics
+        </span>
+      </div>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Age</label>
+          <input type="number" name="patient_age" value="{{ patient.age|default:'' }}" placeholder="Years" min="0" max="150"
+            class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Gender</label>
+          <select name="patient_gender" class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            <option value="">Select</option>
+            <option value="Male" {% if patient.gender|lower == 'male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if patient.gender|lower == 'female' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if patient.gender|lower == 'other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Email</label>
+          <input type="email" name="patient_email" value="{{ patient.user.email|default:'' }}" placeholder="patient@email.com"
+            class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-[10px] font-semibold uppercase text-stone-500">Mobile</label>
+          <input type="tel" name="patient_phone" value="{{ patient.phone_number|default:'' }}" placeholder="+880 1XXX-XXXXXX"
+            class="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+      </div>
+    </div>
+
+    <!-- Visit Vitals & Observations -->
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Visit Vitals & Observations</h3>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Heart Rate (bpm)</label>
+          <input type="number" name="heart_rate" value="{{ visit.heart_rate|default:'' }}" placeholder="72"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">BP Systolic</label>
+          <input type="number" name="blood_pressure_systolic" value="{{ visit.blood_pressure_systolic|default:'' }}" placeholder="120"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">BP Diastolic</label>
+          <input type="number" name="blood_pressure_diastolic" value="{{ visit.blood_pressure_diastolic|default:'' }}" placeholder="80"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Temp (°C)</label>
+          <input type="number" step="0.1" name="temperature_celsius" value="{{ visit.temperature_celsius|default:'' }}" placeholder="37.0"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Weight (kg)</label>
+          <input type="number" step="0.1" name="weight_kg" value="{{ visit.weight_kg|default:'' }}" placeholder="70.0"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-semibold text-stone-700 dark:text-stone-300">Height</label>
+            <div class="flex items-center gap-1 text-[10px] font-bold">
+              <button type="button" id="edit_h_btn_ft" onclick="setEditHeightMode('ft')" class="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition">ft/in</button>
+              <button type="button" id="edit_h_btn_cm" onclick="setEditHeightMode('cm')" class="px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition">cm</button>
+            </div>
+          </div>
+
+          <!-- ft / in inputs -->
+          <div id="edit_h_ft_wrap" class="grid grid-cols-2 gap-1.5">
+            <div class="relative">
+              <input type="number" id="edit_h_ft" name="height_ft" value="{{ visit.height_ft_in.0|default:'' }}" placeholder="5" min="1" max="8"
+                class="w-full rounded-xl border border-stone-200 bg-white pl-2.5 pr-6 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncEditFtInToCm()">
+              <span class="absolute right-2 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">ft</span>
+            </div>
+            <div class="relative">
+              <input type="number" id="edit_h_in" name="height_in" value="{{ visit.height_ft_in.1|default:'' }}" placeholder="7" min="0" max="11.9" step="0.5"
+                class="w-full rounded-xl border border-stone-200 bg-white pl-2.5 pr-6 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncEditFtInToCm()">
+              <span class="absolute right-2 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">in</span>
+            </div>
+          </div>
+
+          <!-- cm input -->
+          <div id="edit_h_cm_wrap" class="hidden relative">
+            <input type="number" id="edit_h_cm" name="height_cm" value="{{ visit.height_cm|default:'' }}" placeholder="170" min="30" max="250"
+              class="w-full rounded-xl border border-stone-200 bg-white pl-3 pr-8 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100" oninput="syncEditCmToFtIn()">
+            <span class="absolute right-2.5 top-2 text-[10px] font-bold text-stone-400 pointer-events-none">cm</span>
+          </div>
+
+          <p id="edit_h_hint" class="mt-1 text-[10px] text-teal-600 dark:text-teal-400 font-medium">{% if visit.height_cm %}≈ {{ visit.height_cm }} cm{% endif %}</p>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">SpO2 (%)</label>
+          <input type="number" name="oxygen_saturation" value="{{ visit.oxygen_saturation|default:'' }}" placeholder="98"
+            class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div class="col-span-2 sm:col-span-4">
+          <label class="mb-1 block text-xs font-semibold text-stone-700 dark:text-stone-300">Visit Notes / Physical Examination</label>
+          <textarea name="visit_notes" rows="2" placeholder="Clinical findings, physical exam observations..."
+            class="w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">{{ visit.visit_notes|default:'' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clinical Overview -->
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
       <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Clinical Overview</h3>
       <div>
@@ -50,10 +164,11 @@
       </div>
     </div>
 
+    <!-- Tests / Investigations -->
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
       <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Tests / Investigations</h3>
       <div id="tests_container" class="space-y-2">
-        {% for test in prescription.tests_investigations|linebreaks %}
+        {% for test in prescription.tests_list %}
         <div class="flex items-center gap-2">
           <input type="text" name="test_name[]" value="{{ test }}" class="test-name-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
           <button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400">
@@ -67,10 +182,11 @@
       </button>
     </div>
 
+    <!-- Advice / Rules -->
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
       <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Advice / Rules</h3>
       <div id="advice_container" class="space-y-2">
-        {% for advice in prescription.advice_rules|linebreaks %}
+        {% for advice in prescription.advice_list %}
         <div class="flex items-center gap-2">
           <input type="text" name="advice_rule[]" value="{{ advice }}" class="advice-field flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
           <button type="button" onclick="this.parentElement.remove()" class="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400">
@@ -84,8 +200,18 @@
       </button>
     </div>
 
+    <!-- Follow-up Date -->
+    <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-3">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Follow-Up / Next Visit Date</h3>
+      <div class="flex flex-wrap items-center gap-3">
+        <input type="date" name="follow_up_date" value="{% if prescription.next_followup_date %}{{ prescription.next_followup_date|date:'Y-m-d' }}{% elif prescription.follow_up %}{{ prescription.follow_up.scheduled_date|date:'Y-m-d' }}{% endif %}"
+          class="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs shadow-xs focus:border-teal-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+      </div>
+    </div>
+
+    <!-- Medicines -->
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
-      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Medicines</h3>
+      <h3 class="text-sm font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">Medicines (Rx)</h3>
       <div id="medicines_container" class="space-y-4">
         {% for item in existing_items %}
         <div class="med-row rounded-xl border border-stone-100 p-4 dark:border-slate-800">
@@ -139,8 +265,8 @@
     </div>
 
     <div class="flex justify-end">
-      <button type="submit" class="inline-flex h-11 items-center justify-center rounded-full bg-amber-600 px-8 text-sm font-bold text-white shadow-md transition hover:bg-amber-700">
-        <i class="fa-solid fa-pen-to-square mr-2"></i> Update Prescription
+      <button type="submit" class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-8 text-sm font-bold text-white shadow-md transition hover:bg-teal-700">
+        <i class="fa-solid fa-file-signature mr-2"></i> Update Prescription
       </button>
     </div>
   </form>
@@ -211,6 +337,65 @@
       </div>
     `;
     container.appendChild(div);
+  }
+
+  // Height conversion and toggle handlers
+  function setEditHeightMode(mode) {
+    const ftWrap = document.getElementById("edit_h_ft_wrap");
+    const cmWrap = document.getElementById("edit_h_cm_wrap");
+    const btnFt = document.getElementById("edit_h_btn_ft");
+    const btnCm = document.getElementById("edit_h_btn_cm");
+
+    if (mode === "ft") {
+      ftWrap.classList.remove("hidden");
+      cmWrap.classList.add("hidden");
+      btnFt.className = "px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition";
+      btnCm.className = "px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition";
+      syncEditFtInToCm();
+    } else {
+      ftWrap.classList.add("hidden");
+      cmWrap.classList.remove("hidden");
+      btnCm.className = "px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 transition";
+      btnFt.className = "px-1.5 py-0.5 rounded text-stone-400 hover:text-stone-600 transition";
+      syncEditCmToFtIn();
+    }
+  }
+
+  function syncEditFtInToCm() {
+    const ft = parseFloat(document.getElementById("edit_h_ft")?.value) || 0;
+    const inch = parseFloat(document.getElementById("edit_h_in")?.value) || 0;
+    const cmInput = document.getElementById("edit_h_cm");
+    const hint = document.getElementById("edit_h_hint");
+
+    if (ft > 0 || inch > 0) {
+      const totalInches = ft * 12 + inch;
+      const cm = Math.round(totalInches * 2.54);
+      if (cmInput) cmInput.value = cm;
+      if (hint) hint.innerText = `≈ ${cm} cm`;
+    } else {
+      if (cmInput) cmInput.value = "";
+      if (hint) hint.innerText = "";
+    }
+  }
+
+  function syncEditCmToFtIn() {
+    const cm = parseFloat(document.getElementById("edit_h_cm")?.value) || 0;
+    const ftInput = document.getElementById("edit_h_ft");
+    const inInput = document.getElementById("edit_h_in");
+    const hint = document.getElementById("edit_h_hint");
+
+    if (cm > 0) {
+      const totalInches = Math.round(cm / 2.54);
+      const ft = Math.floor(totalInches / 12);
+      const inch = totalInches % 12;
+      if (ftInput) ftInput.value = ft;
+      if (inInput) inInput.value = inch;
+      if (hint) hint.innerText = `≈ ${ft}′ ${inch}″`;
+    } else {
+      if (ftInput) ftInput.value = "";
+      if (inInput) inInput.value = "";
+      if (hint) hint.innerText = "";
+    }
   }
 </script>
 {% endblock %}

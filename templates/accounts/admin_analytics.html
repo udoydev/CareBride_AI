@@ -176,16 +176,46 @@
         </tbody>
       </table>
 
-      {% if recent_appointments.has_other_pages %}
-      <div class="mt-4 flex items-center justify-center gap-2">
-        {% if recent_appointments.has_previous %}
-          <a href="?page={{ recent_appointments.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-        {% endif %}
-        <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ recent_appointments.number }} of {{ recent_appointments.paginator.num_pages }}</span>
-        {% if recent_appointments.has_next %}
-          <a href="?page={{ recent_appointments.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-        {% endif %}
-      </div>
+      {% if recent_appointments and recent_appointments.has_other_pages %}
+      <nav class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none">
+        <p class="text-xs text-stone-500 dark:text-stone-400">
+          Showing <span class="font-bold text-stone-900 dark:text-stone-100">{{ recent_appointments.start_index }}</span> to <span class="font-bold text-stone-900 dark:text-stone-100">{{ recent_appointments.end_index }}</span> of <span class="font-bold text-stone-900 dark:text-stone-100">{{ recent_appointments.paginator.count }}</span> records
+        </p>
+
+        <div class="flex items-center gap-1.5">
+          {% if recent_appointments.has_previous %}
+            <a href="?page={{ recent_appointments.previous_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+              <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+            </a>
+          {% else %}
+            <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+              <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+            </span>
+          {% endif %}
+
+          {% for num in recent_appointments.paginator.page_range %}
+            {% if recent_appointments.number == num %}
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-bold text-white shadow-xs">
+                {{ num }}
+              </span>
+            {% elif num > recent_appointments.number|add:'-3' and num < recent_appointments.number|add:'3' %}
+              <a href="?page={{ num }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white font-medium text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+                {{ num }}
+              </a>
+            {% endif %}
+          {% endfor %}
+
+          {% if recent_appointments.has_next %}
+            <a href="?page={{ recent_appointments.next_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+              Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+            </a>
+          {% else %}
+            <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+              Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+            </span>
+          {% endif %}
+        </div>
+      </nav>
       {% endif %}
     </div>
   </div>

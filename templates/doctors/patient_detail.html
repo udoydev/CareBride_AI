@@ -19,25 +19,32 @@
         <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Adherence: {{ adherence }}%</p>
       {% endif %}
     </div>
-    {% if not has_active_prescription %}
+    {% if can_create_prescription %}
     <a href="{% url 'doctors:create_prescription' patient.id %}"
       class="inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
       + New prescription
     </a>
-    {% else %}
-    <button disabled class="inline-flex h-11 items-center justify-center rounded-full bg-stone-200 px-6 text-sm font-semibold text-stone-500 cursor-not-allowed dark:bg-slate-700 dark:text-stone-400">
-      Prescription in progress
-    </button>
     {% endif %}
   </div>
 
   {% if ai_summary %}
   <div class="mt-6 rounded-2xl border border-teal-200 bg-teal-50/70 p-5 shadow-xs dark:border-teal-900/50 dark:bg-teal-950/30">
-    <div class="flex items-center gap-2 text-teal-800 dark:text-teal-300">
-      <span class="text-lg">✨</span>
-      <h3 class="text-sm font-semibold">Gemini AI Clinical Briefing & Safety Summary</h3>
+    <div class="flex items-center justify-between gap-2 text-teal-800 dark:text-teal-300">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">✨</span>
+        <h3 class="text-sm font-semibold">Gemini AI Clinical Briefing & Safety Summary</h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="?lang={% if summary_language == 'bn' %}en{% else %}bn{% endif %}&refresh_ai=1" class="text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-200/60 dark:hover:bg-teal-900/60 bg-white dark:bg-slate-900 border border-teal-300 dark:border-teal-700 px-3 py-1 rounded-full transition shadow-2xs">
+          <i class="fa-solid fa-language mr-1"></i>
+          {% if summary_language == 'bn' %}View in English{% else %}বাংলায় দেখুন (Bangla){% endif %}
+        </a>
+        <a href="?lang={{ summary_language }}&refresh_ai=1" class="text-xs font-bold text-teal-700 hover:text-teal-900 dark:text-teal-300 dark:hover:text-white bg-teal-100 dark:bg-teal-900/50 px-3 py-1 rounded-full transition">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Refresh
+        </a>
+      </div>
     </div>
-    <div class="mt-2 text-xl leading-relaxed text-stone-700 dark:text-stone-300 whitespace-pre-line">
+    <div class="mt-2 text-sm leading-relaxed text-stone-700 dark:text-stone-300 whitespace-pre-line">
       {{ ai_summary }}
     </div>
   </div>
@@ -153,7 +160,7 @@
           </a>
           {% endif %}
           <a href="{% url 'doctors:prescription_detail' prescription.id %}" class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
-            <i class="fa-solid fa-eye mr-1"></i> View Details & AI Analysis
+            <i class="fa-solid fa-eye mr-1"></i> View Details
           </a>
           <a href="{% url 'prescriptions:view_prescription_online' prescription.id %}" target="_blank" class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
             <i class="fa-solid fa-eye mr-1"></i> View Online
@@ -164,7 +171,7 @@
         </div>
       </div>
       <ul class="mt-4 space-y-2 text-sm text-stone-700 dark:text-stone-300">
-        {% for line in prescription.items %}
+        {% for line in prescription.items.all %}
           <li>{{ line }}</li>
         {% endfor %}
       </ul>
@@ -179,14 +186,44 @@
     {% endfor %}
 
     {% if prescriptions_page and prescriptions_page.has_other_pages %}
-    <nav class="mt-6 flex items-center justify-center gap-3">
-      {% if prescriptions_page.has_previous %}
-      <a href="?rx_page={{ prescriptions_page.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-      {% endif %}
-      <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ prescriptions_page.number }} of {{ prescriptions_page.paginator.num_pages }}</span>
-      {% if prescriptions_page.has_next %}
-      <a href="?rx_page={{ prescriptions_page.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-      {% endif %}
+    <nav class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none">
+      <p class="text-xs text-stone-500 dark:text-stone-400">
+        Showing <span class="font-bold text-stone-900 dark:text-stone-100">{{ prescriptions_page.start_index }}</span> to <span class="font-bold text-stone-900 dark:text-stone-100">{{ prescriptions_page.end_index }}</span> of <span class="font-bold text-stone-900 dark:text-stone-100">{{ prescriptions_page.paginator.count }}</span> prescriptions
+      </p>
+
+      <div class="flex items-center gap-1.5">
+        {% if prescriptions_page.has_previous %}
+          <a href="?rx_page={{ prescriptions_page.previous_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+            <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+          </a>
+        {% else %}
+          <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+            <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+          </span>
+        {% endif %}
+
+        {% for num in prescriptions_page.paginator.page_range %}
+          {% if prescriptions_page.number == num %}
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-bold text-white shadow-xs">
+              {{ num }}
+            </span>
+          {% elif num > prescriptions_page.number|add:'-3' and num < prescriptions_page.number|add:'3' %}
+            <a href="?rx_page={{ num }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white font-medium text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+              {{ num }}
+            </a>
+          {% endif %}
+        {% endfor %}
+
+        {% if prescriptions_page.has_next %}
+          <a href="?rx_page={{ prescriptions_page.next_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+            Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+          </a>
+        {% else %}
+          <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+            Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+          </span>
+        {% endif %}
+      </div>
     </nav>
     {% endif %}
   </div>

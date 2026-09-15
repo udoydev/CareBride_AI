@@ -31,6 +31,26 @@
     </div>
 
     <div>
+      <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Digital Signature Image</label>
+      <div class="flex items-center gap-4">
+        {% if doctor.signature %}
+          <div class="relative h-14 w-32 select-none overflow-hidden rounded-xl border border-stone-200 bg-stone-50 p-1 flex items-center justify-center dark:border-slate-800 dark:bg-slate-800">
+            <img src="{{ doctor.signature }}" alt="Doctor Signature" class="h-full w-full object-contain pointer-events-none" draggable="false">
+          </div>
+        {% else %}
+          <div class="flex h-14 w-32 items-center justify-center rounded-xl bg-stone-100 font-serif italic text-xs text-stone-500 border border-dashed border-stone-300 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-400">
+            No Signature
+          </div>
+        {% endif %}
+        <div>
+          <input type="file" name="signature" accept="image/*"
+            class="text-xs text-stone-600 file:mr-3 file:rounded-full file:border-0 file:bg-teal-50 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-teal-700 hover:file:bg-teal-100 dark:text-stone-300 dark:file:bg-teal-950 dark:file:text-teal-300">
+          <p class="mt-1 text-[11px] text-stone-500 dark:text-stone-400">Upload a clean scanned image of your signature (PNG or JPG). Appears on official prescriptions.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
       <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Full name</label>
       <input type="text" name="full_name" value="{{ doctor.name }}"
         class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">

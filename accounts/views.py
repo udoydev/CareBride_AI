@@ -53,8 +53,8 @@ def register_view(request):
                     nid_or_birth_reg=data.get("patient_nid_or_birth_reg", "").strip(),
                     identity_document=patient_doc,
                     country="Bangladesh",
-                    verification_status="verified",
-                    is_verified=True,
+                    verification_status="pending",
+                    is_verified=False,
                     date_of_birth=data.get("date_of_birth"),
                     gender=data.get("gender", "").strip(),
                 )
@@ -71,8 +71,8 @@ def register_view(request):
                     experience_years=data.get("experience_years", 0),
                     consultation_fee=data.get("consultation_fee", 0),
                     country="Bangladesh",
-                    verification_status="verified",
-                    is_verified=True,
+                    verification_status="pending",
+                    is_verified=False,
                     date_of_birth=data.get("date_of_birth"),
                     gender=data.get("gender", "").strip(),
                 )
@@ -166,29 +166,37 @@ def verification_pending_view(request):
 
 @login_required
 def post_login_redirect(request):
-    """Send doctors, patients, and admins directly to their respective dashboards."""
+    """Send doctors, patients, and admins directly to their respective dashboards or verification pending page."""
     if request.user.is_superuser or request.user.is_staff:
         return redirect("admin:index")
 
     if hasattr(request.user, "doctor_profile"):
+        doctor = request.user.doctor_profile
+        if not doctor.is_verified:
+            return redirect("accounts:verification_pending")
         return redirect("doctors:dashboard")
 
     if hasattr(request.user, "patient_profile"):
+        patient = request.user.patient_profile
+        if not patient.is_verified:
+            return redirect("accounts:verification_pending")
         return redirect("patient:dashboard")
 
-    # If user has no profile yet, create a verified patient profile automatically
+    # If user has no profile yet, create a pending patient profile automatically
     from datetime import date
-    Patient.objects.get_or_create(
+    patient, _ = Patient.objects.get_or_create(
         user=request.user,
         defaults={
             "phone_number": "+8801700000000",
             "district": "Dhaka",
             "date_of_birth": date(1995, 1, 1),
             "gender": "Male",
-            "is_verified": True,
-            "verification_status": "verified",
+            "is_verified": False,
+            "verification_status": "pending",
         }
     )
+    if not patient.is_verified:
+        return redirect("accounts:verification_pending")
     return redirect("patient:dashboard")
 
 
@@ -199,31 +207,59 @@ def profile_view(request):
     patient = getattr(request.user, "patient_profile", None)
     doctor = getattr(request.user, "doctor_profile", None)
 
+    from accounts.models import BD_DISTRICT_CHOICES
+    from datetime import datetime
+
     if request.method == "POST":
         full_name = request.POST.get("full_name", "").strip()
-        preferred_language = request.POST.get("preferred_language", "bn")
+        preferred_language = request.POST.get("preferred_language", "").strip()
         avatar_file = request.FILES.get("avatar")
+        email = request.POST.get("email", "").strip()
 
         if full_name:
             names = full_name.split(" ", 1)
             request.user.first_name = names[0]
             request.user.last_name = names[1] if len(names) > 1 else ""
-            request.user.save()
+        if email:
+            request.user.email = email
+        request.user.save()
 
         if patient:
-            patient.preferred_language = preferred_language
+            if preferred_language in ("bn", "en"):
+                patient.preferred_language = preferred_language
+                request.session["site_lang"] = preferred_language
+
+            district = request.POST.get("district", "").strip()
+            gender = request.POST.get("gender", "").strip()
+            dob_str = request.POST.get("date_of_birth", "").strip()
+
+            if district:
+                patient.district = district
+            if gender in ("Male", "Female", "Other"):
+                patient.gender = gender
+            if dob_str:
+                try:
+                    patient.date_of_birth = datetime.strptime(dob_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+
             if avatar_file:
                 patient.avatar = avatar_file
                 patient.avatar_updated_at = timezone.now()
             patient.save()
             patient.refresh_from_db()
         elif doctor:
+            if preferred_language in ("bn", "en"):
+                request.session["site_lang"] = preferred_language
             if avatar_file:
                 old_avatar = doctor.avatar
                 doctor.avatar = avatar_file
                 doctor.avatar_updated_at = timezone.now()
                 if old_avatar and old_avatar.name != doctor.avatar.name:
-                    old_avatar.delete(save=False)
+                    try:
+                        old_avatar.delete(save=False)
+                    except Exception:
+                        pass
             doctor.save()
             doctor.refresh_from_db()
 
@@ -237,27 +273,33 @@ def profile_view(request):
         form = ProfileForm(
             initial={
                 "full_name": request.user.get_full_name(),
-                "preferred_language": patient.preferred_language if patient else "bn",
+                "preferred_language": patient.preferred_language if patient else request.session.get("site_lang", "bn"),
             }
         )
 
     return render(
         request,
         "accounts/profile.html",
-        {"form": form, "patient": patient, "doctor": doctor},
+        {
+            "form": form,
+            "patient": patient,
+            "doctor": doctor,
+            "districts": BD_DISTRICT_CHOICES,
+        },
     )
 
 
 @login_required
 def admin_unverified_dashboard_view(request):
-    """Dedicated Admin Dashboard listing all unverified Patients & Doctors for instant document review & approval."""
-    if not request.user.is_superuser:
-        messages.error(request, "Access restricted to CareBridge Admin superusers.")
+    """Dedicated Admin Dashboard listing all unverified Patients & Doctors, as well as overdue payment verification appeals for instant resolution & full refunds."""
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Access restricted to CareBridge Admin.")
         return redirect("home")
 
     if request.method == "POST":
         action_type = request.POST.get("action_type")
         user_id = request.POST.get("user_id")
+        appointment_id = request.POST.get("appointment_id")
 
         if action_type == "verify_patient":
             patient = get_object_or_404(Patient, pk=user_id)
@@ -287,16 +329,93 @@ def admin_unverified_dashboard_view(request):
             doctor.save()
             messages.info(request, f"Rejected verification for Doctor {doctor.user.get_full_name() or doctor.user.email}.")
 
+        elif action_type == "appeal_full_refund":
+            appointment = get_object_or_404(Appointment, pk=appointment_id)
+            patient = appointment.patient
+            refund_amount = appointment.fee_bdt
+
+            appointment.status = "cancelled"
+            appointment.payment_status = "refunded"
+            appointment.refund_status = "full"
+            appointment.refund_amount = refund_amount
+            appointment.platform_fee_bdt = Decimal("0.00")
+            appointment.net_doctor_payout_bdt = Decimal("0.00")
+            appointment.payment_appeal_status = "approved_refund"
+            appointment.payment_appeal_admin_notes = request.POST.get("admin_notes", "Full refund granted by admin due to overdue payment verification appeal.")
+            appointment.save()
+
+            patient.balance = (patient.balance or Decimal("0.00")) + refund_amount
+            patient.save(update_fields=["balance"])
+
+            AppNotification.objects.create(
+                user=patient.user,
+                title="✓ Full Refund Issued to Wallet",
+                message=f"CareBridge Admin reviewed your payment appeal for Appointment #{appointment.id} with Dr. {appointment.doctor.user.get_full_name()} and credited a 100% full refund of {refund_amount} BDT to your wallet.",
+                notification_type="booking",
+                link_url=reverse("patient:appointments"),
+            )
+
+            AppNotification.objects.create(
+                user=appointment.doctor.user,
+                title="Appointment Cancelled & Refunded by Admin",
+                message=f"Appointment #{appointment.id} with {patient.user.get_full_name()} was cancelled with full refund by Admin due to overdue payment verification appeal.",
+                notification_type="booking",
+                link_url=reverse("doctors:appointment_list"),
+            )
+
+            messages.success(request, f"✓ Full refund of {refund_amount} BDT has been credited to Patient {patient.user.get_full_name() or patient.user.email}'s wallet!")
+
+        elif action_type == "appeal_verify_payment":
+            appointment = get_object_or_404(Appointment, pk=appointment_id)
+            appointment.payment_status = "paid"
+            appointment.payment_verified = True
+            appointment.payment_verified_at = timezone.now()
+            appointment.status = "confirmed"
+            appointment.paid_amount = appointment.fee_bdt
+            appointment.payment_appeal_status = "approved_payment"
+            appointment.save()
+
+            AppNotification.objects.create(
+                user=appointment.patient.user,
+                title="✓ Payment Verified & Booking Confirmed",
+                message=f"Admin verified your payment for Appointment #{appointment.id} on {appointment.appointment_date}. Your booking is confirmed.",
+                notification_type="booking",
+                link_url=reverse("patient:appointment_detail", kwargs={"appointment_id": appointment.pk}),
+            )
+            messages.success(request, f"✓ Payment verified and Appointment #{appointment.id} confirmed!")
+
+        elif action_type == "appeal_reject":
+            appointment = get_object_or_404(Appointment, pk=appointment_id)
+            appointment.payment_appeal_status = "rejected"
+            appointment.payment_appeal_admin_notes = request.POST.get("admin_notes", "Payment appeal rejected by admin.")
+            appointment.save()
+
+            AppNotification.objects.create(
+                user=appointment.patient.user,
+                title="Payment Appeal Review",
+                message=f"Your payment appeal for Appointment #{appointment.id} was reviewed by Admin. Reason: {appointment.payment_appeal_admin_notes}",
+                notification_type="booking",
+                link_url=reverse("patient:appointments"),
+            )
+            messages.info(request, f"Payment appeal for Appointment #{appointment.id} set to rejected.")
+
         return redirect("accounts:admin_unverified_dashboard")
 
     unverified_patients = Patient.objects.filter(is_verified=False).select_related("user").order_by("-id")
     unverified_doctors = Doctor.objects.filter(is_verified=False).select_related("user").order_by("-id")
 
+    from django.db.models import Q
+    overdue_appeals = Appointment.objects.filter(
+        Q(is_payment_appeal_requested=True) | Q(payment_status="pending_verification")
+    ).select_related("patient__user", "doctor__user").order_by("-updated_at")
+
     return render(request, "accounts/admin_unverified_dashboard.html", {
         "unverified_patients": unverified_patients,
         "unverified_doctors": unverified_doctors,
+        "overdue_appeals": overdue_appeals,
         "pending_patients_count": unverified_patients.count(),
         "pending_doctors_count": unverified_doctors.count(),
+        "pending_appeals_count": overdue_appeals.count(),
     })
 
 
@@ -508,48 +627,91 @@ def doctor_analytics_view(request):
         return redirect("home")
 
     from django.db.models import Sum, Count, Q
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta
+
+    start_date = request.GET.get("start_date", "").strip()
+    end_date = request.GET.get("end_date", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+    search_query = request.GET.get("q", "").strip()
+    date_preset = request.GET.get("preset", "").strip()
 
     today = date.today()
-    month_start = today.replace(day=1)
 
-    # All appointments for this doctor
-    all_appointments = Appointment.objects.filter(doctor=doctor)
+    if date_preset == "today":
+        start_date = today.strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+    elif date_preset == "week":
+        start_date = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+    elif date_preset == "month":
+        start_date = today.replace(day=1).strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+    elif date_preset == "year":
+        start_date = today.replace(month=1, day=1).strftime("%Y-%m-%d")
+        end_date = today.strftime("%Y-%m-%d")
+
+    base_qs = Appointment.objects.filter(doctor=doctor).select_related("patient__user", "doctor__user")
+
+    if start_date:
+        try:
+            d_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            base_qs = base_qs.filter(appointment_date__gte=d_start)
+        except ValueError:
+            pass
+
+    if end_date:
+        try:
+            d_end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            base_qs = base_qs.filter(appointment_date__lte=d_end)
+        except ValueError:
+            pass
+
+    if status_filter:
+        if status_filter == "paid":
+            base_qs = base_qs.filter(payment_status="paid")
+        elif status_filter == "refunded":
+            base_qs = base_qs.filter(Q(status="cancelled") | Q(payment_status="refunded"))
+        else:
+            base_qs = base_qs.filter(status=status_filter)
+
+    if search_query:
+        base_qs = base_qs.filter(
+            Q(patient__user__first_name__icontains=search_query) |
+            Q(patient__user__last_name__icontains=search_query) |
+            Q(patient__user__email__icontains=search_query) |
+            Q(patient__phone_number__icontains=search_query)
+        )
+
+    all_appointments = base_qs.order_by("-appointment_date", "-start_time")
     completed = all_appointments.filter(status="completed")
     cancelled = all_appointments.filter(status="cancelled")
     paid = all_appointments.filter(payment_status="paid")
 
-    # This month's stats
-    month_completed = completed.filter(appointment_date__gte=month_start)
-    month_cancelled = cancelled.filter(appointment_date__gte=month_start)
-    month_paid = paid.filter(appointment_date__gte=month_start)
-
-    total_patients = Patient.objects.filter(prescriptions__doctor=doctor).distinct().count()
+    total_patients = all_appointments.values("patient").distinct().count()
     total_appointments = all_appointments.count()
-    month_appointments = month_completed.count()
+    completed_count = completed.count()
 
-    # Financial calculations — only from PAID appointments
-    total_earnings = paid.aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
-    month_earnings = month_paid.aggregate(Sum("fee_bdt"))["fee_bdt__sum"] or 0
-    total_refunds = cancelled.aggregate(Sum("refund_amount"))["refund_amount__sum"] or 0
-    month_refunds = month_cancelled.aggregate(Sum("refund_amount"))["refund_amount__sum"] or 0
-    platform_fees = paid.aggregate(Sum("platform_fee_bdt"))["platform_fee_bdt__sum"] or 0
+    total_earnings = paid.aggregate(total=Sum("fee_bdt"))["total"] or 0
+    total_refunds = cancelled.aggregate(total=Sum("refund_amount"))["total"] or 0
+    platform_fees = paid.aggregate(total=Sum("platform_fee_bdt"))["total"] or 0
     net_earnings = total_earnings - platform_fees - total_refunds
 
-    # Recent transactions — all appointments, newest first
-    recent_appointments = all_appointments.order_by("-created_at")[:20]
+    recent_appointments = all_appointments[:50]
 
     return render(request, "accounts/doctor_analytics.html", {
         "total_patients": total_patients,
         "total_appointments": total_appointments,
-        "month_appointments": month_appointments,
+        "completed_count": completed_count,
         "total_earnings": total_earnings,
-        "month_earnings": month_earnings,
         "total_refunds": total_refunds,
-        "month_refunds": month_refunds,
         "platform_fees": platform_fees,
         "net_earnings": net_earnings,
         "recent_appointments": recent_appointments,
+        "start_date": start_date,
+        "end_date": end_date,
+        "status_filter": status_filter,
+        "search_query": search_query,
+        "date_preset": date_preset,
     })
 
 

@@ -25,7 +25,7 @@
           {% if summary_language == 'bn' %}
             ডা. {{ prescription.doctor.user.get_full_name }} ({{ prescription.doctor.specialty|default:"মেডিসিন বিশেষজ্ঞ" }}) কর্তৃক {{ prescription.issued_at|date:"d M Y" }} তারিখে প্রস্তুতকৃত।
           {% else %}
-            Issued by Dr. {{ prescription.doctor.user.get_full_name }} ({{ prescription.doctor.specialty|default:"General Specialist" }}) on {{ prescription.issued_at|date:"d M Y" }}.
+            Issued by {{ prescription.doctor.get_full_name }} ({{ prescription.doctor.specialty|default:"General Specialist" }}) on {{ prescription.issued_at|date:"d M Y" }}.
           {% endif %}
         </p>
       </div>
@@ -89,7 +89,7 @@
             </div>
           </div>
           <div class="text-right">
-            <p class="text-base font-extrabold text-stone-900 dark:text-stone-100">Dr. {{ prescription.doctor.user.get_full_name }}</p>
+            <p class="text-base font-extrabold text-stone-900 dark:text-stone-100">{{ prescription.doctor.get_full_name }}</p>
             <p class="text-xs font-semibold text-teal-700 dark:text-teal-400">{{ prescription.doctor.specialty|default:"General Physician" }}</p>
             <p class="text-[11px] text-stone-500 mt-0.5">{{ prescription.doctor.clinic_name|default:"CareBridge Digital Chamber" }}</p>
           </div>
@@ -202,39 +202,7 @@
           </div>
         </div>
 
-        <!-- Analyzer Tabs -->
-        <div class="mt-4 flex overflow-x-auto gap-2 border-b border-stone-100 pb-3 dark:border-slate-800 scrollbar-none" id="analyzerTabs">
-          <button type="button" data-tab="tab-overview"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition">
-            <i class="fa-solid fa-file-contract"></i>
-            {% if summary_language == 'bn' %}সারসংক্ষেপ{% else %}Overview{% endif %}
-          </button>
-          <button type="button" data-tab="tab-schedule"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
-            <i class="fa-solid fa-clock"></i>
-            {% if summary_language == 'bn' %}ওষুধের সময়সূচী{% else %}Schedule{% endif %}
-          </button>
-          <button type="button" data-tab="tab-precautions"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
-            <i class="fa-solid fa-shield-halved"></i>
-            {% if summary_language == 'bn' %}সতর্কতা ও খাদ্যবিধি{% else %}Precautions & Diet{% endif %}
-          </button>
-          <button type="button" data-tab="tab-warnings"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            {% if summary_language == 'bn' %}জরুরি লক্ষণ{% else %}Warning Signals{% endif %}
-          </button>
-          <button type="button" data-tab="tab-deep"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
-            <i class="fa-solid fa-brain"></i>
-            {% if summary_language == 'bn' %}গভীর বিশ্লেষণ{% else %}Deep Analysis{% endif %}
-          </button>
-          <button type="button" data-tab="tab-faq"
-            class="tab-btn flex shrink-0 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-bold text-stone-700 transition hover:bg-stone-100 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-300">
-            <i class="fa-solid fa-circle-question"></i>
-            {% if summary_language == 'bn' %}প্রশ্নোত্তর{% else %}FAQ{% endif %}
-          </button>
-        </div>
+
 
         <!-- Tab Contents -->
         <div class="mt-4 flex-1 space-y-4">

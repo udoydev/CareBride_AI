@@ -25,7 +25,7 @@
         {% for f in booking_required %}
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-100 p-4 dark:border-amber-900/30">
           <div>
-            <p class="font-bold text-sm text-amber-900 dark:text-amber-300">Dr. {{ f.prescription.doctor.user.get_full_name|default:f.prescription.doctor.user.username }}</p>
+            <p class="font-bold text-sm text-amber-900 dark:text-amber-300">{{ f.prescription.doctor.get_full_name }}</p>
             <p class="text-xs text-amber-700 dark:text-amber-400 font-mono mt-0.5">
               <i class="fa-regular fa-calendar mr-1"></i>Follow-up: {{ f.scheduled_date }}
             </p>
@@ -54,7 +54,7 @@
         {% for f in upcoming %}
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-100 p-4 dark:border-slate-800">
           <div>
-            <p class="font-bold text-sm text-stone-900 dark:text-stone-100">Dr. {{ f.prescription.doctor.user.get_full_name|default:f.prescription.doctor.user.username }}</p>
+            <p class="font-bold text-sm text-stone-900 dark:text-stone-100">{{ f.prescription.doctor.get_full_name }}</p>
             <p class="text-xs text-stone-500 font-mono mt-0.5"><i class="fa-regular fa-calendar mr-1"></i>Date: {{ f.scheduled_date }}</p>
             {% if f.booking_deadline %}
             <p class="text-xs text-amber-600 dark:text-amber-400 font-mono mt-0.5">
@@ -98,7 +98,7 @@
       <h2 class="text-xl font-semibold">{% if site_lang == 'bn' %}সম্পন্ন{% else %}Completed{% endif %}</h2>
       <div class="mt-3 space-y-2">
         {% for f in completed %}
-          <p class="text-sm text-stone-600 dark:text-stone-400">{{ f.scheduled_date }} - Dr. {{ f.prescription.doctor.user.get_full_name }}</p>
+          <p class="text-sm text-stone-600 dark:text-stone-400">{{ f.scheduled_date }} - {{ f.prescription.doctor.get_full_name }}</p>
         {% empty %}
           <p class="text-sm text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}এখনও কোনো সম্পন্ন ফলো-আপ নেই।{% else %}No completed follow-ups yet.{% endif %}</p>
         {% endfor %}
@@ -111,7 +111,7 @@
         {% for f in missed %}
         <div class="flex items-center justify-between rounded-xl border border-red-100 p-3 dark:border-red-900/30">
           <div>
-            <p class="text-sm font-bold text-red-800 dark:text-red-300">Dr. {{ f.prescription.doctor.user.get_full_name|default:f.prescription.doctor.user.username }}</p>
+            <p class="text-sm font-bold text-red-800 dark:text-red-300">{{ f.prescription.doctor.get_full_name }}</p>
             <p class="text-xs text-red-600 dark:text-red-400 font-mono">{{ f.scheduled_date }}</p>
           </div>
             <a href="{% url 'patient:book_doctor' f.prescription.doctor.pk %}?followup_id={{ f.pk }}" class="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">

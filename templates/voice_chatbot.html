@@ -46,14 +46,7 @@
                 </button>
             </div>
 
-            <!-- Voice Control Action Bar (ON, OFF, RESTART) -->
-            <div class="flex items-center gap-1.5 bg-slate-950 px-3.5 py-1.5 rounded-2xl border border-slate-800 text-xs">
-                <span class="text-slate-400 font-medium">Voice:</span>
-                <strong id="voice-state-text" class="text-emerald-400 mr-1">ON</strong>
-                <button onclick="controlVoice('on')" class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition">🟢 ON</button>
-                <button onclick="controlVoice('off')" class="px-2.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition">🔴 OFF</button>
-                <button onclick="controlVoice('restart')" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition" title="Replay voice explanation">🔄 RESTART</button>
-            </div>
+
 
             <a href="{% url 'home' %}" class="text-xs font-semibold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
                 ← {% if site_lang == 'bn' %}ড্যাশবোর্ড{% else %}Dashboard{% endif %}
@@ -177,7 +170,7 @@
         class CarebridgePageVoicePlayer {
             constructor() {
                 this.currentAudio = null;
-                this.isEnabled = true;
+                this.isEnabled = false;
                 this.currentText = "";
                 this.currentLang = "bn";
             }

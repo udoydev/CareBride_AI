@@ -1,11 +1,37 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .badge-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-completed { background: #d1fae5 !important; color: #047857 !important; border: 1px solid #a7f3d0 !important; }
+  .badge-missed { background: #fee2e2 !important; color: #b91c1c !important; border: 1px solid #fca5a5 !important; }
+  .badge-cancelled { background: #ffedd5 !important; color: #c2410c !important; border: 1px solid #fed7aa !important; }
+  .badge-pending { background: #fef3c7 !important; color: #b45309 !important; border: 1px solid #fde68a !important; }
+  .badge-confirmed { background: #e0f2fe !important; color: #0369a1 !important; border: 1px solid #bae6fd !important; }
+
+  .badge-id-doc { background: #ccfbf1 !important; color: #0f766e !important; border: 1px solid #99f6e4 !important; font-weight: 700; }
+  .badge-id-pat { background: #e0f2fe !important; color: #0369a1 !important; border: 1px solid #bae6fd !important; font-weight: 700; }
+  .badge-id-apt { background: #f1f5f9 !important; color: #334155 !important; border: 1px solid #cbd5e1 !important; font-weight: 700; }
+
+  .badge-pay-paid { background: #dcfce7 !important; color: #15803d !important; border: 1px solid #86efac !important; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 11px; display: inline-block; }
+  .badge-pay-refunded { background: #fee2e2 !important; color: #b91c1c !important; border: 1px solid #fca5a5 !important; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 11px; display: inline-block; }
+  .badge-pay-pending { background: #fef3c7 !important; color: #b45309 !important; border: 1px solid #fde68a !important; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-size: 11px; display: inline-block; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-between mb-4 flex-wrap gap-2">
     <div>
-      <span class="badge badge-info px-2 py-1 font-weight-bold mb-1">Doctor ID: #{{ doctor.id }}</span>
+      <span class="badge badge-id-doc px-2.5 py-1 mb-1">Doctor ID: #DOC-{{ doctor.id }}</span>
       <h2 class="h3 font-weight-bold text-dark mb-1">Dr. {{ doctor_name }} — Performance Report</h2>
       <p class="text-muted small mb-0">
         Specialty: {{ doctor.specialty|default:"General Physician" }} | BMDC: {{ doctor.registration_number|default:"N/A" }} | Phone: {{ doctor.phone_number|default:"N/A" }}
@@ -95,7 +121,7 @@
     </div>
     <div class="col-md-3 col-sm-6 mb-2">
       <div class="card p-3 shadow-sm border-left border-purple" style="border-left-color:#9333ea !important;">
-        <div class="small text-muted font-weight-bold">Platform Commission</div>
+        <div class="small text-muted font-weight-bold">Platform Commission (15%)</div>
         <div class="h4 font-weight-bold mb-0 mt-1" style="color:#9333ea;">৳{{ platform_income|floatformat:0 }}</div>
       </div>
     </div>
@@ -131,26 +157,36 @@
         <tbody>
           {% for apt in recent_appointments %}
           <tr>
-            <td class="font-weight-bold">#APT-{{ apt.id }}</td>
+            <td><span class="badge badge-id-apt px-2 py-1">#APT-{{ apt.id }}</span></td>
             <td>
-              <span class="badge badge-info px-2">#PAT-{{ apt.patient.id }}</span>
+              <span class="badge badge-id-pat px-2 py-1">#PAT-{{ apt.patient.id }}</span>
               <span class="font-weight-bold text-dark ml-1">{{ apt.patient.user.get_full_name|default:apt.patient.user.email }}</span>
             </td>
             <td class="font-weight-bold">{{ apt.appointment_date|date:"d M Y" }}</td>
             <td>{{ apt.start_time|time:"H:i" }} - {{ apt.end_time|time:"H:i" }}</td>
             <td>
               {% if apt.status == 'completed' %}
-                <span class="badge badge-success px-2 py-1">Completed</span>
+                <span class="badge-status badge-completed">Completed</span>
               {% elif apt.status == 'missed' %}
-                <span class="badge badge-danger px-2 py-1">Missed</span>
+                <span class="badge-status badge-missed">Missed</span>
               {% elif apt.status == 'cancelled' %}
-                <span class="badge badge-warning px-2 py-1">Cancelled</span>
+                <span class="badge-status badge-cancelled">Cancelled</span>
+              {% elif apt.status == 'confirmed' %}
+                <span class="badge-status badge-confirmed">Confirmed</span>
               {% else %}
-                <span class="badge badge-secondary px-2 py-1">{{ apt.get_status_display }}</span>
+                <span class="badge-status badge-pending">{{ apt.get_status_display }}</span>
               {% endif %}
             </td>
             <td class="font-weight-bold">৳{{ apt.fee_bdt }}</td>
-            <td><span class="badge badge-light border">{{ apt.get_payment_status_display }}</span></td>
+            <td>
+              {% if apt.payment_status == 'paid' %}
+                <span class="badge-pay-paid">Paid</span>
+              {% elif apt.payment_status == 'refunded' %}
+                <span class="badge-pay-refunded">Refunded</span>
+              {% else %}
+                <span class="badge-pay-pending">Pending</span>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
           <tr><td colspan="7" class="text-center text-muted py-4">No appointments found.</td></tr>

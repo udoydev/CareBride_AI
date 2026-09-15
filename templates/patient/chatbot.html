@@ -129,7 +129,7 @@
 
       <div class="space-y-3">
         {% for message in chat_messages %}
-          <div class="flex {% if message.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}" data-role="{{ message.role }}" data-text="{{ message.text|escapejs }}">
+          <div class="flex {% if message.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}" data-role="{{ message.role }}" data-text="{{ message.content|escapejs }}">
             <div class="max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm {% if message.role == 'assistant' %}bg-teal-50 text-stone-800 dark:bg-teal-900/20 dark:text-stone-100{% else %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-100{% endif %}">
               <p class="whitespace-pre-line leading-7 msg-content"></p>
             </div>
@@ -177,6 +177,53 @@
       if (contentEl && text) {
         const decoded = text.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
         contentEl.innerHTML = role === 'assistant' ? renderMarkdown(decoded) : escapeHtml(decoded);
+
+        if (role === 'assistant') {
+          let isBn = /[\u0980-\u09FF]/.test(decoded);
+          let currentMsgLang = isBn ? "bn" : "en";
+          let currentMsgText = decoded;
+
+          const actions = document.createElement("div");
+          actions.className = "mt-2.5 flex flex-wrap items-center gap-2 pt-2 border-t border-stone-200/60 dark:border-slate-700/60";
+
+          const translateBtn = document.createElement("button");
+          translateBtn.type = "button";
+          translateBtn.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-800 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition";
+
+          function updateTranslateLabel() {
+            translateBtn.innerHTML = currentMsgLang === "bn"
+              ? `<i class="fa-solid fa-language"></i> 🇺🇸 English`
+              : `<i class="fa-solid fa-language"></i> 🇧🇩 বাংলা`;
+          }
+          updateTranslateLabel();
+
+          translateBtn.addEventListener("click", async function() {
+            const targetLang = currentMsgLang === "bn" ? "en" : "bn";
+            translateBtn.disabled = true;
+            translateBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> ...`;
+            try {
+              const res = await fetch("{% url 'patient:chat_api_translate' %}", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ text: currentMsgText, target_lang: targetLang })
+              });
+              const data = await res.json();
+              if (res.ok && data.translated_text) {
+                currentMsgText = data.translated_text;
+                currentMsgLang = targetLang;
+                contentEl.innerHTML = renderMarkdown(currentMsgText);
+                updateTranslateLabel();
+              }
+            } catch (_) {}
+            finally { translateBtn.disabled = false; }
+          });
+
+          actions.appendChild(translateBtn);
+          contentEl.parentElement.appendChild(actions);
+        }
       }
     });
   </script>

@@ -35,18 +35,29 @@
           {% if patient %}
             <div class="mt-2 flex flex-wrap gap-3 text-xs text-stone-500 dark:text-stone-400">
               {% if patient.gender %}<span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">{{ patient.gender }}</span>{% endif %}
-              {% if patient.date_of_birth %}
-                {% with age=patient.date_of_birth|timesince:"" %}
-                  <span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">Age: {{ age|slice:":2" }} years</span>
-                {% endwith %}
+              {% if patient.age is not None %}
+                <span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">Age: {{ patient.age }} years</span>
               {% endif %}
               {% if patient.district %}<span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">{{ patient.district }}</span>{% endif %}
+            </div>
+          {% elif doctor %}
+            <div class="mt-2 flex flex-wrap gap-3 text-xs text-stone-500 dark:text-stone-400">
+              {% if doctor.specialty %}<span class="rounded-full bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 px-2.5 py-0.5">{{ doctor.specialty }}</span>{% endif %}
+              {% if doctor.age is not None %}<span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">Age: {{ doctor.age }} years</span>{% endif %}
+              {% if doctor.experience_years %}<span class="rounded-full bg-stone-100 px-2.5 py-0.5 dark:bg-slate-800">{{ doctor.experience_years }} yrs exp</span>{% endif %}
             </div>
           {% endif %}
         </div>
       </div>
-      <div class="rounded-2xl border border-stone-200 bg-white/70 px-4 py-3 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-950/70 dark:text-stone-300">
-        {% if site_lang == 'bn' %}সদস্য হয়েছেন{% else %}Member since{% endif %} {{ request.user.date_joined|date:"F Y" }}
+      <div class="flex items-center gap-2">
+        {% if doctor %}
+          <a href="{% url 'doctors:profile_edit' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-teal-300 bg-teal-50 px-4 text-xs font-bold text-teal-800 shadow-xs hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+            <i class="fa-solid fa-user-doctor"></i> Doctor Credentials & Fees
+          </a>
+        {% endif %}
+        <div class="rounded-2xl border border-stone-200 bg-white/70 px-4 py-2.5 text-xs text-stone-600 dark:border-stone-800 dark:bg-stone-950/70 dark:text-stone-300">
+          {% if site_lang == 'bn' %}সদস্য হয়েছেন{% else %}Member since{% endif %} {{ request.user.date_joined|date:"F Y" }}
+        </div>
       </div>
     </div>
 
@@ -62,7 +73,7 @@
               {% if visit.blood_pressure_systolic and visit.blood_pressure_diastolic %}<p>BP: <span class="font-bold">{{ visit.blood_pressure_systolic }}/{{ visit.blood_pressure_diastolic }}</span></p>{% endif %}
               {% if visit.temperature_celsius %}<p>Temp: <span class="font-bold">{{ visit.temperature_celsius }}</span>°C</p>{% endif %}
               {% if visit.weight_kg %}<p>Weight: <span class="font-bold">{{ visit.weight_kg }}</span> kg</p>{% endif %}
-              {% if visit.height_cm %}<p>Height: <span class="font-bold">{{ visit.height_cm }}</span> cm</p>{% endif %}
+              {% if visit.height_cm %}<p>Height: <span class="font-bold">{{ visit.height_display }}</span></p>{% endif %}
               {% if visit.oxygen_saturation %}<p>SpO2: <span class="font-bold">{{ visit.oxygen_saturation }}</span>%</p>{% endif %}
             </div>
           </div>
@@ -94,14 +105,54 @@
           {{ form.full_name }}
         </div>
         <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Email Address</label>
+          <input type="email" name="email" value="{{ request.user.email }}"
+            class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
           <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">{% if site_lang == 'bn' %}ফোন নম্বর{% else %}Phone number{% endif %}</label>
           <input type="text" value="{{ request.user.username }}" disabled
             class="w-full cursor-not-allowed rounded-xl border border-stone-200 bg-stone-100 px-4 py-2.5 text-sm text-stone-500 dark:border-slate-800 dark:bg-slate-800 dark:text-stone-400">
           <p class="mt-1 text-xs text-stone-400">{% if site_lang == 'bn' %}ফোন নম্বর পরিবর্তন করা যাবে না।{% else %}Phone number cannot be changed{% endif %}</p>
         </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Preferred Language / পছন্দের ভাষা</label>
+          <div class="flex items-center gap-4 mt-2">
+            <label class="inline-flex items-center gap-2 text-sm text-stone-800 dark:text-stone-200 cursor-pointer">
+              <input type="radio" name="preferred_language" value="en" {% if patient.preferred_language == 'en' or site_lang == 'en' %}checked{% endif %} class="text-teal-600 focus:ring-teal-500">
+              English
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm text-stone-800 dark:text-stone-200 cursor-pointer">
+              <input type="radio" name="preferred_language" value="bn" {% if patient.preferred_language == 'bn' or not patient.preferred_language and site_lang == 'bn' %}checked{% endif %} class="text-teal-600 focus:ring-teal-500">
+              বাংলা (Bangla)
+            </label>
+          </div>
+        </div>
+
+        {% if patient %}
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Gender / লিঙ্গ</label>
+          <select name="gender" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            <option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male / পুরুষ</option>
+            <option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female / মহিলা</option>
+            <option value="Other" {% if patient.gender == 'Other' %}selected{% endif %}>Other / অন্যান্য</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Date of Birth / জন্মতারিখ</label>
+          <input type="date" name="date_of_birth" value="{{ patient.date_of_birth|date:'Y-m-d' }}"
+            class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">District / জেলা</label>
+          <select name="district" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm shadow-xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
+            {% for code, label in districts %}
+              <option value="{{ code }}" {% if patient.district == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
       </div>
-
-
 
       <div class="flex flex-wrap gap-3 pt-2">
         <button type="submit"

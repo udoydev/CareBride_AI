@@ -106,6 +106,22 @@ class PatientVisit(models.Model):
     class Meta:
         ordering = ["-visited_at"]
 
+    @property
+    def height_ft_in(self):
+        if not self.height_cm:
+            return None, None
+        total_inches = round(self.height_cm / 2.54)
+        return total_inches // 12, total_inches % 12
+
+    @property
+    def height_display(self):
+        if not self.height_cm:
+            return ""
+        total_inches = round(self.height_cm / 2.54)
+        feet = total_inches // 12
+        inches = total_inches % 12
+        return f"{feet}′ {inches}″ ({self.height_cm} cm)"
+
     def __str__(self):
         return f"Visit: {self.patient} with {self.doctor} on {self.visited_at:%Y-%m-%d}"
 

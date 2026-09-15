@@ -54,6 +54,23 @@
     </div>
   </div>
 
+  {% if stats.overdue_verification > 0 %}
+  <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="rounded-full bg-red-100 p-2 text-red-600 dark:bg-red-900/40 dark:text-red-300">
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+      </div>
+      <div>
+        <p class="text-sm font-bold text-red-900 dark:text-red-200">🚨 Overdue Payment Verifications (>24h)</p>
+        <p class="text-xs text-red-700 dark:text-red-300">You have <strong>{{ stats.overdue_verification }}</strong> payment proof{{ stats.overdue_verification|pluralize:"s" }} waiting for verification over 24 hours. Please verify immediately.</p>
+      </div>
+    </div>
+    <a href="?status=pending_verification" class="shrink-0 rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 shadow-2xs">
+      Verify Overdue Payments Now <i class="fa-solid fa-arrow-right ml-1"></i>
+    </a>
+  </div>
+  {% endif %}
+
   <!-- Filters -->
   <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
     <a href="?status=" class="rounded-full px-4 py-1.5 text-xs font-bold {% if not status_filter %}bg-teal-600 text-white{% else %}border border-stone-200 text-stone-700 dark:border-slate-800 dark:text-stone-300{% endif %}">All</a>
@@ -153,56 +170,63 @@
                         <i class="fa-solid fa-pen mr-1"></i> Rescheduled {{ apt.edit_count }} time{{ apt.edit_count|pluralize:"s" }} by patient
                       </p>
                     {% endif %}
+                    {% if apt.transaction_id %}
+                      <p class="text-xs text-purple-700 dark:text-purple-300 mt-1 font-mono font-bold">
+                        <i class="fa-solid fa-receipt mr-1"></i> Txn ID: {{ apt.transaction_id }}
+                      </p>
+                    {% endif %}
                  </div>
                   <div class="flex items-center gap-2">
-                        {% if apt.time_passed and apt.status in 'pending,confirmed,cancellation_pending' and not apt.is_window_expired %}
-                       <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 countdown-timer" data-remaining="{{ apt.remaining_seconds }}" data-appt-id="{{ apt.pk }}">
-                         <i class="fa-regular fa-clock mr-1"></i> <span class="timer-text">Loading...</span>
-                       </span>
-                       {% endif %}
-                      {% if not apt.is_window_expired %}
-                      <a href="{% url 'doctors:patient_detail' apt.patient.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
-                        <i class="fa-solid fa-user"></i> View Patient
-                      </a>
+                    {% if apt.status == 'cancelled' or apt.status == 'missed' %}
+                      <span class="rounded-full px-3 py-1 text-xs font-bold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                        {% if apt.status == 'cancelled' %}Cancelled{% else %}Missed{% endif %}
+                      </span>
+                    {% else %}
+                      {% if apt.time_passed and apt.status in 'pending,confirmed,cancellation_pending' and not apt.is_window_expired %}
+                        <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 countdown-timer" data-remaining="{{ apt.remaining_seconds }}" data-appt-id="{{ apt.pk }}">
+                          <i class="fa-regular fa-clock mr-1"></i> <span class="timer-text">Loading...</span>
+                        </span>
                       {% endif %}
-                     <span class="rounded-full px-3 py-1 text-xs font-bold
-                      {% if apt.payment_status == 'pending_verification' %}bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300
-                      {% elif apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
-                      {% elif apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
-                      {% elif apt.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
-                      {% elif apt.status == 'missed' %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300
-                      {% elif apt.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
-                      {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
-                      {% if apt.payment_status == 'pending_verification' %}Pending Verification
-                      {% else %}{{ apt.get_status_display }}{% endif %}
-                    </span>
-                     {% if not apt.is_window_expired %}
-                     {% if apt.payment_status == 'pending_verification' %}
-                     <a href="{% url 'doctors:verify_payment' apt.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-3 text-xs font-bold text-purple-800 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300">
-                       <i class="fa-solid fa-check"></i> Verify
-                     </a>
-                     {% elif apt.status != 'completed' and apt.status != 'missed' and apt.status != 'cancelled' and not apt.prescriptions.exists and not apt.is_window_expired %}
-                     <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline mark-attendance-form" data-action="visited">
-                       {% csrf_token %}
-                       <input type="hidden" name="action" value="visited">
-                       <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
-                         <i class="fa-solid fa-check"></i> {% translate_bn "Mark as visited" %}
-                       </button>
-                     </form>
-                     <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline mark-attendance-form" data-action="missed">
-                       {% csrf_token %}
-                       <input type="hidden" name="action" value="missed">
-                       <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-800 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                         <i class="fa-solid fa-xmark"></i> {% translate_bn "Mark as missed" %}
-                       </button>
-                     </form>
-                     {% endif %}
-                     {% endif %}
-                     {% if not apt.is_window_expired %}
-                     <a href="{% url 'doctors:appointment_detail' apt.pk %}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
-                       Manage
-                     </a>
-                     {% endif %}
+
+                      {% if not apt.is_window_expired %}
+                        <a href="{% url 'doctors:patient_detail' apt.patient.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-800 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+                          <i class="fa-solid fa-user"></i> View Patient
+                        </a>
+                      {% endif %}
+
+                      <span class="rounded-full px-3 py-1 text-xs font-bold
+                       {% if apt.payment_status == 'pending_verification' %}{% if apt.verification_overdue %}bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/40 dark:text-red-300 animate-pulse{% else %}bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300{% endif %}
+                       {% elif apt.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300
+                       {% elif apt.status == 'confirmed' %}bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300
+                       {% elif apt.status == 'completed' %}bg-stone-100 text-stone-800 dark:bg-slate-800 dark:text-stone-300
+                       {% elif apt.status == 'cancellation_pending' %}bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300
+                       {% else %}bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300{% endif %}">
+                       {% if apt.payment_status == 'pending_verification' %}{% if apt.verification_overdue %}🚨 Overdue Verification (>24h){% else %}Pending Verification ({{ apt.hours_remaining_verification }}h left){% endif %}
+                       {% else %}{{ apt.get_status_display }}{% endif %}
+                      </span>
+
+                      {% if not apt.is_window_expired %}
+                        {% if apt.payment_status == 'pending_verification' and apt.status != 'cancelled' %}
+                          <a href="{% url 'doctors:verify_payment' apt.pk %}" class="inline-flex h-9 items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-3 text-xs font-bold text-purple-800 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300">
+                            <i class="fa-solid fa-check"></i> Verify
+                          </a>
+                        {% elif apt.status != 'completed' and apt.status != 'missed' and apt.status != 'cancelled' and not apt.prescriptions.exists and not apt.is_window_expired %}
+                          <form method="post" action="{% url 'doctors:mark_attendance' apt.pk %}" class="inline mark-attendance-form" data-action="visited">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="visited">
+                            <button type="submit" class="inline-flex h-9 items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 text-xs font-bold text-teal-800 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                              <i class="fa-solid fa-check"></i> {% translate_bn "Mark as visited" %}
+                            </button>
+                          </form>
+                        {% endif %}
+                      {% endif %}
+
+                      {% if not apt.is_window_expired %}
+                        <a href="{% url 'doctors:appointment_detail' apt.pk %}" class="inline-flex h-9 items-center rounded-full border border-stone-200 px-4 text-xs font-bold text-stone-800 hover:bg-stone-50 dark:border-slate-700 dark:text-stone-200 dark:hover:bg-slate-800">
+                          Manage
+                        </a>
+                      {% endif %}
+                    {% endif %}
                   </div>
               </div>
             </div>
@@ -219,16 +243,46 @@
     </div>
   {% endif %}
 
-  {% if page_obj.has_other_pages %}
-  <div class="mt-8 flex items-center justify-center gap-2">
-    {% if page_obj.has_previous %}
-      <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-    {% endif %}
-    <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}
-      <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-    {% endif %}
-  </div>
+  {% if page_obj and page_obj.has_other_pages %}
+  <nav class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none">
+    <p class="text-xs text-stone-500 dark:text-stone-400">
+      Showing <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.start_index }}</span> to <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.end_index }}</span> of <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.paginator.count }}</span> appointments
+    </p>
+
+    <div class="flex items-center gap-1.5">
+      {% if page_obj.has_previous %}
+        <a href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+          <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+        </a>
+      {% else %}
+        <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+          <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+        </span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-bold text-white shadow-xs">
+            {{ num }}
+          </span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a href="?status={{ status_filter }}&page={{ num }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white font-medium text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+            {{ num }}
+          </a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+          Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+        </a>
+      {% else %}
+        <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+          Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+        </span>
+      {% endif %}
+    </div>
+  </nav>
   {% endif %}
 </section>
 
@@ -236,10 +290,7 @@
   document.querySelectorAll('.mark-attendance-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
-      const action = form.dataset.action;
-      const message = action === 'visited'
-        ? '{% translate_bn "Mark as visited?" %}'
-        : '{% translate_bn "Mark as missed? A notification will be sent to the patient." %}';
+      const message = '{% translate_bn "Mark as visited/completed? A prescription cannot be added afterward." %}';
       showWarningModal('{% translate_bn "Are you sure?" %}', message, function() {
         form.submit();
       });

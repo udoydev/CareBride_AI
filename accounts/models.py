@@ -57,6 +57,17 @@ class Patient(models.Model):
             self.is_verified = bool(self.is_verified)
         super().save(*args, **kwargs)
 
+    @property
+    def age(self):
+        """Calculate age accurately in years based on local date in Asia/Dhaka."""
+        if not self.date_of_birth:
+            return None
+        from django.utils import timezone
+        today = timezone.localdate()
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
     def __str__(self):
         status_badge = " [Verified BD Citizen]" if self.is_verified else " [Pending Verification]"
         return (self.user.get_full_name() or self.user.email or self.user.username) + status_badge
@@ -84,6 +95,7 @@ class Doctor(models.Model):
     experience_years = models.PositiveIntegerField(default=0, help_text="Total years of medical practice experience")
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Consultation fee in BDT")
     avatar = models.ImageField(upload_to="doctor_avatars/", null=True, blank=True)
+    signature = models.ImageField(upload_to="doctor_signatures/", null=True, blank=True)
     avatar_updated_at = models.DateTimeField(null=True, blank=True)
     verification_status = models.CharField(max_length=20, choices=VERIFICATION_CHOICES, default="pending")
     is_verified = models.BooleanField(default=False)
@@ -104,9 +116,28 @@ class Doctor(models.Model):
             self.is_verified = bool(self.is_verified)
         super().save(*args, **kwargs)
 
+    @property
+    def age(self):
+        """Calculate age accurately in years based on local date in Asia/Dhaka."""
+        if not self.date_of_birth:
+            return None
+        from django.utils import timezone
+        today = timezone.localdate()
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
+    def get_full_name(self):
+        import re
+        raw_name = (self.user.get_full_name() or self.user.username or "").strip()
+        clean_name = re.sub(r'^(?:Dr\.?\s*|Doctor\s*)+', '', raw_name, flags=re.IGNORECASE).strip()
+        if not clean_name:
+            clean_name = "Doctor"
+        return f"Dr. {clean_name}"
+
     def __str__(self):
         status_badge = " [Verified BMDC Doctor]" if self.is_verified else " [Pending Verification]"
-        return (self.user.get_full_name() or self.user.email or self.user.username) + status_badge
+        return self.get_full_name() + status_badge
 
 
 class AppNotification(models.Model):
@@ -204,12 +235,39 @@ class News(models.Model):
     ]
 
     title = models.CharField(max_length=200)
+    title_bn = models.CharField(max_length=200, blank=True, null=True, help_text="Title in Bangla")
     message = models.TextField()
+    message_bn = models.TextField(blank=True, null=True, help_text="Message in Bangla")
     target_audience = models.CharField(max_length=20, choices=TARGET_CHOICES, default="all")
     is_active = models.BooleanField(default=True)
     is_urgent = models.BooleanField(default=False, help_text="Show with animation")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def title_display_bn(self):
+        if self.title_bn and self.title_bn.strip():
+            return self.title_bn.strip()
+        common = {
+            "welcome": "স্বাগতম",
+            "notice": "বিজ্ঞপ্তি",
+            "announcement": "জরুরী ঘোষণা",
+            "alert": "সতর্কবার্তা",
+            "update": "আপডেট",
+            "breaking news": "জরুরী সংবাদ",
+            "maintenance": "রক্ষণাবেক্ষণ",
+        }
+        return common.get(self.title.strip().lower(), self.title)
+
+    @property
+    def message_display_bn(self):
+        if self.message_bn and self.message_bn.strip():
+            return self.message_bn.strip()
+        common_messages = {
+            "to the first automated clinical helper platform": "প্রথম স্বয়ংক্রিয় ক্লিনিক্যাল সহায়ক প্ল্যাটফর্মে আপনাকে স্বাগতম",
+        }
+        clean = self.message.strip().lower()
+        return common_messages.get(clean, self.message)
 
     class Meta:
         ordering = ["-created_at"]

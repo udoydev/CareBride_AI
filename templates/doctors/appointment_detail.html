@@ -52,17 +52,73 @@
         <p class="text-sm font-medium text-amber-700 dark:text-amber-300">{{ appointment.edit_count }}/3 {% translate_bn "edits used by patient" %}</p>
       </div>
       {% endif %}
+
+      {% if appointment.transaction_id or appointment.payment_proof %}
+      <div class="sm:col-span-2 rounded-2xl border border-purple-200 bg-purple-50/70 p-4 dark:border-purple-900/40 dark:bg-purple-950/30">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-receipt text-purple-600 dark:text-purple-400"></i> Payment Proof & Transaction ID
+          </span>
+          <span class="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+            {{ appointment.payment_method|default:"Online" }}
+          </span>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 items-center">
+          <div>
+            <p class="text-[11px] text-stone-500 dark:text-stone-400">Transaction ID / Reference:</p>
+            <p class="font-mono text-sm font-bold text-purple-950 dark:text-purple-200 mt-0.5">{{ appointment.transaction_id|default:"N/A" }}</p>
+            {% if appointment.payment_notes %}
+            <p class="text-xs text-stone-600 dark:text-stone-400 mt-1">Notes: {{ appointment.payment_notes }}</p>
+            {% endif %}
+          </div>
+          {% if appointment.payment_proof %}
+          <div class="flex items-center gap-2">
+            <a href="{{ appointment.payment_proof.url }}" target="_blank" class="block overflow-hidden rounded-lg border border-purple-200 dark:border-purple-800">
+              <img src="{{ appointment.payment_proof.url }}" alt="Proof" class="h-16 w-24 object-cover">
+            </a>
+            <a href="{{ appointment.payment_proof.url }}" target="_blank" class="text-xs font-bold text-teal-600 hover:underline dark:text-teal-400">
+              View Proof Image <i class="fa-solid fa-arrow-up-right-from-square ml-0.5"></i>
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        {% if appointment.payment_status == 'pending_verification' and appointment.status != 'cancelled' %}
+        <div class="mt-3 pt-2 border-t border-purple-200/60 dark:border-purple-900/40 text-right">
+          <a href="{% url 'doctors:verify_payment' appointment.pk %}" class="inline-flex h-8 items-center gap-1 rounded-full bg-purple-600 px-4 text-xs font-bold text-white shadow-2xs hover:bg-purple-700">
+            <i class="fa-solid fa-shield-check"></i> Go to Verification Screen
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
       </div>
 
       <div>
         <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">{% translate_bn "Status" %}</label>
         <select name="status" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+          {% if appointment.status == 'confirmed' %}
+          <option value="confirmed" selected>Confirmed</option>
+          {% endif %}
           <option value="pending" {% if appointment.status == 'pending' %}selected{% endif %}>Pending</option>
-          <option value="confirmed" {% if appointment.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
           <option value="completed" {% if appointment.status == 'completed' %}selected{% endif %}>Completed / Visited</option>
-          <option value="missed" {% if appointment.status == 'missed' %}selected{% endif %}>Missed / No-Show</option>
+          {% if appointment.status == 'missed' %}
+          <option value="missed" selected disabled>Missed (Auto 4-Hour Rule)</option>
+          {% endif %}
+          {% if appointment.can_doctor_cancel %}
           <option value="cancelled" {% if appointment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+          {% endif %}
         </select>
+        <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+          <i class="fa-regular fa-clock mr-1 text-teal-600 dark:text-teal-400"></i>
+          {% if site_lang == 'bn' %}মিসড স্ট্যাটাস ডাক্তার নিজে দিতে পারেন না; প্রেসক্রিপশন ছাড়া ৪ ঘণ্টার সময় পার হলে এটি স্বয়ংক্রিয়ভাবে নির্ধারণ হয়।{% else %}Missed status cannot be given by doctor. It is automatically given after the 4-hour window passes without a prescription.{% endif %}
+        </p>
+        {% if not appointment.can_doctor_cancel and appointment.status != 'cancelled' %}
+          {% if appointment.payment_status != 'paid' %}
+          <p class="mt-1 text-xs text-amber-600 dark:text-amber-400"><i class="fa-solid fa-circle-info mr-1"></i>{% translate_bn "Cancellation option will appear after payment is verified." %}</p>
+          {% elif appointment.hours_until <= 12 %}
+          <p class="mt-1 text-xs text-amber-600 dark:text-amber-400"><i class="fa-solid fa-circle-info mr-1"></i>{% translate_bn "Doctor cancellation is disabled within 12 hours of appointment time." %}</p>
+          {% endif %}
+        {% endif %}
       </div>
 
       <div>
@@ -110,11 +166,13 @@
 
 <script>
   document.getElementById('aptDetailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
     showWarningModal(
       '{% translate_bn "Are you sure?" %}',
       '{% translate_bn "This action cannot be undone." %}',
       function() {
-        e.target.submit();
+        form.submit();
       }
     );
   });

@@ -4,10 +4,11 @@
 {% block content %}
 {% include 'includes/patient_breadcrumb.html' %}
 <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 md:py-16">
+  <!-- Doctor Header -->
   <div class="flex items-center gap-5 mb-8">
     <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-3 border-teal-500 bg-stone-100 shadow-md dark:bg-slate-800" oncontextmenu="return false;">
       {% if doctor.avatar %}
-        <img src="{{ doctor.avatar.url }}" alt="Dr. {{ doctor.user.get_full_name }}" class="h-full w-full object-cover pointer-events-none select-none" draggable="false">
+        <img src="{{ doctor.avatar.url }}" alt="{{ doctor.get_full_name }}" class="h-full w-full object-cover pointer-events-none select-none" draggable="false">
       {% else %}
         <div class="flex h-full w-full items-center justify-center bg-teal-100 text-teal-700 font-bold text-2xl dark:bg-teal-900 dark:text-teal-300">
           <i class="fa-solid fa-user-doctor"></i>
@@ -16,200 +17,357 @@
     </div>
     <div>
       <p class="font-mono text-xs uppercase tracking-widest text-teal-600 dark:text-teal-400">Book appointment</p>
-      <h1 class="mt-1 text-3xl font-semibold tracking-tight">Dr. {{ doctor.user.get_full_name }}</h1>
+      <h1 class="mt-1 text-3xl font-semibold tracking-tight">{{ doctor.get_full_name }}</h1>
       <p class="mt-0.5 text-teal-600 dark:text-teal-400">{{ doctor.specialty|default:"General practice" }} • {{ doctor.clinic_name|default:"CareBridge Clinic" }}</p>
     </div>
   </div>
 
+  <!-- Doctor Schedules -->
   {% if schedules %}
     <div class="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4">Weekly Availability</h2>
-      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4 flex items-center gap-2">
+        <i class="fa-regular fa-clock text-teal-600 dark:text-teal-400"></i> Doctor's Weekly Chamber Schedule
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {% for sch in schedules %}
-          <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800">
+          <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/60">
             <p class="text-sm font-semibold capitalize text-stone-900 dark:text-stone-100">{{ sch.get_day_of_week_display }}</p>
-            <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }}</p>
-            <p class="text-[10px] text-stone-400 mt-1">{{ sch.slot_duration_minutes }} min per slot</p>
+            <p class="text-xs text-teal-700 font-medium dark:text-teal-300 mt-0.5">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }}</p>
+            <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">{{ sch.slot_duration_minutes }} min per slot</p>
           </div>
         {% endfor %}
       </div>
     </div>
   {% endif %}
 
+  <!-- Booking Box -->
   <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="text-lg font-semibold mb-1">Available Time Slots</h2>
-    <p class="text-sm text-stone-600 dark:text-stone-400 mb-4">Book in 3 steps: first pick a <span class="font-semibold text-teal-600">Date</span>, then choose an available <span class="font-semibold text-teal-600">Time</span>.</p>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Step 1 — Select Date</label>
-      <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-      <input type="hidden" id="selectedCalendarDate" value="">
+    <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-6 dark:border-slate-800">
+      <div>
+        <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">Select Appointment Schedule</h2>
+        <p class="text-xs text-stone-500 dark:text-stone-400">Pick any date up to 2 months into the future and select an available time slot.</p>
+      </div>
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700 dark:bg-teal-950/50 dark:text-teal-300">
+        <span class="h-2 w-2 rounded-full bg-teal-500 animate-pulse"></span>
+        In-Person Consultation
+      </span>
     </div>
 
-    {% if available_slots %}
-      <form method="post" id="bookingForm" class="space-y-4">
+    {% if date_options %}
+      <form method="post" id="bookingForm" class="space-y-6">
         {% csrf_token %}
 
-        <div id="slotsContainer" class="space-y-3">
-          {% for date_str, slots in grouped_slots %}
-            <div class="date-group" data-date="{{ date_str }}" style="display:none;">
-              <p class="text-xs font-bold text-stone-700 dark:text-stone-300 mb-2 date-label uppercase tracking-wider">
-                {{ date_str|date:"l, d M Y" }}
-              </p>
-              <div class="flex flex-wrap gap-2">
-                {% for slot in slots %}
-                  {% if slot.available %}
-                    <label class="cursor-pointer">
-                      <input type="radio" name="selected_slot" value="{{ slot.date }} {{ slot.start }}" required class="peer sr-only">
-                      <div class="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-center text-xs font-medium text-stone-700 transition peer-checked:border-teal-500 peer-checked:bg-teal-50 peer-checked:text-teal-700 hover:border-teal-300 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300 dark:peer-checked:border-teal-600 dark:peer-checked:bg-teal-950/30 dark:peer-checked:text-teal-300">
-                        <i class="fa-regular fa-clock mr-1"></i>{{ slot.start }}
-                      </div>
-                    </label>
-                  {% else %}
-                    <div class="rounded-lg border border-stone-100 bg-stone-50 px-3 py-1.5 text-center text-xs text-stone-400 line-through opacity-60 cursor-not-allowed dark:border-slate-800 dark:bg-slate-900 dark:text-stone-500">
-                      {{ slot.start }}
-                    </div>
-                  {% endif %}
-                {% endfor %}
-              </div>
+        <!-- STEP 1: Select Date -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-bold text-stone-800 dark:text-stone-200">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white mr-1.5">1</span>
+              Select Date (Next 2 Months)
+            </label>
+            <span id="selectedDateBadge" class="text-xs font-medium text-teal-600 dark:text-teal-400 hidden"></span>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 mb-4">
+            <!-- HTML5 Calendar Date Input -->
+            <div>
+              <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">Date Picker Calendar</label>
+              <input type="date" 
+                     id="datePickerInput" 
+                     min="{{ today|date:'Y-m-d' }}" 
+                     max="{{ max_date|date:'Y-m-d' }}" 
+                     value="{{ today|date:'Y-m-d' }}" 
+                     class="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium text-stone-900 transition focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
             </div>
-          {% endfor %}
+
+            <!-- Quick Select Dropdown -->
+            <div>
+              <label class="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1">Or Choose From Dropdown</label>
+              <select id="dateSelectDropdown" class="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium text-stone-900 transition focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+                <option value="" disabled>-- Select a Date --</option>
+                {% for opt in date_options %}
+                  <option value="{{ opt.date }}" {% if opt.avail_count == 0 %}disabled{% endif %}>
+                    {{ opt.display }} ({% if opt.avail_count > 0 %}{{ opt.avail_count }} slots available{% else %}Fully Booked / Closed{% endif %})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Date Pills Row -->
+          <div class="mb-1">
+            <p class="text-[11px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Quick Pick Upcoming Dates:</p>
+            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none" id="datePillsContainer">
+              {% for opt in date_options|slice:":14" %}
+                <button type="button" 
+                        data-date="{{ opt.date }}" 
+                        class="date-pill shrink-0 flex flex-col items-center justify-center rounded-2xl border border-stone-200 bg-white px-3.5 py-2.5 text-center transition hover:border-teal-400 dark:border-slate-800 dark:bg-slate-800/80 {% if opt.avail_count == 0 %}opacity-40 cursor-not-allowed{% else %}cursor-pointer{% endif %}"
+                        {% if opt.avail_count == 0 %}disabled{% endif %}>
+                  <span class="text-[10px] font-bold uppercase text-stone-500 dark:text-stone-400 pill-day">{{ opt.short_day }}</span>
+                  <span class="text-sm font-bold text-stone-900 dark:text-stone-100 my-0.5 pill-date">{{ opt.short_date }}</span>
+                  {% if opt.avail_count > 0 %}
+                    <span class="rounded-full bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 px-2 py-0.5 text-[10px] font-extrabold shadow-xs">
+                      {{ opt.avail_count }} slots
+                    </span>
+                  {% else %}
+                    <span class="rounded-full bg-stone-200 text-stone-600 dark:bg-slate-700 dark:text-stone-300 px-2 py-0.5 text-[10px] font-medium">
+                      Unavailable
+                    </span>
+                  {% endif %}
+                </button>
+              {% endfor %}
+            </div>
+          </div>
         </div>
 
-        <!-- Hidden fields for form submission -->
+        <!-- STEP 2: Available Time Slots -->
+        <div id="step2Container" class="hidden border-t border-stone-100 pt-5 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-bold text-stone-800 dark:text-stone-200">
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white mr-1.5">2</span>
+              Select Time Slot
+            </label>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1 text-teal-700 dark:text-teal-300 font-medium">
+                <span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span> Available
+              </span>
+              <span class="flex items-center gap-1 text-rose-500 font-medium">
+                <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span> Booked
+              </span>
+              <span class="flex items-center gap-1 text-stone-400 font-medium">
+                <span class="h-2.5 w-2.5 rounded-full bg-stone-300"></span> Past Time
+              </span>
+            </div>
+          </div>
+
+          <!-- Dynamic Slots Container -->
+          <div id="slotsContainer" class="space-y-4">
+            {% for opt in date_options %}
+              <div class="date-slots-group hidden" id="slots-{{ opt.date }}">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                  {% for slot in opt.slots %}
+                    {% if slot.available %}
+                      <label class="slot-option cursor-pointer block">
+                        <input type="radio" name="slot_radio" value="{{ slot.start }}" data-date="{{ slot.date }}" class="peer sr-only">
+                        <div class="flex items-center justify-center rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-center text-xs font-semibold text-stone-800 transition peer-checked:border-teal-500 peer-checked:bg-teal-500 peer-checked:text-white peer-checked:shadow-md hover:border-teal-400 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 dark:peer-checked:border-teal-500 dark:peer-checked:bg-teal-600">
+                          <i class="fa-regular fa-clock mr-1.5 opacity-70"></i>
+                          <span>{{ slot.start }}</span>
+                        </div>
+                      </label>
+                    {% elif slot.is_booked %}
+                      <!-- Already Booked Slot -->
+                      <div class="flex flex-col items-center justify-center rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-center text-xs text-rose-600 line-through opacity-70 cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400" title="This slot has already been booked by another patient.">
+                        <div class="flex items-center">
+                          <i class="fa-solid fa-user-xmark mr-1 text-[10px]"></i>
+                          <span>{{ slot.start }}</span>
+                        </div>
+                        <span class="text-[9px] no-underline font-bold uppercase tracking-wider text-rose-500 mt-0.5">Booked</span>
+                      </div>
+                    {% else %}
+                      <!-- Past Time Slot -->
+                      <div class="flex flex-col items-center justify-center rounded-xl border border-stone-200 bg-stone-100/60 px-3 py-2 text-center text-xs text-stone-400 line-through opacity-50 cursor-not-allowed dark:border-slate-800 dark:bg-slate-900/50 dark:text-stone-500" title="This time slot has already passed for today.">
+                        <div class="flex items-center">
+                          <i class="fa-regular fa-clock mr-1 text-[10px]"></i>
+                          <span>{{ slot.start }}</span>
+                        </div>
+                        <span class="text-[9px] no-underline font-semibold uppercase tracking-wider text-stone-400 mt-0.5">Past Time</span>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- Alert for Days with No Available Slots / Doctor Off -->
+          <div id="noSlotsAlert" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300 mb-2">
+              <i class="fa-solid fa-calendar-minus"></i>
+            </span>
+            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">No Chamber Schedule for Selected Date</p>
+            <p class="text-xs text-amber-600 dark:text-amber-400 mt-1 max-w-sm mx-auto">The doctor has no active chamber schedule on this day of the week. Please select a working day matching the doctor's weekly schedule above.</p>
+          </div>
+        </div>
+
+        <!-- Hidden inputs for POST -->
         <input type="hidden" name="appointment_date" id="selectedDate">
         <input type="hidden" name="start_time" id="selectedTime">
 
-        <div class="grid gap-4 sm:grid-cols-2 mt-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Consultation Type</label>
-            <select name="consultation_type" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" required>
-              <option value="in_person" selected>In-Person Chamber</option>
-              {% comment %} <option value="video_online" disabled>Online Video Consultation (Unavailable)</option> {% endcomment %}
-            </select>
-            <p class="text-xs text-stone-500 mt-1">Offline consultations only</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Chief Complaint (optional)</label>
-            <textarea name="chief_complaint" rows="1" class="w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 resize-none" placeholder="Describe your symptoms..."></textarea>
-          </div>
-        </div>
+        <!-- STEP 3: Consultation Details -->
+        <div id="step3Container" class="hidden border-t border-stone-100 pt-5 space-y-4 dark:border-slate-800">
+          <label class="block text-sm font-bold text-stone-800 dark:text-stone-200">
+            <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white mr-1.5">3</span>
+            Consultation Details
+          </label>
 
-        <button type="submit" class="w-full inline-flex h-11 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 mt-4">
-          <i class="fa-solid fa-calendar-check mr-2"></i> Book Appointment
-        </button>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Consultation Type</label>
+              <select name="consultation_type" class="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" required>
+                <option value="in_person" selected>In-Person Chamber</option>
+              </select>
+              <p class="text-[11px] text-stone-500 mt-1">Chamber location consultation</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Chief Complaint (Optional)</label>
+              <textarea name="chief_complaint" rows="1" class="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200 resize-none" placeholder="Describe symptoms or reason for visit..."></textarea>
+            </div>
+          </div>
+
+          <button type="submit" id="submitBtn" class="w-full inline-flex h-12 items-center justify-center rounded-full bg-teal-600 px-6 text-sm font-bold text-white shadow-md transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 mt-4">
+            <i class="fa-solid fa-calendar-check mr-2"></i> Book Appointment
+          </button>
+        </div>
       </form>
     {% else %}
-      <div class="text-center py-8">
-        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-stone-500 mx-auto mb-3">
-          <i class="fa-regular fa-calendar-xmark text-lg"></i>
+      <div class="text-center py-12">
+        <span class="flex h-14 w-14 items-center justify-center rounded-full bg-stone-100 text-stone-400 dark:bg-slate-800 dark:text-stone-500 mx-auto mb-4">
+          <i class="fa-regular fa-calendar-xmark text-2xl"></i>
         </span>
-        <p class="text-sm text-stone-500 dark:text-stone-400">No available slots at the moment. The doctor hasn't set up their schedule yet.</p>
+        <h3 class="text-base font-semibold text-stone-900 dark:text-stone-100 mb-1">No Available Schedules</h3>
+        <p class="text-sm text-stone-500 dark:text-stone-400 max-w-sm mx-auto">This doctor currently has no open consultation slots available for booking. Please check back later.</p>
       </div>
     {% endif %}
   </div>
 </section>
 
 <script>
-  const groupedSlots = {{ grouped_slots|safe }};
-  const calendarGrid = document.getElementById("calendarGrid");
-  const selectedCalendarDateInput = document.getElementById("selectedCalendarDate");
-  const slotsContainer = document.getElementById("slotsContainer");
-  const selectedDateInput = document.getElementById("selectedDate");
-  const selectedTimeInput = document.getElementById("selectedTime");
-  const bookingForm = document.getElementById("bookingForm");
+  document.addEventListener("DOMContentLoaded", function() {
+    const groupedSlots = {{ grouped_slots_json|safe }};
+    const datePickerInput = document.getElementById("datePickerInput");
+    const dateDropdown = document.getElementById("dateSelectDropdown");
+    const datePills = document.querySelectorAll(".date-pill");
+    const selectedDateInput = document.getElementById("selectedDate");
+    const selectedTimeInput = document.getElementById("selectedTime");
+    const step2Container = document.getElementById("step2Container");
+    const step3Container = document.getElementById("step3Container");
+    const selectedDateBadge = document.getElementById("selectedDateBadge");
+    const noSlotsAlert = document.getElementById("noSlotsAlert");
+    const bookingForm = document.getElementById("bookingForm");
 
-  if (slotsContainer) {
-    slotsContainer.style.display = "none";
-  }
+    function selectDate(dateStr) {
+      if (!dateStr) return;
 
-  function getAvailableDates() {
-    const dates = new Set();
-    Object.keys(groupedSlots).forEach(dateStr => dates.add(dateStr));
-    return dates;
-  }
+      selectedDateInput.value = dateStr;
+      selectedTimeInput.value = ""; // Reset time selection
 
-  function buildCalendar() {
-    if (!calendarGrid) return;
-    const availableDates = getAvailableDates();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      // Sync HTML5 Date Picker Input
+      if (datePickerInput && datePickerInput.value !== dateStr) {
+        datePickerInput.value = dateStr;
+      }
 
-    const days = [];
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      days.push(d);
-    }
+      // Sync Dropdown Select
+      if (dateDropdown) {
+        dateDropdown.value = dateStr;
+      }
 
-    days.forEach(d => {
-      const dateStr = d.toISOString().split('T')[0];
-      const cell = document.createElement("div");
-      cell.className = "w-8 h-8 flex items-center justify-center text-xs rounded cursor-pointer transition border";
-      cell.textContent = d.getDate();
+      // Sync Quick Date Pills UI
+      datePills.forEach(pill => {
+        const daySpan = pill.querySelector(".pill-day");
+        const dateSpan = pill.querySelector(".pill-date");
+        if (pill.getAttribute("data-date") === dateStr) {
+          pill.classList.add("border-teal-500", "bg-teal-50/80", "dark:bg-teal-950/60", "ring-2", "ring-teal-500");
+          pill.classList.remove("border-stone-200", "bg-white", "dark:border-slate-800", "dark:bg-slate-800/80");
+          if (daySpan) {
+            daySpan.classList.add("text-teal-700", "dark:text-teal-300");
+            daySpan.classList.remove("text-stone-500", "dark:text-stone-400");
+          }
+          if (dateSpan) {
+            dateSpan.classList.add("text-teal-950", "dark:text-teal-100");
+            dateSpan.classList.remove("text-stone-900", "dark:text-stone-100");
+          }
+        } else {
+          pill.classList.remove("border-teal-500", "bg-teal-50/80", "dark:bg-teal-950/60", "ring-2", "ring-teal-500");
+          pill.classList.add("border-stone-200", "bg-white", "dark:border-slate-800", "dark:bg-slate-800/80");
+          if (daySpan) {
+            daySpan.classList.remove("text-teal-700", "dark:text-teal-300");
+            daySpan.classList.add("text-stone-500", "dark:text-stone-400");
+          }
+          if (dateSpan) {
+            dateSpan.classList.remove("text-teal-950", "dark:text-teal-100");
+            dateSpan.classList.add("text-stone-900", "dark:text-stone-100");
+          }
+        }
+      });
 
-      const hasAvailable = availableDates.has(dateStr);
-      if (hasAvailable) {
-        cell.classList.add("bg-teal-50", "text-teal-800", "border-teal-200", "hover:bg-teal-100", "dark:bg-teal-950", "dark:text-teal-300", "dark:border-teal-900");
+      // Update Header Badge
+      if (selectedDateBadge) {
+        selectedDateBadge.textContent = "Selected: " + dateStr;
+        selectedDateBadge.classList.remove("hidden");
+      }
+
+      // Show Step 2 Container
+      if (step2Container) step2Container.classList.remove("hidden");
+
+      // Hide all date slot groups first
+      document.querySelectorAll(".date-slots-group").forEach(group => {
+        group.classList.add("hidden");
+      });
+
+      const activeGroup = document.getElementById("slots-" + dateStr);
+      if (activeGroup) {
+        activeGroup.classList.remove("hidden");
+        if (noSlotsAlert) noSlotsAlert.classList.add("hidden");
       } else {
-        cell.classList.add("bg-stone-50", "text-stone-400", "border-stone-200", "cursor-not-allowed", "dark:bg-slate-800", "dark:text-stone-500", "dark:border-slate-700");
+        // Selected date has no schedule slots for this day of week
+        if (noSlotsAlert) noSlotsAlert.classList.remove("hidden");
       }
 
-      if (d.getTime() === today.getTime()) {
-        cell.classList.add("ring-1", "ring-teal-500");
-      }
+      // Hide Step 3 until time slot radio is selected
+      if (step3Container) step3Container.classList.add("hidden");
 
-      if (hasAvailable) {
-        cell.addEventListener("click", function() {
-          document.querySelectorAll("#calendarGrid > div").forEach(c => {
-            c.classList.remove("ring-2", "ring-teal-600", "dark:ring-teal-400");
-            c.classList.add("border");
-          });
-          cell.classList.remove("border");
-          cell.classList.add("ring-2", "ring-teal-600", "dark:ring-teal-400");
-          if (selectedCalendarDateInput) selectedCalendarDateInput.value = dateStr;
-          filterSlots(dateStr);
-        });
-      }
-
-      calendarGrid.appendChild(cell);
-    });
-  }
-
-  function filterSlots(selectedDate) {
-    if (!slotsContainer) return;
-    if (!selectedDate) {
-      slotsContainer.style.display = "none";
-      return;
+      // Reset slot radio check states
+      document.querySelectorAll('input[name="slot_radio"]').forEach(r => r.checked = false);
     }
-    slotsContainer.style.display = "block";
-    const groups = slotsContainer.querySelectorAll(".date-group");
-    groups.forEach(group => {
-      const groupDate = group.getAttribute("data-date");
-      group.style.display = (groupDate === selectedDate) ? "block" : "none";
-    });
-  }
 
-  buildCalendar();
+    // Date Picker Input listener
+    if (datePickerInput) {
+      datePickerInput.addEventListener("change", function() {
+        selectDate(this.value);
+      });
+    }
 
-  document.querySelectorAll('input[name="selected_slot"]').forEach(function(radio) {
-    radio.addEventListener('change', function() {
-      const val = this.value.split(' ');
-      if (selectedDateInput) selectedDateInput.value = val[0];
-      if (selectedTimeInput) selectedTimeInput.value = val[1];
+    // Dropdown change listener
+    if (dateDropdown) {
+      dateDropdown.addEventListener("change", function() {
+        selectDate(this.value);
+      });
+    }
+
+    // Date Pills click listener
+    datePills.forEach(pill => {
+      pill.addEventListener("click", function() {
+        if (this.disabled) return;
+        const d = this.getAttribute("data-date");
+        selectDate(d);
+      });
     });
+
+    // Time Slot radio change listener
+    document.querySelectorAll('input[name="slot_radio"]').forEach(radio => {
+      radio.addEventListener("change", function() {
+        if (this.checked) {
+          selectedTimeInput.value = this.value;
+          if (step3Container) step3Container.classList.remove("hidden");
+        }
+      });
+    });
+
+    // Form submit validation
+    if (bookingForm) {
+      bookingForm.addEventListener("submit", function(e) {
+        if (!selectedDateInput.value || !selectedTimeInput.value) {
+          e.preventDefault();
+          alert("Please select both a date and an available time slot before booking.");
+        }
+      });
+    }
+
+    // Auto-select initial date (today)
+    if (datePickerInput && datePickerInput.value) {
+      selectDate(datePickerInput.value);
+    }
   });
-
-  if (bookingForm) {
-    bookingForm.addEventListener("submit", function(e) {
-      const chosenDate = selectedCalendarDateInput ? selectedCalendarDateInput.value : "";
-      const chosenTime = selectedTimeInput ? selectedTimeInput.value : "";
-      if (!chosenDate || !chosenTime) {
-        e.preventDefault();
-        alert("Please select a date and an available time slot to book your appointment.");
-        return;
-      }
-    });
-  }
 </script>
 {% endblock %}
+
+

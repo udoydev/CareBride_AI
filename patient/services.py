@@ -16,14 +16,29 @@ TIMING_LABELS = {
 }
 
 
-def _truncate_to_words(text, max_words=200):
-    """Truncate text to max_words on a word boundary, appending a notice if truncated."""
+def _truncate_to_words(text, max_words=350):
+    """Truncate text to max_words while preserving newlines and formatting."""
     if not text:
         return text
     words = text.split()
     if len(words) <= max_words:
         return text
-    return ' '.join(words[:max_words]) + "... (response truncated)"
+
+    lines = text.splitlines(keepends=True)
+    out = []
+    count = 0
+    for line in lines:
+        line_words = line.split()
+        if count + len(line_words) <= max_words:
+            out.append(line)
+            count += len(line_words)
+        else:
+            remaining = max_words - count
+            if remaining > 0:
+                out.append(" ".join(line_words[:remaining]) + "...")
+            break
+    return "".join(out)
+
 
 
 def _resolve_provider():
@@ -445,7 +460,7 @@ def _local_patient_reply(question, language, patient):
     # Check medical topics
     for topic_id, topic in MEDICAL_TOPICS.items():
         if any(w in q for w in topic["keywords"]):
-            return _truncate_to_words(topic["bn"] if is_bn else topic["en"], 200)
+            return _truncate_to_words(topic["bn"] if is_bn else topic["en"], 100)
 
     prescriptions = list(
         Prescription.objects.filter(patient=patient)
@@ -465,12 +480,12 @@ def _local_patient_reply(question, language, patient):
         if doses and doses.exists():
             items = [f"• **{s.prescription_item.medicine}**: {s.prescription_item.dosage} ({s.get_status_display()})" for s in doses]
             if is_bn:
-                return _truncate_to_words("📋 **আজকের ওষুধের তালিকা:**\n\n" + "\n".join(items) + "\n\n💡 *'আজকের ওষুধ' পেজে গিয়ে ওষুধ নিয়ে থাকলে mark করুন।*", 200)
-            return _truncate_to_words("📋 **Today's Dose Schedule:**\n\n" + "\n".join(items) + "\n\n💡 *Mark doses as taken on the 'Today's Doses' page.*", 200)
+                return _truncate_to_words("📋 **আজকের ওষুধের তালিকা:**\n\n" + "\n".join(items) + "\n\n💡 *'আজকের ওষুধ' পেজে গিয়ে ওষুধ নিয়ে থাকলে mark করুন।*", 100)
+            return _truncate_to_words("📋 **Today's Dose Schedule:**\n\n" + "\n".join(items) + "\n\n💡 *Mark doses as taken on the 'Today's Doses' page.*", 100)
         else:
             if is_bn:
-                return _truncate_to_words("✅ **আজকের জন্য কোনো ওষুধের রিমাইন্ডার বাকি নেই।**\n\nআপনি প্রেসক্রিপশন বা যেকোনো শারীরিক সমস্যা নিয়ে প্রশ্ন করতে পারেন।", 200)
-            return _truncate_to_words("✅ **No medicine doses scheduled for today.**\n\nYou can ask me about symptoms, medicines, or doctors.", 200)
+                return _truncate_to_words("✅ **আজকের জন্য কোনো ওষুধের রিমাইন্ডার বাকি নেই।**\n\nআপনি প্রেসক্রিপশন বা যেকোনো শারীরিক সমস্যা নিয়ে প্রশ্ন করতে পারেন।", 100)
+            return _truncate_to_words("✅ **No medicine doses scheduled for today.**\n\nYou can ask me about symptoms, medicines, or doctors.", 100)
 
     followup_keywords = ["ফলো", "ফলোআপ", "সাক্ষাৎ", "ভিজিট", "অ্যাপয়েন্টমেন্ট", "follow", "followup", "appointment", "visit", "date", "apointment"]
     if any(w in q for w in followup_keywords):
@@ -478,12 +493,12 @@ def _local_patient_reply(question, language, patient):
         if fus and fus.exists():
             lines = [f"• **{fu.scheduled_date}** — Dr. {fu.prescription.doctor.user.get_full_name()}" for fu in fus]
             if is_bn:
-                return _truncate_to_words("📅 **আপনার আসন্ন ফলো-আপের সময়সূচী:**\n\n" + "\n".join(lines) + "\n\n💡 *'ফলো-আপ' পেজে বিস্তারিত জানতে পারবেন।*", 200)
-            return _truncate_to_words("📅 **Your Upcoming Follow-up Visits:**\n\n" + "\n".join(lines) + "\n\n💡 *Check the 'Follow-ups' page for full details.*", 200)
+                return _truncate_to_words("📅 **আপনার আসন্ন ফলো-আপের সময়সূচী:**\n\n" + "\n".join(lines) + "\n\n💡 *'ফলো-আপ' পেজে বিস্তারিত জানতে পারবেন।*", 100)
+            return _truncate_to_words("📅 **Your Upcoming Follow-up Visits:**\n\n" + "\n".join(lines) + "\n\n💡 *Check the 'Follow-ups' page for full details.*", 100)
         else:
             if is_bn:
-                return _truncate_to_words("ℹ️ **বর্তমানে আপনার কোনো নির্ধারিত ফলো-আপ নেই।**\n\nনতুন ডাক্তারের সাথে দেখা করতে 'ডাক্তার খুঁজুন' পেজে যান।", 200)
-            return _truncate_to_words("ℹ️ **No upcoming follow-up visits scheduled right now.**\n\nFind verified doctors on the 'Find Doctors' page.", 200)
+                return _truncate_to_words("ℹ️ **বর্তমানে আপনার কোনো নির্ধারিত ফলো-আপ নেই।**\n\nনতুন ডাক্তারের সাথে দেখা করতে 'ডাক্তার খুঁজুন' পেজে যান।", 100)
+            return _truncate_to_words("ℹ️ **No upcoming follow-up visits scheduled right now.**\n\nFind verified doctors on the 'Find Doctors' page.", 100)
 
     rx_keywords = ["প্রেসক্রিপশন", "প্রেসকৃপশন", "প্রেসক্রিপসন", "রেকর্ড", "ইতিহাস", "prescription", "rx", "record", "history", "script"]
     if any(w in q for w in rx_keywords):
@@ -506,8 +521,8 @@ def _local_patient_reply(question, language, patient):
             )
         else:
             if is_bn:
-                return _truncate_to_words("ℹ️ **আপনার অ্যাকাউন্টে এখনও কোনো প্রেসক্রিপশন যোগ করা হয়নি।**", 200)
-            return _truncate_to_words("ℹ️ **No prescription records found on your account yet.**", 200)
+                return _truncate_to_words("ℹ️ **আপনার অ্যাকাউন্টে এখনও কোনো প্রেসক্রিপশন যোগ করা হয়নি।**", 100)
+            return _truncate_to_words("ℹ️ **No prescription records found on your account yet.**", 100)
 
     doc_keywords = ["ডাক্তার", "ডাক্তারগণ", "ডাক্তারদের", "চিকিৎসক", "doctor", "doctors", "daktar", "physician", "specialist"]
     if any(w in q for w in doc_keywords):
@@ -515,12 +530,12 @@ def _local_patient_reply(question, language, patient):
         if doctors.exists():
             lines = [f"• **Dr. {d.user.get_full_name()}** — {d.specialty or 'General Physician'} ({d.clinic_name or 'CareBridge Clinic'})" for d in doctors]
             if is_bn:
-                return _truncate_to_words("👨‍⚕️ **CareBridge-এর উপলব্ধ ডাক্তারবৃন্দ:**\n\n" + "\n".join(lines) + "\n\n💡 *'ডাক্তার খুঁজুন' পৃষ্ঠায় বুকিং দিন।*", 200)
-            return _truncate_to_words("👨‍⚕️ **Available Doctors on CareBridge:**\n\n" + "\n".join(lines) + "\n\n💡 *Book appointments via the 'Find Doctors' page.*", 200)
+                return _truncate_to_words("👨‍⚕️ **CareBridge-এর উপলব্ধ ডাক্তারবৃন্দ:**\n\n" + "\n".join(lines) + "\n\n💡 *'ডাক্তার খুঁজুন' পৃষ্ঠায় বুকিং দিন।*", 100)
+            return _truncate_to_words("👨‍⚕️ **Available Doctors on CareBridge:**\n\n" + "\n".join(lines) + "\n\n💡 *Book appointments via the 'Find Doctors' page.*", 100)
         else:
             if is_bn:
-                return _truncate_to_words("ℹ️ **বর্তমানে কোনো তালিকাভুক্ত ডাক্তার পাওয়া যায়নি।**", 200)
-            return _truncate_to_words("ℹ️ **No verified doctors available at the moment.**", 200)
+                return _truncate_to_words("ℹ️ **বর্তমানে কোনো তালিকাভুক্ত ডাক্তার পাওয়া যায়নি।**", 100)
+            return _truncate_to_words("ℹ️ **No verified doctors available at the moment.**", 100)
 
     if is_bn:
         return _truncate_to_words(
@@ -529,14 +544,14 @@ def _local_patient_reply(question, language, patient):
             "• **স্বাস্থ্য পরামর্শ:** নিয়মিত সময়মতো ওষুধ সেবন করুন, পর্যাপ্ত পানি পান করুন এবং পুষ্টিকর খাবার গ্রহণ করুন।\n"
             "• **CareBridge সেবা:** আপনার প্রেসক্রিপশন দেখতে, আজকের ডোজ ট্র্যাক করতে বা অভিজ্ঞ ডাক্তারদের সিরিয়াল বুক করতে সংশ্লিষ্ট পেজে যান।\n\n"
             "💡 *গুরুতর শারীরিক অসুস্থতায় বিলম্ব না করে নিকটস্থ ডাক্তারের পরামর্শ নিন।*"
-        , 200)
+        , 100)
     return _truncate_to_words(
         f"📋 **Health Query Answer:**\n\n"
         f"Question: *\"{q}\"*\n\n"
         "• **General Guidance:** Take all medications on time, stay well hydrated, and maintain adequate rest.\n"
         "• **CareBridge Services:** You can view your prescriptions, track dose reminders, or book doctor appointments.\n\n"
         "💡 *For severe or urgent symptoms, consult a specialist immediately.*"
-    , 200)
+    , 100)
 
 
 def generate_patient_reply(question, language="bn", patient=None, history=None, image_file=None, prescription_id=None):
@@ -548,7 +563,7 @@ def generate_patient_reply(question, language="bn", patient=None, history=None, 
     if not patient:
         guest_ans = guest_reply(question, language)
         if guest_ans:
-            return _truncate_to_words(guest_ans, 200)
+            return _truncate_to_words(guest_ans, 100)
 
         try:
             ai_res = GeminiAIService.chat_with_patient_vision(
@@ -558,7 +573,7 @@ def generate_patient_reply(question, language="bn", patient=None, history=None, 
                 preferred_language=language,
             )
             if ai_res.get("reply_text"):
-                return _truncate_to_words(ai_res["reply_text"], 200)
+                return _truncate_to_words(ai_res["reply_text"], 100)
         except Exception:
             pass
 
@@ -636,20 +651,27 @@ def generate_patient_reply(question, language="bn", patient=None, history=None, 
         preferred_language=language,
     )
 
+    doc_search_intent = any(w in (question or "").lower() for w in [
+        "find doctor", "recommend doctor", "need doctor", "consult doctor", "specialist doctor",
+        "ডাক্তার দেখাব", "ডাক্তার খুঁজছি", "ডাক্তার প্রয়োজন", "নতুন ডাক্তার", "ডাক্তারের পরামর্শ প্রয়োজন"
+    ])
+
     if ai_res.get("reply_text"):
-        reply = ai_res["reply_text"]
-        if any(w in (question or "").lower() for w in ["pain", "fever", "doctor", "ডাক্তার", "prescription", "ব্যথা", "জ্বর", "medicine", "health", "test"]):
+        reply = GeminiAIService.clean_no_asterisks(ai_res["reply_text"])
+        if doc_search_intent:
             doctor_suggestion = suggest_doctors_for_query(question, language)
             if doctor_suggestion:
                 reply += f"\n\n{doctor_suggestion}"
-        return _truncate_to_words(reply, 200)
+        reply = GeminiAIService.clean_no_asterisks(reply)
+        return _truncate_to_words(reply, 350)
 
-    fallback = _local_patient_reply(question, language, patient)
-    if any(w in (question or "").lower() for w in ["pain", "fever", "doctor", "ডাক্তার", "prescription", "ব্যথা", "জ্বর", "medicine", "health", "test"]):
+    fallback = GeminiAIService.clean_no_asterisks(_local_patient_reply(question, language, patient))
+    if doc_search_intent:
         doctor_suggestion = suggest_doctors_for_query(question, language)
         if doctor_suggestion:
             fallback += f"\n\n{doctor_suggestion}"
-    return _truncate_to_words(fallback, 200)
+    fallback = GeminiAIService.clean_no_asterisks(fallback)
+    return _truncate_to_words(fallback, 350)
 
 
 
@@ -661,6 +683,8 @@ def _build_messages(prompt, content, language):
             "content": (
                 "You are a safe, patient-friendly medical assistant for CareBridge AI. "
                 "Be clear, concise, empathetic, and practical. "
+                "Answer in clear point base (using bullet points •). "
+                "STRICT RULE: Do NOT use markdown bold asterisks (**) anywhere in your response. Never put ** before or at the end of sentences. "
                 "Never claim to diagnose. Encourage professional care for urgent symptoms."
             ),
         },
@@ -1423,20 +1447,21 @@ def suggest_doctors_for_query(query, language="bn"):
         return None
 
     if is_bn:
-        lines = [f"👨‍⚕️ **আপনার সাম garde Suggested Verified Doctors:**\n"]
+        lines = ["👨‍⚕️ আপনার জন্য যাচাইকৃত বিশেষজ্ঞ ডাক্তারবৃন্দ:\n"]
         for d in doctors:
             lines.append(
-                f"• **Dr. {d.user.get_full_name() or d.user.username}** — {d.specialty or 'General Physician'}\n"
-                f"  Clinic: {d.clinic_name or 'N/A'} | Location: {d.location_text or 'N/A'}\n"
-                f"  💡 Book appointment from 'Find Doctors' page"
+                f"• Dr. {d.user.get_full_name() or d.user.username} — {d.specialty or 'General Physician'}\n"
+                f"  ক্লিনিক: {d.clinic_name or 'N/A'} | অবস্থান: {d.location_text or 'N/A'}\n"
+                f"  💡 'ডাক্তার খুঁজুন' পেজ থেকে অ্যাপয়েন্টমেন্ট বুক করুন"
             )
         return "\n".join(lines)
     else:
-        lines = [f"👨‍⚕️ **Suggested Verified Doctors Based on Your Query:**\n"]
+        lines = ["👨‍⚕️ Suggested Verified Doctors Based on Your Query:\n"]
         for d in doctors:
             lines.append(
-                f"• **Dr. {d.user.get_full_name() or d.user.username}** — {d.specialty or 'General Physician'}\n"
+                f"• Dr. {d.user.get_full_name() or d.user.username} — {d.specialty or 'General Physician'}\n"
                 f"  Clinic: {d.clinic_name or 'N/A'} | Location: {d.location_text or 'N/A'}\n"
                 f"  💡 Book appointment from 'Find Doctors' page"
             )
         return "\n".join(lines)
+

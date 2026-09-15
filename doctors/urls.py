@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.urls import path
+from accounts import views as accounts_views
 
 from . import views
 
@@ -7,6 +8,7 @@ app_name = "doctors"
 
 urlpatterns = [
     path("doctors/dashboard/", views.dashboard, name="dashboard"),
+    path("doctors/analytics/", accounts_views.doctor_analytics_view, name="analytics"),
     path("doctors/patients/", views.patient_list, name="patient_list"),
     path("doctors/patients/<int:patient_id>/", views.patient_detail, name="patient_detail"),
     path("doctors/patients/<int:patient_id>/prescribe/", views.create_prescription, name="create_prescription"),

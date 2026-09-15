@@ -41,9 +41,9 @@
 
   <div class="mt-6 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
     {% for patient in patients %}
-    <a href="{% url 'doctors:patient_detail' patient.id %}" class="flex items-center justify-between px-6 py-4 hover:bg-stone-50 dark:hover:bg-slate-800/50">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-stone-50 dark:hover:bg-slate-800/50 transition">
       <div class="flex items-center gap-4">
-        <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-stone-100 shadow-2xs dark:border-slate-700 dark:bg-slate-800" oncontextmenu="return false;">
+        <a href="{% url 'doctors:patient_detail' patient.id %}" class="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-stone-100 shadow-2xs hover:opacity-90 transition dark:border-slate-700 dark:bg-slate-800" oncontextmenu="return false;">
           {% if patient.avatar %}
             <img src="{{ patient.avatar }}" alt="{{ patient.name }}" class="h-full w-full object-cover pointer-events-none select-none" draggable="false">
           {% else %}
@@ -51,11 +51,11 @@
               <i class="fa-solid fa-user font-bold"></i>
             </div>
           {% endif %}
-        </div>
+        </a>
         <div>
           <div class="flex items-center gap-2">
             <span class="font-mono text-xs text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">#PAT-{{ patient.id }}</span>
-            <p class="font-bold text-stone-900 dark:text-stone-100">{{ patient.name }}</p>
+            <a href="{% url 'doctors:patient_detail' patient.id %}" class="font-bold text-stone-900 hover:text-teal-600 dark:text-stone-100 dark:hover:text-teal-400 transition">{{ patient.name }}</a>
           </div>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Phone: {{ patient.phone }} &bull; District: {{ patient.district }}</p>
           {% if not patient.is_verified %}
@@ -63,23 +63,57 @@
           {% endif %}
         </div>
       </div>
-      <span class="text-sm font-semibold text-teal-600 dark:text-teal-400">View File &rarr;</span>
-    </a>
+      <div class="flex items-center sm:self-center">
+        <a href="{% url 'doctors:patient_detail' patient.id %}" class="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-600 hover:text-white dark:border-teal-800 dark:bg-teal-950/70 dark:text-teal-300 dark:hover:bg-teal-600 dark:hover:text-white transition shadow-2xs">
+          View File <i class="fa-solid fa-arrow-right text-[10px]"></i>
+        </a>
+      </div>
+    </div>
     {% empty %}
     <p class="px-6 py-8 text-center text-stone-500 dark:text-stone-400">No patients found.</p>
     {% endfor %}
   </div>
 
-  {% if page_obj.has_other_pages %}
-  <div class="mt-6 flex items-center justify-center gap-2">
-    {% if page_obj.has_previous %}
-      <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Previous</a>
-    {% endif %}
-    <span class="text-sm font-medium text-stone-600 dark:text-stone-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}
-      <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.next_page_number }}" class="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-bold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-200 dark:hover:bg-slate-800">Next</a>
-    {% endif %}
-  </div>
+  {% if page_obj and page_obj.has_other_pages %}
+  <nav class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none">
+    <p class="text-xs text-stone-500 dark:text-stone-400">
+      Showing <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.start_index }}</span> to <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.end_index }}</span> of <span class="font-bold text-stone-900 dark:text-stone-100">{{ page_obj.paginator.count }}</span> patients
+    </p>
+
+    <div class="flex items-center gap-1.5">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.previous_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+          <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+        </a>
+      {% else %}
+        <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+          <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i> Prev
+        </span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-bold text-white shadow-xs">
+            {{ num }}
+          </span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ num }}" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 bg-white font-medium text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+            {{ num }}
+          </a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a href="?q={{ query }}&verification={{ verification_filter }}&district={{ district_filter }}&has_prescription={{ prescription_filter }}&sort={{ sort_by }}&page={{ page_obj.next_page_number }}" class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 font-semibold text-stone-700 hover:bg-stone-50 dark:border-slate-800 dark:bg-slate-900 dark:text-stone-300 dark:hover:bg-slate-800 transition shadow-2xs">
+          Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+        </a>
+      {% else %}
+        <span class="inline-flex h-8 items-center justify-center rounded-lg border border-stone-100 bg-stone-50 px-3 font-semibold text-stone-300 dark:border-slate-800/50 dark:bg-slate-900/50 dark:text-stone-600 cursor-not-allowed">
+          Next <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+        </span>
+      {% endif %}
+    </div>
+  </nav>
   {% endif %}
 </section>
 {% endblock %}

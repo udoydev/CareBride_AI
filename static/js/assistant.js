@@ -20,7 +20,7 @@
   class CarebridgeVoiceEngine {
     constructor() {
       this.currentAudio = null;
-      this.isEnabled = true;
+      this.isEnabled = false;
       this.currentText = "";
       this.currentLang = "bn";
       this.isPlaying = false;
@@ -268,32 +268,54 @@
     if (role === "assistant") {
       lastAssistantReply = content;
       const actions = document.createElement("div");
-      actions.className = "mt-2.5 flex items-center gap-2 pt-2 border-t border-stone-200/60 dark:border-slate-700/60";
+      actions.className = "mt-2.5 flex flex-wrap items-center gap-2 pt-2 border-t border-stone-200/60 dark:border-slate-700/60";
 
-      const listenBtn = document.createElement("button");
-      listenBtn.type = "button";
-      listenBtn.className =
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-sm transition";
-      listenBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> ${currentLang === "bn" ? "ভয়েস শুনুন (Google AI)" : "Play Voice (Google AI)"}`;
-      listenBtn.addEventListener("click", () => voiceEngine.play(content, currentLang, true));
+      let isBn = /[\u0980-\u09FF]/.test(content);
+      let currentMsgLang = isBn ? "bn" : "en";
+      let currentMsgText = content;
 
-      const stopBtn = document.createElement("button");
-      stopBtn.type = "button";
-      stopBtn.className =
-        "inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition";
-      stopBtn.innerHTML = `<i class="fa-solid fa-square"></i> OFF`;
-      stopBtn.addEventListener("click", () => voiceEngine.stop());
+      const translateBtn = document.createElement("button");
+      translateBtn.type = "button";
+      translateBtn.className =
+        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition";
 
-      const replayBtn = document.createElement("button");
-      replayBtn.type = "button";
-      replayBtn.className =
-        "inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-bold shadow-sm transition";
-      replayBtn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> RESTART`;
-      replayBtn.addEventListener("click", () => voiceEngine.restart());
+      function updateTranslateBtnLabel() {
+        translateBtn.innerHTML = currentMsgLang === "bn"
+          ? `<i class="fa-solid fa-language"></i> 🇺🇸 Translate to English`
+          : `<i class="fa-solid fa-language"></i> 🇧🇩 বাংলায় অনুবাদ করুন`;
+      }
+      updateTranslateBtnLabel();
 
-      actions.appendChild(listenBtn);
-      actions.appendChild(stopBtn);
-      actions.appendChild(replayBtn);
+      translateBtn.addEventListener("click", async () => {
+        const targetLang = currentMsgLang === "bn" ? "en" : "bn";
+        translateBtn.disabled = true;
+        translateBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> translating...`;
+        
+        try {
+          const res = await fetch(cfg.urls.translate || "/patient/api/chat/translate/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": cfg.csrfToken,
+            },
+            body: JSON.stringify({ text: currentMsgText, target_lang: targetLang }),
+          });
+          const data = await res.json();
+          if (res.ok && data.translated_text) {
+            currentMsgText = data.translated_text;
+            currentMsgLang = targetLang;
+            text.innerHTML = formatMarkdownHtml(currentMsgText);
+            updateTranslateBtnLabel();
+          }
+        } catch (_) {
+          /* silent */
+        } finally {
+          translateBtn.disabled = false;
+        }
+      });
+
+      actions.appendChild(translateBtn);
       bubble.appendChild(actions);
     }
 
@@ -420,43 +442,65 @@
 
     const Recognition = getSpeechApi();
     if (!Recognition) {
-      alert("Voice input is not supported on this browser.");
+      alert("Voice command speech recognition is not supported on this browser. Please use Chrome, Edge, or Safari.");
       return;
     }
 
     const recognition = new Recognition();
     activeRecognition = recognition;
-    recognition.lang = getSpeechLang(currentLang);
+    recognition.lang = currentLang === "en" ? "en-US" : "bn-BD";
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 3;
 
     isListening = true;
-    micBtn?.classList.add("bg-teal-600", "text-white", "animate-pulse");
-    if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
+    micBtn?.classList.add("bg-red-600", "text-white", "animate-bounce");
+    if (micIcon) micIcon.className = "fa-solid fa-microphone-lines text-lg text-white";
+
+    let finalTranscript = "";
 
     recognition.onresult = (event) => {
-      const transcript = Array.from(event.results || [])
-        .map((r) => r[0]?.transcript || "")
-        .join(" ")
-        .trim();
-      if (transcript) {
-        if (inputEl) inputEl.value = transcript;
-        sendMessage(transcript);
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interim += transcript;
+        }
+      }
+      const activeText = finalTranscript || interim;
+      if (inputEl && activeText) {
+        inputEl.value = activeText;
+        inputEl.style.height = "auto";
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 128) + "px";
       }
     };
 
-    recognition.onerror = () => resetMicUI();
-    recognition.onend = () => resetMicUI();
+    recognition.onerror = (e) => {
+      console.warn("Speech error:", e.error);
+      resetMicUI();
+    };
+
+    recognition.onend = () => {
+      resetMicUI();
+      if (inputEl && inputEl.value.trim() && !isSending) {
+        sendMessage(inputEl.value.trim());
+      }
+    };
 
     function resetMicUI() {
       isListening = false;
       activeRecognition = null;
-      micBtn?.classList.remove("bg-teal-600", "text-white", "animate-pulse");
+      micBtn?.classList.remove("bg-red-600", "text-white", "animate-bounce");
       if (micIcon) micIcon.className = "fa-solid fa-microphone text-lg";
     }
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      resetMicUI();
+    }
   }
 
   function toggleLang() {

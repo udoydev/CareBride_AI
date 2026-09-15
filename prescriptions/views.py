@@ -37,6 +37,9 @@ def _build_prescription_pdf(prescription):
 
     pdf_font_name = "Helvetica"
     for font_path in [
+        r"C:\Windows\Fonts\Nirmala.ttf",
+        r"C:\Windows\Fonts\nirmala.ttf",
+        r"C:\Windows\Fonts\vrinda.ttf",
         r"C:\Windows\Fonts\segoeui.ttf",
         r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\solaimanlipi.ttf",
@@ -66,7 +69,13 @@ def _build_prescription_pdf(prescription):
 
     doctor = prescription.doctor
     patient = prescription.patient
-    doctor_name = doctor.user.get_full_name() or doctor.user.username
+
+    raw_doc_name = doctor.user.get_full_name() or doctor.user.username
+    if raw_doc_name.lower().startswith("dr.") or raw_doc_name.lower().startswith("dr "):
+        doctor_name = raw_doc_name
+    else:
+        doctor_name = f"Dr. {raw_doc_name}"
+
     patient_name = patient.user.get_full_name() or patient.user.email
 
     # Professional Medical Header
@@ -74,35 +83,59 @@ def _build_prescription_pdf(prescription):
     story.append(Paragraph(f"Digital Prescription & Medical Record | Rx Code: <b>#CARE-RX-{prescription.pk}</b>", subtitle_style))
     story.append(Spacer(1, 4))
 
-    info_data = [
-        [Paragraph("<b>Doctor Name</b>", normal_style), Paragraph(f"Dr. {doctor_name}", normal_style),
+    # Doctor Information Table
+    doc_info_data = [
+        [Paragraph("<b>Doctor Name</b>", normal_style), Paragraph(doctor_name, normal_style),
          Paragraph("<b>Specialty</b>", normal_style), Paragraph(doctor.specialty or "General Medicine", normal_style)],
         [Paragraph("<b>Qualifications</b>", normal_style), Paragraph(doctor.degrees or "MBBS, MD", normal_style),
          Paragraph("<b>BMDC Reg No</b>", normal_style), Paragraph(doctor.registration_number or "A-10892", normal_style)],
         [Paragraph("<b>Chamber / Clinic</b>", normal_style), Paragraph(doctor.clinic_name or "CareBridge Digital Chamber", normal_style),
          Paragraph("<b>Issued Date</b>", normal_style), Paragraph(prescription.issued_at.strftime("%d %b %Y, %I:%M %p"), normal_style)],
-        [Paragraph("<b>Patient Name</b>", normal_style), Paragraph(patient_name, normal_style),
-         Paragraph("<b>Patient ID</b>", normal_style), Paragraph(f"#PAT-{patient.id}", normal_style)],
-        [Paragraph("<b>Gender / Age</b>", normal_style), Paragraph(f"{patient.gender or 'N/A'}, {calculate_age(patient.date_of_birth) if patient.date_of_birth else 'N/A'} yrs", normal_style),
-         Paragraph("<b>Contact Phone</b>", normal_style), Paragraph(patient.phone_number or "N/A", normal_style)],
     ]
-    info_table = Table(info_data, colWidths=[32*mm, 58*mm, 32*mm, 58*mm])
-    info_table.setStyle(TableStyle([
+    doc_info_table = Table(doc_info_data, colWidths=[32*mm, 58*mm, 32*mm, 58*mm])
+    doc_info_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0fdfa')),
         ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#f0fdfa')),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1c1917')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ccfbf1')),
     ]))
-    story.append(info_table)
-    story.append(Spacer(1, 8))
+    story.append(doc_info_table)
+
+    # Tight visual gap between Doctor Info and Patient Info tables
+    story.append(Spacer(1, 4))
+
+    # Patient Information Table
+    age_display = f"{calculate_age(patient.date_of_birth)} yrs" if patient.date_of_birth else "Adult"
+    patient_info_data = [
+        [Paragraph("<b>Patient Name</b>", normal_style), Paragraph(patient_name, normal_style),
+         Paragraph("<b>Patient ID</b>", normal_style), Paragraph(f"#PAT-{patient.id}", normal_style)],
+        [Paragraph("<b>Gender / Age</b>", normal_style), Paragraph(f"{patient.gender or 'N/A'}, {age_display}", normal_style),
+         Paragraph("<b>Contact Phone</b>", normal_style), Paragraph(patient.phone_number or "N/A", normal_style)],
+    ]
+    patient_info_table = Table(patient_info_data, colWidths=[32*mm, 58*mm, 32*mm, 58*mm])
+    patient_info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#eff6ff')),
+        ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#eff6ff')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1c1917')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dbeafe')),
+    ]))
+    story.append(patient_info_table)
+    story.append(Spacer(1, 4))
 
     # Visit Vitals
     visit = getattr(prescription, "visit", None)
+    if not visit and prescription.appointment:
+        visit = getattr(prescription.appointment, "visit", None)
     if visit:
         vitals_data = [
             [Paragraph("<b>Heart Rate</b>", normal_style), Paragraph(f"{visit.heart_rate} bpm" if visit.heart_rate else "—", normal_style),
@@ -110,16 +143,26 @@ def _build_prescription_pdf(prescription):
             [Paragraph("<b>Temperature</b>", normal_style), Paragraph(f"{visit.temperature_celsius}°C" if visit.temperature_celsius else "—", normal_style),
              Paragraph("<b>Weight / Height</b>", normal_style), Paragraph(f"{visit.weight_kg or '—'} kg / {visit.height_cm or '—'} cm", normal_style)],
         ]
+        if visit.oxygen_saturation:
+            vitals_data.append([
+                Paragraph("<b>Oxygen (SpO2)</b>", normal_style), Paragraph(f"{visit.oxygen_saturation}%", normal_style),
+                Paragraph("", normal_style), Paragraph("", normal_style),
+            ])
+        if visit.visit_notes:
+            vitals_data.append([
+                Paragraph("<b>Observations</b>", normal_style), Paragraph(visit.visit_notes, normal_style),
+                Paragraph("", normal_style), Paragraph("", normal_style),
+            ])
         vitals_table = Table(vitals_data, colWidths=[35*mm, 55*mm, 35*mm, 55*mm])
         vitals_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#eff6ff')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dbeafe')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('PADDING', (0, 0), (-1, -1), 5),
+            ('PADDING', (0, 0), (-1, -1), 4),
         ]))
-        story.append(Paragraph("Patient Clinical Vitals", heading_style))
+        story.append(Paragraph("Patient Clinical Vitals & Observations", heading_style))
         story.append(vitals_table)
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 4))
 
     if prescription.chief_complaints:
         story.append(Paragraph("Chief Complaints (C/C)", heading_style))
@@ -155,7 +198,7 @@ def _build_prescription_pdf(prescription):
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f766e')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('PADDING', (0, 0), (-1, -1), 5),
+            ('PADDING', (0, 0), (-1, -1), 4),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e7e5e4')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafaf9')]),
         ]))
@@ -167,42 +210,62 @@ def _build_prescription_pdf(prescription):
         story.append(Paragraph("Doctor Advice & Lifestyle Rules", heading_style))
         story.append(Paragraph(prescription.advice_rules, normal_style))
 
+    if prescription.doctor_notes:
+        story.append(Paragraph("Doctor Clinical Notes & Instructions", heading_style))
+        story.append(Paragraph(prescription.doctor_notes, normal_style))
+
     # Follow-up info
+    followup_date_str = None
+    deadline_str = None
     follow_up = getattr(prescription, "follow_up", None)
-    if follow_up:
+    if prescription.next_followup_date:
+        followup_date_str = prescription.next_followup_date.strftime("%d %b %Y")
+    elif follow_up and follow_up.scheduled_date:
+        followup_date_str = follow_up.scheduled_date.strftime("%d %b %Y")
+    if follow_up and follow_up.booking_deadline:
+        deadline_str = follow_up.booking_deadline.strftime("%d %b %Y")
+
+    if followup_date_str:
         story.append(Paragraph("Follow-up Schedule", heading_style))
         followup_data = [
-            [Paragraph("<b>Scheduled Follow-up Date</b>", normal_style), Paragraph(follow_up.scheduled_date.strftime("%d %b %Y"), normal_style)],
-            [Paragraph("<b>Book By (Deadline)</b>", normal_style), Paragraph(follow_up.booking_deadline.strftime("%d %b %Y") if follow_up.booking_deadline else "As needed", normal_style)],
+            [Paragraph("<b>Next Visit / Follow-up Date</b>", normal_style), Paragraph(followup_date_str, normal_style)],
         ]
-        followup_table = Table(followup_data, colWidths=[50*mm, 130*mm])
+        if deadline_str:
+            followup_data.append([Paragraph("<b>Book By (Deadline)</b>", normal_style), Paragraph(deadline_str, normal_style)])
+        followup_table = Table(followup_data, colWidths=[55*mm, 125*mm])
         followup_table.setStyle(TableStyle([
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e7e5e4')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('PADDING', (0, 0), (-1, -1), 5),
+            ('PADDING', (0, 0), (-1, -1), 4),
         ]))
         story.append(followup_table)
 
-    # Virtual Digital Signature Box
-    story.append(Spacer(1, 14))
-    sig_doctor_title = f"Dr. {doctor_name}"
-    bmdc_no = doctor.registration_number or "A-10892"
-    issued_date_str = prescription.issued_at.strftime("%d %b %Y, %I:%M %p")
+    # Doctor Signature Box — Signature Only
+    story.append(Spacer(1, 10))
 
-    sig_content = [
-        [Paragraph(f"<b>{sig_doctor_title}</b>", ParagraphStyle("sig_doc", parent=styles["Normal"], fontSize=10, textColor=colors.HexColor("#0f766e"), fontName=pdf_font_name))],
-        [Paragraph("<i>Virtual Digital Signature</i>", ParagraphStyle("sig_sub", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#047857"), fontName=pdf_font_name))],
-        [Paragraph("<b>[ ✓ DIGITALLY SIGNED & VERIFIED ]</b>", ParagraphStyle("sig_stamp", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#047857"), fontName=pdf_font_name))],
-        [Paragraph(f"BMDC Reg: <b>{bmdc_no}</b>", ParagraphStyle("sig_bmdc", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#57534e"), fontName=pdf_font_name))],
-        [Paragraph(f"Signed: {issued_date_str}", ParagraphStyle("sig_date", parent=styles["Normal"], fontSize=7, textColor=colors.HexColor("#78716c"), fontName=pdf_font_name))],
-    ]
+    sig_content = []
+    sig_img_obj = None
+    if getattr(doctor, 'signature', None) and doctor.signature:
+        try:
+            if os.path.exists(doctor.signature.path):
+                from reportlab.platypus import Image as RLImage
+                sig_img_obj = RLImage(doctor.signature.path, width=45*mm, height=15*mm)
+        except Exception:
+            sig_img_obj = None
+
+    if sig_img_obj:
+        sig_content.append([sig_img_obj])
+    else:
+        sig_content.append([Paragraph(f"<i><font color='#0f766e' size='12'><b>{doctor_name}</b></font></i>", ParagraphStyle("sig_cursive", parent=styles["Normal"], alignment=1, fontName=pdf_font_name))])
+        sig_content.append([Paragraph("_______________________________", ParagraphStyle("sig_line", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#0d9488"), alignment=1))])
 
     sig_box_table = Table(sig_content, colWidths=[65*mm])
     sig_box_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f0fdfa")),
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#0d9488")),
-        ('PADDING', (0,0), (-1,-1), 5),
+        ('PADDING', (0,0), (-1,-1), 4),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
 
     sig_wrapper = Table([["", sig_box_table]], colWidths=[115*mm, 65*mm])
@@ -347,8 +410,8 @@ def appointment_receipt_pdf(request, appointment_id):
         messages.error(request, "Only registered patients can access appointment receipts.")
         return redirect("home")
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
-    if appointment.status not in ("confirmed", "completed"):
-        messages.error(request, "Receipt is only available for confirmed or completed appointments.")
+    if appointment.payment_status not in ("paid", "pending_verification") and appointment.status not in ("confirmed", "completed"):
+        messages.error(request, "Receipt is only available for paid or confirmed appointments.")
         return redirect("patient:appointment_detail", appointment_id=appointment.pk)
 
     buffer = _build_appointment_receipt_pdf(appointment)
@@ -358,13 +421,7 @@ def appointment_receipt_pdf(request, appointment_id):
 
 
 def _build_refund_receipt_pdf(appointment):
-    """Generate a professional cancellation/refund receipt PDF.
-
-    Shows: receipt number, original appointment details, refund amount,
-    refund status, and timestamps. Includes a watermark indicating the
-    appointment was cancelled/refunded.
-    """
-    """Build a professional cancellation/refund receipt PDF."""
+    """Generate a professional cancellation/refund receipt PDF."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
     styles = getSampleStyleSheet()
@@ -401,6 +458,10 @@ def _build_refund_receipt_pdf(appointment):
     fee = Decimal(str(appointment.fee_bdt or 0))
     refunded = Decimal(str(appointment.refund_amount or 0))
 
+    start_str = appointment.start_time.strftime('%I:%M %p') if appointment.start_time else "N/A"
+    end_str = appointment.end_time.strftime('%I:%M %p') if appointment.end_time else start_str
+    time_str = f"{start_str} - {end_str}"
+
     info_data = [
         [Paragraph("<b>Receipt No.</b>", normal_style), Paragraph(receipt_no, normal_style),
          Paragraph("<b>Date</b>", normal_style), Paragraph(timezone.now().astimezone(bdt).strftime("%d %B %Y"), normal_style)],
@@ -409,7 +470,7 @@ def _build_refund_receipt_pdf(appointment):
         [Paragraph("<b>Doctor</b>", normal_style), Paragraph(f"Dr. {doctor_name}", normal_style),
          Paragraph("<b>Appointment ID</b>", normal_style), Paragraph(f"#APT-{appointment.pk:06d}", normal_style)],
         [Paragraph("<b>Appointment Date</b>", normal_style), Paragraph(appointment.appointment_date.strftime("%d %B %Y"), normal_style),
-         Paragraph("<b>Time</b>", normal_style), Paragraph(f"{appointment.start_time.strftime('%I:%M %p')} - {appointment.end_time.strftime('%I:%M %p')}", normal_style)],
+         Paragraph("<b>Time</b>", normal_style), Paragraph(time_str, normal_style)],
         [Paragraph("<b>Original Fee</b>", normal_style), Paragraph(f"BDT {fee:,.2f}", normal_style),
          Paragraph("<b>Payment Method</b>", normal_style), Paragraph(appointment.payment_method or "N/A", normal_style)],
         [Paragraph("<b>Refund Amount</b>", normal_style), Paragraph(f"BDT {refunded:,.2f}", normal_style),
@@ -433,12 +494,19 @@ def _build_refund_receipt_pdf(appointment):
     story.append(Spacer(1, 10))
 
     story.append(Paragraph("Refund Details", heading_style))
-    refund_note = (
-        f"This appointment was cancelled. A refund of <b>BDT {refunded:,.2f}</b> "
-        f"(based on the cancellation policy) has been processed. "
-        f"The refund will be credited to your original payment method within 3-5 business days. "
-        f"Reference ID: {appointment.transaction_id or 'N/A'}."
-    )
+    if appointment.refund_status == "full":
+        refund_note = (
+            f"This appointment was cancelled prior to doctor verification/confirmation or cancelled by doctor. "
+            f"A <b>100% full refund of BDT {refunded:,.2f}</b> has been credited to your CareBridge wallet balance. "
+            f"Reference ID: {appointment.transaction_id or 'N/A'}."
+        )
+    else:
+        refund_note = (
+            f"This appointment was cancelled by patient after doctor verification & confirmation. "
+            f"Per policy (35% patient refund, 15% platform commission, 50% doctor net payout for slot hold), "
+            f"a refund of <b>BDT {refunded:,.2f}</b> has been credited to your CareBridge wallet balance. "
+            f"Reference ID: {appointment.transaction_id or 'N/A'}."
+        )
     story.append(Paragraph(refund_note, normal_style))
 
     story.append(Spacer(1, 14))
@@ -462,11 +530,8 @@ def refund_receipt_pdf(request, appointment_id):
         messages.error(request, "Only registered patients can access refund receipts.")
         return redirect("home")
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
-    if appointment.status not in ("cancelled", "refunded"):
+    if appointment.status not in ("cancelled", "refunded") and appointment.payment_status != "refunded":
         messages.error(request, "Refund receipt is only available for cancelled or refunded appointments.")
-        return redirect("patient:appointment_detail", appointment_id=appointment.pk)
-    if not appointment.refund_amount or appointment.refund_amount <= 0:
-        messages.error(request, "No refund has been processed for this appointment.")
         return redirect("patient:appointment_detail", appointment_id=appointment.pk)
 
     buffer = _build_refund_receipt_pdf(appointment)

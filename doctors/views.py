@@ -207,21 +207,19 @@ def dashboard(request):
     ).order_by("-created_at")[:5]
 
     # Doctor calendar data - next 30 days
-    calendar_start = today
-    calendar_end = today + timezone.timedelta(days=30)
+    calendar_start = today - timezone.timedelta(days=60)
+    calendar_end = today + timezone.timedelta(days=90)
     
     doctor_calendar_appointments = Appointment.objects.filter(
         doctor=doctor,
         appointment_date__gte=calendar_start,
         appointment_date__lte=calendar_end,
-        status__in=["pending", "confirmed"],
-    ).select_related("patient__user").order_by("appointment_date", "start_time")
+    ).exclude(status="cancelled").select_related("patient__user").order_by("appointment_date", "start_time")
     
     doctor_calendar_followups = FollowUp.objects.filter(
         prescription__doctor=doctor,
         scheduled_date__gte=calendar_start,
         scheduled_date__lte=calendar_end,
-        status__in=["upcoming", "missed"],
     ).select_related("prescription__patient__user").order_by("scheduled_date")
 
     doctor_name = doctor.user.get_full_name() or doctor.user.email
@@ -372,6 +370,7 @@ def patient_detail(request, patient_id):
             "items": [f"{item.medicine} — {item.dosage} ({item.frequency}x/day)" for item in prescription.items.all()],
             "follow_up": getattr(prescription, "follow_up", None),
             "is_locked": prescription.is_locked,
+            "is_edit_locked": prescription.is_edit_locked,
             "activates_at": prescription.activates_at,
             "expires_at": prescription.expires_at,
         })
@@ -440,6 +439,34 @@ def patient_detail(request, patient_id):
         today = timezone.localdate()
         patient_age = today.year - patient.date_of_birth.year - ((today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day))
 
+    today = timezone.localdate()
+    now = timezone.localtime(timezone.now())
+    tz = timezone.get_current_timezone()
+
+    can_create_prescription = False
+    todays_appointments = Appointment.objects.filter(
+        doctor=doctor,
+        patient=patient,
+        appointment_date=today,
+        status__in=["pending", "confirmed"],
+    ).order_by("start_time")
+
+    for apt in todays_appointments:
+        apt_start = timezone.make_aware(timezone.datetime.combine(apt.appointment_date, apt.start_time), tz)
+        window_start = apt_start - timezone.timedelta(hours=4)
+        window_end = apt_start + timezone.timedelta(hours=4)
+        if window_start <= now <= window_end and not Prescription.objects.filter(appointment=apt).exists():
+            can_create_prescription = True
+            break
+
+    if not can_create_prescription:
+        can_create_prescription = FollowUp.objects.filter(
+            prescription__doctor=doctor,
+            prescription__patient=patient,
+            status="upcoming",
+            scheduled_date=today,
+        ).exists()
+
     has_active_prescription = Prescription.objects.filter(
         patient=patient,
         is_locked=False,
@@ -475,6 +502,7 @@ def patient_detail(request, patient_id):
         "ai_summary": ai_summary,
         "prescriptions_page": prescriptions_page,
         "has_active_prescription": has_active_prescription,
+        "can_create_prescription": can_create_prescription,
         "missed_followups": missed_followups,
         "missed_appointments": missed_appointments,
     })
@@ -621,24 +649,49 @@ def create_prescription(request, patient_id):
         from patient.models import PatientVisit
         vitals_fields = [
             "heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic",
-            "temperature_celsius", "weight_kg", "height_cm", "oxygen_saturation", "visit_notes"
+            "temperature_celsius", "weight_kg", "height_cm", "height_ft", "height_in", "oxygen_saturation", "visit_notes"
         ]
         has_vitals = any(request.POST.get(f) for f in vitals_fields)
         if has_vitals:
-            PatientVisit.objects.create(
-                patient=patient,
-                appointment=appointment,
-                prescription=prescription,
-                doctor=doctor,
-                heart_rate=request.POST.get("heart_rate") or None,
-                blood_pressure_systolic=request.POST.get("blood_pressure_systolic") or None,
-                blood_pressure_diastolic=request.POST.get("blood_pressure_diastolic") or None,
-                temperature_celsius=request.POST.get("temperature_celsius") or None,
-                weight_kg=request.POST.get("weight_kg") or None,
-                height_cm=request.POST.get("height_cm") or None,
-                oxygen_saturation=request.POST.get("oxygen_saturation") or None,
-                visit_notes=request.POST.get("visit_notes", "").strip(),
-            )
+            try:
+                visit = None
+                if appointment:
+                    visit = getattr(appointment, "visit", None)
+                if not visit:
+                    visit = PatientVisit.objects.filter(prescription=prescription).first()
+                if not visit:
+                    visit = PatientVisit(patient=patient, doctor=doctor, appointment=appointment, prescription=prescription)
+                else:
+                    visit.prescription = prescription
+                visit.heart_rate = request.POST.get("heart_rate") or None
+                visit.blood_pressure_systolic = request.POST.get("blood_pressure_systolic") or None
+                visit.blood_pressure_diastolic = request.POST.get("blood_pressure_diastolic") or None
+                visit.temperature_celsius = request.POST.get("temperature_celsius") or None
+                visit.weight_kg = request.POST.get("weight_kg") or None
+
+                h_cm = request.POST.get("height_cm", "").strip()
+                h_ft = request.POST.get("height_ft", "").strip()
+                h_in = request.POST.get("height_in", "").strip()
+                final_height_cm = None
+                if h_ft or h_in:
+                    try:
+                        ft_val = float(h_ft) if h_ft else 0
+                        in_val = float(h_in) if h_in else 0
+                        if ft_val > 0 or in_val > 0:
+                            final_height_cm = int(round((ft_val * 12 + in_val) * 2.54))
+                    except (ValueError, TypeError):
+                        pass
+                if not final_height_cm and h_cm:
+                    try:
+                        final_height_cm = int(round(float(h_cm)))
+                    except (ValueError, TypeError):
+                        pass
+                visit.height_cm = final_height_cm or (int(h_cm) if h_cm.isdigit() else None)
+                visit.oxygen_saturation = request.POST.get("oxygen_saturation") or None
+                visit.visit_notes = request.POST.get("visit_notes", "").strip()
+                visit.save()
+            except Exception:
+                pass
 
         # Loop and save medicines
         for i, name in enumerate(med_names):
@@ -755,9 +808,9 @@ def edit_prescription(request, prescription_id):
 
     prescription = get_object_or_404(Prescription, pk=prescription_id, doctor=doctor)
 
-    if prescription.is_locked:
+    if prescription.is_edit_locked:
         messages.error(request, "This prescription is locked and can no longer be edited. The 4-hour editing window has expired.")
-        return redirect("doctors:prescription_detail", prescription_id=prescription.pk)
+        return redirect("doctors:patient_detail", patient_id=prescription.patient.pk)
 
     patient = prescription.patient
     now = timezone.localtime(timezone.now())
@@ -809,9 +862,58 @@ def edit_prescription(request, prescription_id):
                 special_instructions=notes,
             )
 
+        # Update visit vitals if provided
+        from patient.models import PatientVisit
+        vitals_fields = [
+            "heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic",
+            "temperature_celsius", "weight_kg", "height_cm", "height_ft", "height_in", "oxygen_saturation", "visit_notes"
+        ]
+        has_vitals = any(request.POST.get(f) for f in vitals_fields)
+        if has_vitals:
+            try:
+                visit = getattr(prescription, "visit", None)
+                if not visit and prescription.appointment:
+                    visit = getattr(prescription.appointment, "visit", None)
+                if not visit:
+                    visit = PatientVisit.objects.filter(prescription=prescription).first()
+                if not visit:
+                    visit = PatientVisit(patient=patient, doctor=doctor, appointment=prescription.appointment, prescription=prescription)
+                else:
+                    visit.prescription = prescription
+                visit.heart_rate = request.POST.get("heart_rate") or None
+                visit.blood_pressure_systolic = request.POST.get("blood_pressure_systolic") or None
+                visit.blood_pressure_diastolic = request.POST.get("blood_pressure_diastolic") or None
+                visit.temperature_celsius = request.POST.get("temperature_celsius") or None
+                visit.weight_kg = request.POST.get("weight_kg") or None
+
+                h_cm = request.POST.get("height_cm", "").strip()
+                h_ft = request.POST.get("height_ft", "").strip()
+                h_in = request.POST.get("height_in", "").strip()
+                final_height_cm = None
+                if h_ft or h_in:
+                    try:
+                        ft_val = float(h_ft) if h_ft else 0
+                        in_val = float(h_in) if h_in else 0
+                        if ft_val > 0 or in_val > 0:
+                            final_height_cm = int(round((ft_val * 12 + in_val) * 2.54))
+                    except (ValueError, TypeError):
+                        pass
+                if not final_height_cm and h_cm:
+                    try:
+                        final_height_cm = int(round(float(h_cm)))
+                    except (ValueError, TypeError):
+                        pass
+                visit.height_cm = final_height_cm or (int(h_cm) if h_cm.isdigit() else None)
+                visit.oxygen_saturation = request.POST.get("oxygen_saturation") or None
+                visit.visit_notes = request.POST.get("visit_notes", "").strip()
+                visit.save()
+            except Exception:
+                pass
+
         messages.success(request, f"✓ Prescription #{prescription.pk} updated successfully.")
         return redirect("doctors:prescription_detail", prescription_id=prescription.pk)
 
+    visit = getattr(prescription, "visit", None) or (getattr(prescription.appointment, "visit", None) if prescription.appointment else None)
     existing_items = prescription.items.select_related("medicine").all()
     return render(request, "doctors/edit_prescription.html", {
         "prescription": prescription,
@@ -819,6 +921,7 @@ def edit_prescription(request, prescription_id):
         "patient_name": patient.user.get_full_name() or patient.user.email,
         "doctor": doctor,
         "existing_items": existing_items,
+        "visit": visit,
         "is_edit": True,
     })
 
@@ -836,21 +939,8 @@ def notifications(request):
 @never_cache_auth
 @login_required
 def history(request):
-    doctor = getattr(request.user, "doctor_profile", None)
-    activity = []
-    page_obj = None
-    if doctor:
-        qs = Prescription.objects.filter(doctor=doctor).select_related("patient__user").order_by("-issued_at")
-        paginator = Paginator(qs, 20)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
-        for prescription in page_obj:
-            activity.append({
-                "date": prescription.issued_at.strftime("%Y-%m-%d"),
-                "action": f"Issued prescription for {prescription.patient.user.get_full_name() or prescription.patient.user.email}",
-                "prescription_id": prescription.pk,
-            })
-    return render(request, "doctors/history.html", {"activity": activity, "page_obj": page_obj})
+    from doctors.views.prescriptions import history as p_history
+    return p_history(request)
 
 
 @never_cache_auth
@@ -909,6 +999,11 @@ def profile_edit(request):
                 doctor.avatar_updated_at = timezone.now()
                 if old_avatar and old_avatar.name != doctor.avatar.name:
                     old_avatar.delete(save=False)
+            if request.FILES.get("signature"):
+                old_sig = doctor.signature
+                doctor.signature = request.FILES.get("signature")
+                if old_sig and old_sig.name != doctor.signature.name:
+                    old_sig.delete(save=False)
             doctor.save()
 
         if errors:
@@ -928,6 +1023,7 @@ def profile_edit(request):
         "experience_years": doctor.experience_years if doctor else 0,
         "consultation_fee": doctor.consultation_fee if doctor else 0,
         "avatar": doctor.avatar.url if (doctor and doctor.avatar) else None,
+        "signature": doctor.signature.url if (doctor and doctor.signature) else None,
         "avatar_updated_at": doctor.avatar_updated_at if doctor else None,
         "designation": doctor.designation if doctor else "",
         "degrees": doctor.degrees if doctor else "",
@@ -1056,18 +1152,32 @@ def schedule_management(request):
         end = request.POST.get("end_time")
         slot = request.POST.get("slot_duration_minutes", 20)
         if day and start and end:
-            DoctorSchedule.objects.update_or_create(
-                doctor=doctor,
-                day_of_week=day,
-                defaults={
-                    "start_time": start,
-                    "end_time": end,
-                    "slot_duration_minutes": int(slot),
-                    "is_active": True,
-                },
-            )
-            messages.success(request, "Schedule updated successfully.")
-        return redirect("doctors:schedule_management")
+            try:
+                slot = int(slot)
+            except (ValueError, TypeError):
+                slot = 20
+            existing_schedules = DoctorSchedule.objects.filter(doctor=doctor, day_of_week=day)
+            if existing_schedules.exists():
+                schedule = existing_schedules.first()
+                schedule.start_time = start
+                schedule.end_time = end
+                schedule.slot_duration_minutes = slot
+                schedule.is_active = True
+                schedule.save()
+                if existing_schedules.count() > 1:
+                    existing_schedules.exclude(pk=schedule.pk).delete()
+                messages.success(request, f"Schedule for {schedule.get_day_of_week_display()} updated successfully.")
+            else:
+                schedule = DoctorSchedule.objects.create(
+                    doctor=doctor,
+                    day_of_week=day,
+                    start_time=start,
+                    end_time=end,
+                    slot_duration_minutes=slot,
+                    is_active=True,
+                )
+                messages.success(request, f"Schedule for {schedule.get_day_of_week_display()} created successfully.")
+            return redirect("doctors:schedule_management")
 
     schedules = DoctorSchedule.objects.filter(doctor=doctor).order_by("day_of_week", "start_time")
     days = DoctorSchedule.DAY_CHOICES
@@ -1097,10 +1207,10 @@ def _auto_detect_missed_for_doctor(doctor):
     ).select_related("patient__user")
     count = 0
     for apt in missed_appointments:
-        has_prescription = Prescription.objects.filter(
+        has_prescription = apt.prescriptions.exists() or Prescription.objects.filter(
             doctor=doctor,
             patient=apt.patient,
-            issued_at__date__gte=apt.appointment_date,
+            issued_at__date=apt.appointment_date,
         ).exists()
         if not has_prescription:
             apt.status = "missed"
@@ -1181,7 +1291,7 @@ def appointment_list(request):
     elif status_filter == "pending":
         appointments = base_qs.filter(status="pending", payment_status="pending").order_by("-appointment_date", "-start_time")
     elif status_filter == "pending_verification":
-        appointments = base_qs.filter(payment_status="pending_verification").order_by("-appointment_date", "-start_time")
+        appointments = base_qs.filter(payment_status="pending_verification").exclude(status="cancelled").order_by("-appointment_date", "-start_time")
     elif status_filter == "missed":
         appointments = base_qs.filter(status="missed").order_by("-appointment_date", "-start_time")
     elif status_filter:
@@ -1200,11 +1310,30 @@ def appointment_list(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
+    now_time = timezone.now()
+    overdue_count = 0
+    for apt in page_obj:
+        if apt.payment_status == "pending_verification" and apt.status != "cancelled":
+            elapsed_seconds = (now_time - apt.created_at).total_seconds()
+            apt.verification_overdue = elapsed_seconds > 86400  # 24 hours
+            apt.hours_since_created = int(elapsed_seconds // 3600)
+            apt.hours_remaining_verification = max(0, 24 - apt.hours_since_created)
+            if apt.verification_overdue:
+                overdue_count += 1
+        else:
+            apt.verification_overdue = False
+            apt.hours_remaining_verification = 0
+
     all_appointments = base_qs
+    # Count total overdue pending verifications across all appointments for doctor alert banner
+    cutoff_24h = now_time - timezone.timedelta(hours=24)
+    total_overdue = all_appointments.filter(payment_status="pending_verification", created_at__lt=cutoff_24h).exclude(status="cancelled").count()
+
     stats = {
         "total": all_appointments.count(),
         "pending": all_appointments.filter(status="pending", payment_status="pending").count(),
-        "pending_verification": all_appointments.filter(payment_status="pending_verification").count(),
+        "pending_verification": all_appointments.filter(payment_status="pending_verification").exclude(status="cancelled").count(),
+        "overdue_verification": total_overdue,
         "confirmed": all_appointments.filter(status="confirmed").count(),
         "completed": all_appointments.filter(status="completed").count(),
         "missed": all_appointments.filter(status="missed").count(),
@@ -1286,9 +1415,26 @@ def appointment_detail(request, appointment_id):
         doctor = getattr(request.user, "doctor_profile", None)
         appointment = get_object_or_404(Appointment, pk=appointment_id, doctor=doctor)
 
+    tz = timezone.get_current_timezone()
+    now_local = timezone.localtime(timezone.now())
+    apt_datetime = timezone.make_aware(
+        timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
+    )
+    hours_until = (apt_datetime - now_local).total_seconds() / 3600
+    is_admin = (request.user.is_staff or request.user.is_superuser)
+
+    # Doctor can only cancel IF payment is verified ("paid") AND appointment is >12h away (or if already cancelled / is admin)
+    can_doctor_cancel = (appointment.payment_status == "paid" and hours_until > 12) or appointment.status == "cancelled" or is_admin
+
     if request.method == "POST":
-        # Once a prescription is created for this appointment, the status is locked.
-        if appointment.prescriptions.exists():
+        is_doctor = (hasattr(request.user, "doctor_profile") and request.user.doctor_profile == appointment.doctor)
+
+        if appointment.payment_status == "pending_verification" and not (is_doctor or is_admin):
+            messages.error(request, "Only Admin or assigned Doctor can change appointment status when payment verification is pending.")
+            return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
+
+        # Once a prescription is created for this appointment, the status is locked (unless overridden by Admin/Staff).
+        if appointment.prescriptions.exists() and not (request.user.is_staff or request.user.is_superuser):
             messages.error(request, "This appointment was completed via a prescription and its status can no longer be changed.")
             return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
 
@@ -1296,11 +1442,23 @@ def appointment_detail(request, appointment_id):
         new_status = request.POST.get("status", appointment.status)
         appointment.notes = request.POST.get("notes", appointment.notes)
 
+        if new_status == "missed" and previous_status != "missed" and not is_admin:
+            messages.error(request, "Missed status cannot be given by doctor. It is automatically assigned after the 4-hour window passes without a prescription.")
+            return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
+
         # Doctor-initiated cancellation: full refund, no platform fee
         if new_status == "cancelled" and previous_status != "cancelled":
+            if not is_admin:
+                if appointment.payment_status != "paid":
+                    messages.error(request, "Cancellation is not allowed before payment is verified.")
+                    return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
+                if hours_until <= 12:
+                    messages.error(request, "Cancellation is not allowed within 12 hours or less of the appointment start time.")
+                    return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
+
             appointment.status = "cancelled"
             appointment.notes = request.POST.get("notes", appointment.notes)
-            if appointment.payment_status == "paid":
+            if appointment.payment_status in ("paid", "pending_verification", "pending") or bool(appointment.transaction_id):
                 appointment.refund_status = "full"
                 appointment.refund_amount = appointment.fee_bdt
                 appointment.payment_status = "refunded"
@@ -1312,10 +1470,11 @@ def appointment_detail(request, appointment_id):
                 patient.balance = (patient.balance or Decimal("0")) + appointment.refund_amount
                 patient.save(update_fields=["balance"])
 
+                doctor_obj = getattr(request.user, "doctor_profile", appointment.doctor)
                 AppNotification.objects.create(
                     user=patient.user,
                     title="Appointment Cancelled — Full Refund",
-                    message=f"Your appointment on {appointment.appointment_date} with Dr. {doctor.user.get_full_name() or doctor.user.username} was cancelled by the doctor. A full refund of {appointment.refund_amount} BDT has been credited to your wallet.",
+                    message=f"Your appointment on {appointment.appointment_date} with Dr. {doctor_obj.user.get_full_name() or doctor_obj.user.username} was cancelled by the doctor. A full refund of {appointment.refund_amount} BDT has been credited to your wallet.",
                     notification_type="booking",
                     link_url=reverse("patient:appointments"),
                 )
@@ -1329,6 +1488,8 @@ def appointment_detail(request, appointment_id):
             messages.success(request, "Appointment updated.")
         return redirect("doctors:appointment_detail", appointment_id=appointment.pk)
 
+    appointment.can_doctor_cancel = can_doctor_cancel
+    appointment.hours_until = hours_until
     return render(request, "doctors/appointment_detail.html", {"appointment": appointment})
 
 
@@ -1342,7 +1503,47 @@ def doctor_financial_report(request):
         messages.error(request, "Only doctors can view financial reports.")
         return redirect("home")
 
-    appointments = Appointment.objects.filter(doctor=doctor).select_related("patient__user").order_by("-appointment_date", "-start_time")
+    from django.db.models import Q
+    from datetime import datetime
+
+    start_date = request.GET.get("start_date", "").strip()
+    end_date = request.GET.get("end_date", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+    search_query = request.GET.get("q", "").strip()
+
+    appointments = Appointment.objects.filter(doctor=doctor).select_related("patient__user")
+
+    if start_date:
+        try:
+            d_start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            appointments = appointments.filter(appointment_date__gte=d_start)
+        except ValueError:
+            pass
+
+    if end_date:
+        try:
+            d_end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            appointments = appointments.filter(appointment_date__lte=d_end)
+        except ValueError:
+            pass
+
+    if status_filter:
+        if status_filter == "paid":
+            appointments = appointments.filter(payment_status="paid")
+        elif status_filter == "refunded":
+            appointments = appointments.filter(Q(status="cancelled") | Q(payment_status="refunded"))
+        else:
+            appointments = appointments.filter(status=status_filter)
+
+    if search_query:
+        appointments = appointments.filter(
+            Q(patient__user__first_name__icontains=search_query) |
+            Q(patient__user__last_name__icontains=search_query) |
+            Q(patient__user__email__icontains=search_query) |
+            Q(patient__phone_number__icontains=search_query)
+        )
+
+    appointments = appointments.order_by("-appointment_date", "-start_time")
 
     import io
     from decimal import Decimal
@@ -1605,17 +1806,7 @@ def mark_attendance(request, appointment_id):
             appointment.save(update_fields=["status"])
             messages.success(request, f"Marked {appointment.patient.user.get_full_name()} as visited.")
         elif action == "missed":
-            appointment.status = "missed"
-            appointment.save(update_fields=["status"])
-
-            AppNotification.objects.create(
-                user=appointment.patient.user,
-                title="Appointment Missed",
-                message=f"You missed your appointment on {appointment.appointment_date.strftime('%d %b %Y')} with Dr. {request.user.get_full_name()}. Please reschedule if needed.",
-                notification_type="booking",
-                link_url=reverse("patient:doctor_list"),
-            )
-            messages.warning(request, f"Marked {appointment.patient.user.get_full_name()} as missed. Notification sent.")
+            messages.error(request, "Missed status cannot be given by doctor. It is automatically assigned after the 4-hour window passes without a prescription.")
 
     return redirect("doctors:appointment_list")
 
@@ -1628,38 +1819,12 @@ def auto_detect_missed(request):
         messages.error(request, "Access restricted to doctors.")
         return redirect("home")
 
-    today = timezone.localdate()
-    cutoff = today
+    _auto_detect_missed_for_doctor(doctor)
+    _auto_mark_missed_today(doctor=doctor)
 
-    missed_appointments = Appointment.objects.filter(
-        doctor=doctor,
-        appointment_date__lt=cutoff,
-        status__in=["confirmed", "pending"],
-    ).select_related("patient__user")
-
-    count = 0
-    for apt in missed_appointments:
-        has_prescription = Prescription.objects.filter(
-            doctor=doctor,
-            patient=apt.patient,
-            issued_at__date__gte=apt.appointment_date,
-        ).exists()
-
-        if not has_prescription:
-            apt.status = "missed"
-            apt.save(update_fields=["status"])
-
-            AppNotification.objects.create(
-                user=apt.patient.user,
-                title="Appointment Marked as Missed",
-                message=f"Your appointment on {apt.appointment_date.strftime('%d %b %Y')} with Dr. {request.user.get_full_name()} was marked as missed (no prescription generated). Please book again if needed.",
-                notification_type="booking",
-                link_url=reverse("patient:doctor_list"),
-            )
-            count += 1
-
-    messages.success(request, f"Auto-detected and marked {count} appointment(s) as missed.")
+    messages.success(request, "Auto-detected and updated missed appointments as per the 4-hour window rule.")
     return redirect("doctors:appointment_list")
+
 
 
 @never_cache_auth
@@ -1873,16 +2038,14 @@ def reports(request):
 @never_cache_auth
 @login_required
 def verify_payment(request, appointment_id):
-    doctor = getattr(request.user, "doctor_profile", None)
-    if not doctor:
-        messages.error(request, "Only doctors can verify payments.")
+    appointment = get_object_or_404(Appointment, pk=appointment_id)
+    doctor_profile = getattr(request.user, "doctor_profile", None)
+    is_doctor = (doctor_profile and doctor_profile == appointment.doctor)
+    is_admin = (request.user.is_staff or request.user.is_superuser)
+
+    if not (is_doctor or is_admin):
+        messages.error(request, "Only Admin or assigned Doctor can verify payment or change appointment status.")
         return redirect("home")
-
-    appointment = get_object_or_404(Appointment, pk=appointment_id, doctor=doctor)
-
-    if appointment.payment_status != "pending_verification":
-        messages.info(request, "This appointment payment is already verified or not pending verification.")
-        return redirect("doctors:appointment_list")
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -1890,12 +2053,13 @@ def verify_payment(request, appointment_id):
             appointment.payment_status = "paid"
             appointment.payment_verified = True
             appointment.payment_verified_at = timezone.now()
-            appointment.payment_verified_by = doctor
+            appointment.payment_verified_by = doctor_profile
             appointment.status = "confirmed"
             appointment.paid_amount = appointment.fee_bdt
+            appointment.payment_appeal_status = "approved_payment"
             from accounts.models import SiteSettings
             from decimal import Decimal
-            commission_rate = Decimal(str(SiteSettings.get_solo().platform_commission_rate or "3.00")) / Decimal("100")
+            commission_rate = Decimal(str(SiteSettings.get_solo().platform_commission_rate or "15.00")) / Decimal("100")
             appointment.platform_fee_bdt = (appointment.fee_bdt * commission_rate).quantize(Decimal("0.01"))
             appointment.net_doctor_payout_bdt = appointment.fee_bdt - appointment.platform_fee_bdt
             appointment.save()
@@ -1908,9 +2072,35 @@ def verify_payment(request, appointment_id):
                 link_url=reverse("patient:appointment_detail", kwargs={"appointment_id": appointment.pk}),
             )
             messages.success(request, "Payment verified. Appointment confirmed.")
+
+        elif action in ("full_refund", "refund"):
+            refund_amount = appointment.fee_bdt
+            appointment.status = "cancelled"
+            appointment.payment_status = "refunded"
+            appointment.refund_status = "full"
+            appointment.refund_amount = refund_amount
+            appointment.platform_fee_bdt = Decimal("0.00")
+            appointment.net_doctor_payout_bdt = Decimal("0.00")
+            appointment.payment_appeal_status = "approved_refund"
+            appointment.save()
+
+            patient = appointment.patient
+            patient.balance = (patient.balance or Decimal("0.00")) + refund_amount
+            patient.save(update_fields=["balance"])
+
+            AppNotification.objects.create(
+                user=patient.user,
+                title="✓ Full Refund Issued to Wallet",
+                message=f"A full refund of {refund_amount} BDT has been credited to your wallet for Appointment #{appointment.id}.",
+                notification_type="booking",
+                link_url=reverse("patient:appointments"),
+            )
+            messages.success(request, f"Full refund of {refund_amount} BDT credited to patient's wallet.")
+
         elif action == "reject":
             appointment.payment_status = "pending"
             appointment.payment_verified = False
+            appointment.payment_appeal_status = "rejected"
             appointment.save()
 
             AppNotification.objects.create(
@@ -1922,6 +2112,8 @@ def verify_payment(request, appointment_id):
             )
             messages.error(request, "Payment proof rejected. Patient will be notified to re-submit.")
 
+        if is_admin:
+            return redirect("accounts:admin_unverified_dashboard")
         return redirect("doctors:appointment_list")
 
     return render(request, "doctors/verify_payment.html", {

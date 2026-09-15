@@ -44,14 +44,17 @@
 
         <!-- Quick Action Buttons -->
         <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <a href="{% url 'accounts:doctor_analytics' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 text-xs font-bold text-teal-700 hover:bg-teal-100 transition dark:border-teal-900/40 dark:bg-teal-950/30 dark:text-teal-300">
+            <i class="fa-solid fa-chart-line text-teal-600"></i> {% translate_bn "Analytics" %}
+          </a>
           <a href="{% url 'doctors:rules' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 text-xs font-bold text-amber-800 hover:bg-amber-100 transition dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
             <i class="fa-solid fa-book text-amber-600"></i> {% translate_bn "Rules" %}
           </a>
           <a href="{% url 'doctors:schedule_management' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full bg-teal-600 px-3.5 text-xs font-bold text-white hover:bg-teal-700 transition shadow-2xs">
-            <i class="fa-solid fa-calendar-days"></i> Schedule
+            <i class="fa-solid fa-calendar-days"></i> {% translate_bn "Schedule" %}
           </a>
           <a href="{% url 'doctors:appointment_list' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 text-xs font-bold text-stone-800 hover:bg-stone-50 transition dark:border-slate-800 dark:bg-slate-900 dark:text-stone-100">
-            <i class="fa-regular fa-calendar-check"></i> Bookings
+            <i class="fa-regular fa-calendar-check"></i> {% translate_bn "Appointments" %}
           </a>
           <a href="{% url 'doctors:financial_report_export' %}" class="inline-flex h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 text-xs font-bold text-teal-700 hover:bg-teal-100 transition dark:border-teal-900/40 dark:bg-teal-950/30 dark:text-teal-300">
             <i class="fa-solid fa-file-export"></i> PDF Report
@@ -269,7 +272,12 @@
       <div class="lg:col-span-5 space-y-4">
         
         <!-- Interactive Doctor Calendar -->
-        <div class="rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+        <div class="relative rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+          <!-- Floating Hover Tooltip for Day Counts (Solid Opaque Container) -->
+          <div id="doctorCalendarHoverTooltip" class="pointer-events-none absolute z-50 hidden w-52 rounded-xl border-2 border-stone-300 bg-white p-3 shadow-2xl transition-opacity duration-150 dark:border-slate-600 dark:bg-slate-900">
+            <div id="doctorCalendarHoverContent"></div>
+          </div>
+
           <div class="flex items-center justify-between mb-3 border-b border-stone-100 pb-2.5 dark:border-slate-800">
             <div class="flex items-center gap-2">
               <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300">
@@ -340,35 +348,53 @@
       
       {% for apt in doctor_calendar_appointments %}
         (function() {
-          const d = new Date("{{ apt.appointment_date|date:'Y-m-d' }}");
-          const key = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
-          if (!eventDates[key]) eventDates[key] = [];
-          eventDates[key].push({
-            type: "appointment",
-            time: "{{ apt.start_time|time:'H:i' }}",
-            patient: "{{ apt.patient.user.get_full_name|default:apt.patient.user.email|escapejs }}"
-          });
+          const raw = "{{ apt.appointment_date|date:'Y-m-d' }}";
+          if (!raw) return;
+          const parts = raw.split('-');
+          if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            const key = y + "-" + m + "-" + d;
+            if (!eventDates[key]) eventDates[key] = [];
+            eventDates[key].push({
+              type: "appointment",
+              time: "{{ apt.start_time|time:'H:i' }}",
+              patient: "{{ apt.patient.user.get_full_name|default:apt.patient.user.email|escapejs }}"
+            });
+          }
         })();
       {% endfor %}
       
       {% for fu in doctor_calendar_followups %}
         (function() {
-          const d = new Date("{{ fu.scheduled_date|date:'Y-m-d' }}");
-          const key = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
-          if (!eventDates[key]) eventDates[key] = [];
-          eventDates[key].push({
-            type: "followup",
-            time: "",
-            patient: "{{ fu.prescription.patient.user.get_full_name|default:fu.prescription.patient.user.email|escapejs }}"
-          });
+          const raw = "{{ fu.scheduled_date|date:'Y-m-d' }}";
+          if (!raw) return;
+          const parts = raw.split('-');
+          if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            const key = y + "-" + m + "-" + d;
+            if (!eventDates[key]) eventDates[key] = [];
+            eventDates[key].push({
+              type: "followup",
+              time: "",
+              patient: "{{ fu.prescription.patient.user.get_full_name|default:fu.prescription.patient.user.email|escapejs }}"
+            });
+          }
         })();
       {% endfor %}
 
       function renderDoctorCalendar() {
         const container = document.getElementById("doctorCalendarDays");
         const label = document.getElementById("doctorCalendarLabel");
+        const tooltip = document.getElementById("doctorCalendarHoverTooltip");
+        const tooltipContent = document.getElementById("doctorCalendarHoverContent");
+        const calCard = container ? (container.closest(".relative") || container.parentElement) : null;
         if (!container) return;
         container.innerHTML = '';
+        if (tooltip) tooltip.classList.add("hidden");
 
         const firstDay = new Date(docYear, docMonth, 1).getDay();
         const daysInMonth = new Date(docYear, docMonth + 1, 0).getDate();
@@ -396,9 +422,13 @@
           const dayCell = document.createElement("div");
           const dateKey = docYear + "-" + (docMonth + 1) + "-" + d;
           const events = eventDates[dateKey] || [];
+          const apts = events.filter(e => e.type === "appointment");
+          const fus = events.filter(e => e.type === "followup");
+          const aptCount = apts.length;
+          const fuCount = fus.length;
           const isToday = d === today.getDate() && docMonth === today.getMonth() && docYear === today.getFullYear();
 
-          let className = "flex flex-col items-center justify-between h-8 w-8 py-0.5 rounded-lg text-xs font-bold mx-auto transition-all cursor-pointer ";
+          let className = "relative flex flex-col items-center justify-between h-8 w-8 py-0.5 rounded-lg text-xs font-bold mx-auto transition-all cursor-pointer ";
           if (isToday) {
             className += "bg-teal-600 text-white shadow-xs ring-2 ring-teal-400 dark:ring-teal-500";
           } else if (events.length > 0) {
@@ -417,17 +447,80 @@
           dotHtml.className = "h-1.5 w-1.5";
           if (events.length > 0) {
             dotHtml.className = "flex items-center justify-center gap-0.5";
-            events.forEach(evt => {
+            if (aptCount > 0) {
               const marker = document.createElement("span");
-              marker.className = "h-1.5 w-1.5 rounded-full " + (evt.type === "appointment" ? "bg-blue-500" : "bg-rose-500");
+              marker.className = "h-1.5 w-1.5 rounded-full bg-blue-500";
               dotHtml.appendChild(marker);
-            });
-            dayCell.title = events.map(e => e.patient + (e.time ? " (" + e.time + ")" : "")).join("\n");
+            }
+            if (fuCount > 0) {
+              const marker = document.createElement("span");
+              marker.className = "h-1.5 w-1.5 rounded-full bg-rose-500";
+              dotHtml.appendChild(marker);
+            }
           }
           dayCell.appendChild(dotHtml);
 
+          // Native title showing counts
+          dayCell.setAttribute("title", `${d} ${monthNames[docMonth]} ${docYear}\nAppointments: ${aptCount}\nFollow-ups: ${fuCount}`);
+
+          // Hover handler to display appointment & follow-up count popover
+          dayCell.addEventListener("mouseenter", function() {
+            if (!tooltip || !tooltipContent || !calCard) return;
+            const monthShort = monthNames[docMonth].slice(0, 3);
+            tooltipContent.innerHTML = `
+              <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-stone-200 dark:border-slate-700 text-[11px] font-bold text-stone-900 dark:text-white">
+                <span class="flex items-center gap-1.5">
+                  <i class="fa-regular fa-calendar text-teal-600 dark:text-teal-400 text-[10px]"></i>
+                  ${d} ${monthShort} ${docYear}
+                </span>
+                ${isToday ? '<span class="text-[9px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-900 px-1.5 py-0.5 rounded">Today</span>' : ''}
+              </div>
+              <div class="space-y-2 text-xs">
+                <div class="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-blue-50 border border-blue-200 dark:bg-slate-800 dark:border-blue-900">
+                  <span class="flex items-center gap-1.5 font-medium text-stone-800 dark:text-stone-200 text-[11px]">
+                    <span class="h-2 w-2 rounded-full bg-blue-500 shrink-0"></span> Appointments
+                  </span>
+                  <span class="font-extrabold ${aptCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-stone-400'} text-xs">
+                    ${aptCount}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 dark:bg-slate-800 dark:border-rose-900">
+                  <span class="flex items-center gap-1.5 font-medium text-stone-800 dark:text-stone-200 text-[11px]">
+                    <span class="h-2 w-2 rounded-full bg-rose-500 shrink-0"></span> Follow-ups
+                  </span>
+                  <span class="font-extrabold ${fuCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-stone-400'} text-xs">
+                    ${fuCount}
+                  </span>
+                </div>
+              </div>
+            `;
+
+            const cardRect = calCard.getBoundingClientRect();
+            const cellRect = dayCell.getBoundingClientRect();
+            let left = (cellRect.left + cellRect.width / 2) - cardRect.left - 96;
+            if (left < 10) left = 10;
+            if (left + 192 > cardRect.width - 10) left = cardRect.width - 202;
+
+            let top = cellRect.top - cardRect.top - 82;
+            if (top < 10) {
+              top = cellRect.bottom - cardRect.top + 8;
+            }
+
+            tooltip.style.left = left + "px";
+            tooltip.style.top = top + "px";
+            tooltip.classList.remove("hidden");
+          });
+
+          dayCell.addEventListener("mouseleave", function() {
+            if (tooltip) tooltip.classList.add("hidden");
+          });
+
           container.appendChild(dayCell);
         }
+
+        container.addEventListener("mouseleave", function() {
+          if (tooltip) tooltip.classList.add("hidden");
+        });
       }
       
       window.doctorCalendarPrev = function() {

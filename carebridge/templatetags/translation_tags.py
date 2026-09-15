@@ -458,7 +458,21 @@ TRANSLATIONS = {
         "All consultations are offline only": "সমস্ত পরামর্শ কেবল অফলাইন চেম্বারে",
         "Video consultations are not available": "ভিডিও পরামর্শ উপলব্ধ নয়",
         "Payment must be completed before appointment": "অ্যাপয়েন্টমেন্টের আগে পেমেন্ট সম্পূর্ণ হতে হবে",
-        "Platform fee of 3% applies to all bookings": "সমস্ত বুকিংয়ে ৩% প্ল্যাটফর্ম ফি প্রযোজ্য",
+        "Platform fee of 15% applies to all bookings": "সমস্ত বুকিংয়ে ১৫% প্ল্যাটফর্ম ফি প্রযোজ্য",
+        "Prescription Issued": "প্রেসক্রিপশন প্রদান করা হয়েছে",
+        "View Online": "অনলাইনে দেখুন",
+        "AI Clinical Guide": "এআই ক্লিনিক্যাল গাইড",
+        "AI Guide": "এআই গাইড",
+        "Download PDF": "পিডিএফ ডাউনলোড",
+        "Download Receipt": "রসিদ ডাউনলোড",
+        "Download Refund Receipt": "রিফান্ড রসিদ ডাউনলোড",
+        "Doctor Credentials & Fees": "ডাক্তারের ডিগ্রি ও ফি",
+        "Member since": "সদস্য হয়েছেন",
+        "Profile photo": "প্রোফাইল ছবি",
+        "Save changes": "সেভ করুন",
+        "Chat": "চ্যাট",
+        "Export Payments (PDF)": "পেমেন্ট এক্সপোর্ট (পিডিএফ)",
+        "Export Payments (CSV)": "পেমেন্ট এক্সপোর্ট (সিএসভি)",
     }
 }
 

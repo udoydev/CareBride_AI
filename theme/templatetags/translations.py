@@ -5,6 +5,7 @@ register = template.Library()
 
 TRANSLATIONS = {
     "Dashboard": {"bn": "ড্যাশবোর্ড"},
+    "Home": {"bn": "হোম"},
     "Doses": {"bn": "ওষুধ"},
     "Records": {"bn": "রেকর্ড"},
     "Follow-up": {"bn": "ফলো-আপ"},
@@ -13,7 +14,10 @@ TRANSLATIONS = {
     "Doctors": {"bn": "ডাক্তার"},
     "Profile": {"bn": "প্রোফাইল"},
     "Log out": {"bn": "লগ আউট"},
+    "Sign Out": {"bn": "সাইন আউট"},
     "Login": {"bn": "লগ ইন"},
+    "Sign In": {"bn": "সাইন ইন"},
+    "Sign Up": {"bn": "সাইন আপ"},
     "Get started": {"bn": "শুরু করুন"},
     "Welcome back": {"bn": "ফিরে এসেছেন"},
     "Create your account": {"bn": "আপনার অ্যাকাউন্ট খুলুন"},
@@ -186,7 +190,7 @@ TRANSLATIONS = {
     "Time": {"bn": "সময়"},
     "Type": {"bn": "প্রকার"},
     "Fee": {"bn": "ফি"},
-    "Platform Fee (3%)": {"bn": "প্ল্যাটফর্ম ফি (৩%)"},
+    "Platform Fee (15%)": {"bn": "প্ল্যাটফর্ম ফি (১৫%)"},
     "Refund": {"bn": "রিফান্ড"},
     "Chief Complaint": {"bn": "প্রধান অভিযোগ"},
     "Pay Now": {"bn": "এখন পে করুন"},
@@ -238,7 +242,7 @@ TRANSLATIONS = {
     "Total Patients": {"bn": "মোট রোগী"},
     "Total Revenue": {"bn": "মোট আয়"},
     "Net Profit": {"bn": "নিট প্রফিট"},
-    "Platform fee: 3% per booking": {"bn": "প্ল্যাটফর্ম ফি: প্রতি বুকিং ৩%"},
+    "Platform fee: 15% per booking": {"bn": "প্ল্যাটফর্ম ফি: প্রতি বুকিং ১৫%"},
     "After refunds": {"bn": "রিফান্ড পরবর্তী"},
     "Total": {"bn": "মোট"},
     "Pending": {"bn": "অপেক্ষাম Rowe"},
@@ -278,7 +282,7 @@ TRANSLATIONS = {
     "partial": {"bn": "আংশিক"},
     "full": {"bn": "সম্পূর্ণ"},
     "Platform Fees": {"bn": "প্ল্যাটফর্ম ফি"},
-    "3% of all paid bookings": {"bn": "সমস্ত পেইড বুকিংয়ের ৩%"},
+    "15% of all paid bookings": {"bn": "সমস্ত পেইড বুকিংয়ের ১৫%"},
     "Avg per Doctor": {"bn": "প্রতি ডাক্তার গড়"},
     "appointments": {"bn": "অ্যাপয়েন্টমেন্ট"},
     "Avg per Patient": {"bn": "প্রতি রোগী গড়"},
@@ -294,7 +298,7 @@ TRANSLATIONS = {
     "video": {"bn": "ভিডিও"},
     "Daily Appointments (Last 7 Days)": {"bn": "দৈনিক অ্যাপয়েন্টমেন্ট (গত ৭ দিন)"},
     "Recent Transactions": {"bn": "সাম্প্রতিক লেনদেন"},
-    "Platform fee: 3% per booking": {"bn": "প্ল্যাটফর্ম ফি: প্রতি বুকিং ৩%"},
+    "Platform fee: 15% per booking": {"bn": "প্ল্যাটফর্ম ফি: প্রতি বুকিং ১৫%"},
     "No appointments yet.": {"bn": "এখনও কোনো অ্যাপয়েন্টমেন্ট নেই।"},
     "ID": {"bn": "আইডি"},
     "Patient": {"bn": "রোগী"},
@@ -432,11 +436,43 @@ TRANSLATIONS = {
     "Showing": {"bn": "দেখানো হচ্ছে"},
     "to": {"bn": "থেকে"},
     "results": {"bn": "ফলাফল"},
+    "Overall Report": {"bn": "ওভারঅল রিপোর্ট"},
+    "Patient List": {"bn": "রোগী তালিকা"},
+    "Schedule": {"bn": "সময়সূচী"},
+    "History": {"bn": "ইতিহাস"},
+    "Notifications": {"bn": "বিজ্ঞপ্তি"},
+    "Rules": {"bn": "নিয়মাবলী"},
+    "Book Now": {"bn": "বুক করুন"},
+    "Book Appointment": {"bn": "অ্যাপয়েন্টমেন্ট বুক করুন"},
+    "Personal Information": {"bn": "ব্যক্তিগত তথ্য"},
+    "Date of Birth": {"bn": "জন্ম তারিখ"},
+    "Gender": {"bn": "লিঙ্গ"},
+    "Age": {"bn": "বয়স"},
+    "All Patients": {"bn": "সকল রোগী"},
+    "Search Doctors": {"bn": "ডাক্তার খুঁজুন"},
+    "Find Top Doctors in Bangladesh": {"bn": "বাংলাদেশের সেরা ডাক্তারদের খুঁজুন"},
+    "Specialty": {"bn": "বিশেষত্ব"},
+    "Years Experience": {"bn": "বছরের অভিজ্ঞতা"},
+    "Consultation Fee": {"bn": "পরামর্শ ফি"},
+    "Experience": {"bn": "অভিজ্ঞতা"},
+    "Chamber": {"bn": "চেম্বার"},
+    "Online Video": {"bn": "অনলাইন ভিডিও"},
+    "Emergency Scanner": {"bn": "জরুরী স্ক্যানার"},
+    "AI Health Scanner": {"bn": "এআই হেলথ স্ক্যানার"},
+    "Upload Photo": {"bn": "ছবি আপলোড করুন"},
+    "Analyze": {"bn": "বিশ্লেষণ করুন"},
+    "Medical History": {"bn": "মেডিকেল ইতিহাস"},
+    "Health Journey": {"bn": "স্বাস্থ্য যাত্রা"},
+    "Timeline": {"bn": "টাইমলাইন"},
+    "No Records": {"bn": "কোনো রেকর্ড নেই"},
+    "Clear All": {"bn": "সব মুছুন"},
 }
 
 
 @register.simple_tag(takes_context=True)
 def translate_bn(context, text):
+    if not text:
+        return ""
     site_lang = None
     if isinstance(context, dict) or hasattr(context, "get"):
         site_lang = context.get("site_lang")
@@ -455,7 +491,93 @@ def translate_bn(context, text):
             pass
 
     if site_lang == "bn":
-        translated = TRANSLATIONS.get(text, {}).get("bn")
+        translated = TRANSLATIONS.get(str(text).strip(), {}).get("bn")
         if translated:
             return mark_safe(translated)
     return text
+
+
+@register.filter(name='t')
+def translate_filter(text):
+    if not text:
+        return ""
+    try:
+        from django.utils.translation import get_language
+        curr = get_language()
+        if curr and curr.startswith("bn"):
+            translated = TRANSLATIONS.get(str(text).strip(), {}).get("bn")
+            if translated:
+                return mark_safe(translated)
+    except Exception:
+        pass
+    return text
+
+
+@register.filter(name='render_ai_advice')
+def render_ai_advice(text):
+    """
+    Renders AI medical advice text into clean, beautiful HTML:
+    - Strips and formats markdown bold (**bold**) into styled <strong> elements
+    - Formats bullet points (inline or newline) into clean lists
+    - Removes all raw '**' and stray asterisks
+    - Formats headers and paragraphs cleanly
+    """
+    if not text:
+        return ""
+
+    import re
+    from django.utils.html import escape
+
+    # Escape HTML to prevent injection
+    val = escape(str(text))
+
+    # Convert markdown bold **text** to strong
+    val = re.sub(r'\*\*(.*?)\*\*', r'<strong class="font-bold text-stone-900 dark:text-stone-100">\1</strong>', val)
+    # Remove any rogue ** or standalone *
+    val = val.replace("**", "").replace("__", "")
+
+    # If bullets are inline separated by " • ", break them into newlines
+    val = re.sub(r'\s*•\s*', '\n• ', val)
+
+    # Separate common section headers (e.g. . 👨‍⚕️) into newlines
+    val = re.sub(r'([.!?।])\s*(👨‍⚕️|💡|📋|📅|💊|🔬|🩺|ℹ️|✅|⚠️|👋)', r'\1\n\2', val)
+
+    lines = [line.strip() for line in val.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    html_parts = []
+    in_list = False
+
+    for line in lines:
+        if line.startswith("• ") or line.startswith("- "):
+            item_text = line[2:].strip()
+            if not in_list:
+                html_parts.append('<ul class="my-2.5 space-y-2 pl-1">')
+                in_list = True
+            html_parts.append(
+                f'<li class="flex items-start gap-2 text-xs text-stone-800 dark:text-stone-200">'
+                f'<span class="text-teal-600 dark:text-teal-400 font-bold shrink-0 mt-0.5">•</span>'
+                f'<span class="leading-relaxed">{item_text}</span>'
+                f'</li>'
+            )
+        else:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+
+            if any(emoji in line for emoji in ["👨‍⚕️", "💡", "📋", "📅", "💊", "🔬", "🩺", "ℹ️", "✅", "⚠️", "👋"]):
+                html_parts.append(
+                    f'<div class="font-semibold text-xs text-teal-950 dark:text-teal-300 mt-3 mb-1.5 flex items-center gap-1.5">'
+                    f'{line}'
+                    f'</div>'
+                )
+            else:
+                html_parts.append(f'<p class="text-xs text-stone-800 dark:text-stone-200 leading-relaxed mb-2">{line}</p>')
+
+    if in_list:
+        html_parts.append('</ul>')
+
+    return mark_safe("".join(html_parts))
+
+

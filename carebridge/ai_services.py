@@ -22,14 +22,14 @@ VISION_FALLBACK_MODELS = [
 ]
 
 
-def _truncate_to_words(text, max_words=200):
+def _truncate_to_words(text, max_words=100):
     """Truncate text to max_words on a word boundary, appending a notice if truncated."""
     if not text:
         return text
     words = text.split()
     if len(words) <= max_words:
         return text
-    return ' '.join(words[:max_words]) + "... (response truncated)"
+    return ' '.join(words[:max_words]) + "..."
 
 
 class GeminiAIService:
@@ -57,8 +57,11 @@ class GeminiAIService:
             if provider.is_available:
                 return True
 
-        gemini_key = cls.get_api_key()
-        if gemini_key:
+        if cls.get_api_key():
+            return True
+
+        openrouter_key = getattr(settings, "OPENROUTER_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+        if openrouter_key:
             return True
 
         groq_key = getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
@@ -75,7 +78,11 @@ class GeminiAIService:
             providers = list(AIProvider.objects.all().order_by("priority", "created_at"))
             available_count = sum(1 for p in providers if p.is_available)
             total_count = len(providers)
-            has_env_fallback = bool(cls.get_api_key() or getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", ""))
+            has_env_fallback = bool(
+                cls.get_api_key() or
+                getattr(settings, "OPENROUTER_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "") or
+                getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
+            )
             return {
                 "total": total_count,
                 "available": available_count,
@@ -111,6 +118,71 @@ class GeminiAIService:
             return None
 
     @classmethod
+    def _process_attachment(cls, image_file):
+        """Unified helper to read attachment bytes and extract text/type from images and PDFs."""
+        if not image_file:
+            return {"is_pdf": False, "is_image": False, "extracted_text": "", "bytes": None, "mime_type": None, "filename": ""}
+
+        filename = getattr(image_file, "name", "file").lower()
+        content_type = getattr(image_file, "content_type", "").lower()
+        
+        file_bytes = None
+        try:
+            if hasattr(image_file, "read"):
+                image_file.seek(0)
+                file_bytes = image_file.read()
+                image_file.seek(0)
+            elif isinstance(image_file, (bytes, bytearray)):
+                file_bytes = bytes(image_file)
+            elif isinstance(image_file, str) and os.path.exists(image_file):
+                filename = os.path.basename(image_file).lower()
+                with open(image_file, "rb") as f:
+                    file_bytes = f.read()
+        except Exception as e:
+            logger.warning(f"Could not read attachment file bytes: {e}")
+
+        is_pdf = filename.endswith(".pdf") or "pdf" in content_type
+        extracted_text = ""
+
+        if is_pdf and file_bytes:
+            try:
+                from pypdf import PdfReader
+                from io import BytesIO
+                reader = PdfReader(BytesIO(file_bytes))
+                pages_text = []
+                for idx, page in enumerate(reader.pages):
+                    t = page.extract_text()
+                    if t and t.strip():
+                        pages_text.append(f"--- Page {idx+1} ---\n{t.strip()}")
+                if pages_text:
+                    extracted_text = "\n".join(pages_text)
+            except Exception as e:
+                logger.warning(f"Could not extract PDF text using pypdf: {e}")
+
+        is_image = False
+        mime_type = "application/pdf" if is_pdf else "image/jpeg"
+
+        if not is_pdf and file_bytes:
+            try:
+                from io import BytesIO
+                img = Image.open(BytesIO(file_bytes))
+                is_image = True
+                format_lower = (img.format or "").lower()
+                if format_lower in ["png", "jpeg", "jpg", "webp", "gif", "bmp"]:
+                    mime_type = f"image/{format_lower if format_lower != 'jpg' else 'jpeg'}"
+            except Exception:
+                is_image = False
+
+        return {
+            "is_pdf": is_pdf,
+            "is_image": is_image,
+            "extracted_text": extracted_text,
+            "bytes": file_bytes,
+            "mime_type": mime_type,
+            "filename": getattr(image_file, "name", "document"),
+        }
+
+    @classmethod
     def _call_openai_compatible(cls, provider, prompt, image_file=None):
         """Call OpenAI-compatible API (Groq, DeepSeek, OpenRouter, Custom, etc.)."""
         api_key = provider.api_key
@@ -132,10 +204,17 @@ class GeminiAIService:
 
         messages = [{"role": "user", "content": prompt}]
         if image_file:
-            messages.append({
-                "role": "user",
-                "content": "An image was attached for analysis. Please consider it in your response.",
-            })
+            attach_info = cls._process_attachment(image_file)
+            if attach_info["extracted_text"]:
+                messages.append({
+                    "role": "user",
+                    "content": f"[ATTACHED DOCUMENT '{attach_info['filename']}' TEXT CONTENT]:\n{attach_info['extracted_text']}"
+                })
+            else:
+                messages.append({
+                    "role": "user",
+                    "content": f"A medical document '{attach_info['filename']}' was attached for analysis.",
+                })
 
         payload = {
             "model": model,
@@ -183,13 +262,21 @@ class GeminiAIService:
 
             contents = [prompt]
             if image_file:
-                try:
-                    if hasattr(image_file, "read"):
-                        image_file.seek(0)
-                        img = Image.open(image_file)
-                        contents.append(img)
-                except Exception as e:
-                    logger.warning(f"Could not load image for Gemini SDK: {e}")
+                attach_info = cls._process_attachment(image_file)
+                if attach_info["bytes"]:
+                    try:
+                        if attach_info["is_pdf"]:
+                            try:
+                                from google.genai import types
+                                contents.append(types.Part.from_bytes(data=attach_info["bytes"], mime_type="application/pdf"))
+                            except Exception:
+                                pass
+                        elif attach_info["is_image"]:
+                            from io import BytesIO
+                            img = Image.open(BytesIO(attach_info["bytes"]))
+                            contents.append(img)
+                    except Exception as e:
+                        logger.warning(f"Could not format attachment for Gemini SDK: {e}")
 
             models_to_try = VISION_FALLBACK_MODELS if image_file else FALLBACK_MODELS
             for model_name in models_to_try:
@@ -203,7 +290,7 @@ class GeminiAIService:
                 except Exception as e:
                     err_msg = str(e)
                     if "does not support image input" in err_msg or "image input" in err_msg:
-                        logger.warning(f"Gemini model {model_name} does not support images, trying next vision model")
+                        logger.warning(f"Gemini model {model_name} does not support vision/PDF input, trying next model")
                         continue
                     logger.warning(f"Gemini SDK model {model_name} error: {e}")
                     continue
@@ -217,20 +304,14 @@ class GeminiAIService:
         """Call Gemini via REST API."""
         parts = [{"text": prompt}]
         if image_file:
-            try:
-                if hasattr(image_file, "read"):
-                    image_file.seek(0)
-                    img_bytes = image_file.read()
-                elif isinstance(image_file, (bytes, bytearray)):
-                    img_bytes = image_file
-                else:
-                    with open(image_file, "rb") as f:
-                        img_bytes = f.read()
-                mime = "image/jpeg"
-                b64_data = base64.b64encode(img_bytes).decode("utf-8")
-                parts.append({"inline_data": {"mime_type": mime, "data": b64_data}})
-            except Exception as e:
-                logger.warning(f"Could not encode image for REST: {e}")
+            attach_info = cls._process_attachment(image_file)
+            if attach_info["bytes"]:
+                try:
+                    mime = attach_info["mime_type"] or ("application/pdf" if attach_info["is_pdf"] else "image/jpeg")
+                    b64_data = base64.b64encode(attach_info["bytes"]).decode("utf-8")
+                    parts.append({"inline_data": {"mime_type": mime, "data": b64_data}})
+                except Exception as e:
+                    logger.warning(f"Could not encode file for REST: {e}")
 
         payload = {
             "contents": [{"parts": parts}],
@@ -275,6 +356,90 @@ class GeminiAIService:
         if res:
             return res
         return cls._call_gemini_rest(api_key, prompt, image_file)
+
+    @classmethod
+    def _fallback_env_openrouter(cls, prompt, image_file=None, preferred_language="bn"):
+        """Try .env-configured OpenRouter key as fallback."""
+        api_key = getattr(settings, "OPENROUTER_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+        if not api_key:
+            return None
+
+        try:
+            from accounts.models import AIProvider
+            provider, _ = AIProvider.objects.get_or_create(
+                provider="openrouter",
+                defaults={
+                    "name": "Env OpenRouter Backup",
+                    "api_key": api_key,
+                    "model_name": "meta-llama/llama-3.3-70b-instruct",
+                    "base_url": "https://openrouter.ai/api/v1",
+                    "priority": 998,
+                    "is_active": True,
+                }
+            )
+            if provider.api_key != api_key:
+                provider.api_key = api_key
+                provider.save(update_fields=["api_key"])
+            res = cls._call_openai_compatible(provider, prompt, image_file=image_file)
+            if res:
+                return res
+        except Exception as e:
+            logger.warning(f"Env OpenRouter provider DB fallback attempt error: {e}")
+
+        models_to_try = [
+            "meta-llama/llama-3.3-70b-instruct",
+            "meta-llama/llama-3.1-8b-instruct",
+            "deepseek/deepseek-r1",
+            "qwen/qwen-2.5-72b-instruct",
+        ]
+
+        messages = [{"role": "user", "content": prompt}]
+        if image_file:
+            attach_info = cls._process_attachment(image_file)
+            if attach_info["extracted_text"]:
+                messages.append({
+                    "role": "user",
+                    "content": f"[ATTACHED DOCUMENT '{attach_info['filename']}' TEXT CONTENT]:\n{attach_info['extracted_text']}"
+                })
+            else:
+                messages.append({
+                    "role": "user",
+                    "content": f"A medical document '{attach_info['filename']}' was attached for analysis.",
+                })
+
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": getattr(settings, "OPENROUTER_SITE_URL", "https://carebridge.ai"),
+            "X-OpenRouter-Title": getattr(settings, "OPENROUTER_SITE_TITLE", "CareBridge AI"),
+        }
+
+        for model in models_to_try:
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": 2048,
+            }
+            try:
+                req = urllib_request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers=headers,
+                    method="POST",
+                )
+                with urllib_request.urlopen(req, timeout=30) as resp:
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    choices = res_data.get("choices") or []
+                    if choices:
+                        text = choices[0].get("message", {}).get("content", "").strip()
+                        if text:
+                            return {"reply_text": text, "status": "success", "model": model}
+            except Exception as err:
+                logger.warning(f"Env OpenRouter model {model} failed: {err}")
+
+        return None
 
     @classmethod
     def _fallback_env_groq(cls, prompt, image_file=None, preferred_language="bn"):
@@ -430,18 +595,26 @@ class GeminiAIService:
             base_prompt += f"Previous conversation:\n{history_text}\n"
 
         base_prompt += f"Current Patient Question: {user_message or 'মেডিকেল তথ্য বিশ্লেষণ করুন।'}\n\n"
-        base_prompt += "Instructions: Answer the CURRENT question based on the conversation history above. Do not repeat previous answers. Give a fresh, specific response to what the patient is asking now. Keep your response under 200 words."
+        base_prompt += (
+            "Instructions: Structure your answer in clear, point-based bullet points (• ...). "
+            "STRICT FORMATTING RULE: DO NOT use markdown bold asterisks (**) anywhere. Never put ** before or at the end of sentences or words. "
+            "Give a fresh, helpful, and concise response. Keep your answer brief and strictly DO NOT exceed 100 words under any circumstances."
+        )
 
         vision_prompt = base_prompt
         if image_file:
-            try:
-                if hasattr(image_file, "read"):
-                    image_file.seek(0)
-                    img = Image.open(image_file)
-                    vision_prompt += f"\n\n[Note: User uploaded an image file '{getattr(image_file, 'name', 'document')}'. If you can see it, analyze it thoroughly. If not, respond based on text only and inform the user.]"
-            except Exception as e:
-                logger.warning(f"Could not load image attachment for vision prompt: {e}")
-                vision_prompt += f"\n\n[Note: User attempted to upload a document/image, but it could not be processed.]"
+            attach_info = cls._process_attachment(image_file)
+            if attach_info["is_pdf"]:
+                vision_prompt += f"\n\n[USER ATTACHED MEDICAL DOCUMENT / PRESCRIPTION PDF: '{attach_info['filename']}']\n"
+                if attach_info["extracted_text"]:
+                    vision_prompt += f"Extracted Document Text:\n{attach_info['extracted_text']}\n"
+                else:
+                    vision_prompt += "(Note: PDF document attached. Analyze document contents carefully.)\n"
+                vision_prompt += "Please analyze this attached document/prescription in detail and respond accurately to the patient in bullet points without any asterisks."
+            elif attach_info["is_image"]:
+                vision_prompt += f"\n\n[USER ATTACHED PRESCRIPTION / MEDICAL IMAGE: '{attach_info['filename']}']. Please inspect the image carefully and provide medical guidance in bullet points without any asterisks."
+            else:
+                vision_prompt += f"\n\n[USER ATTACHED FILE: '{attach_info['filename']}']."
 
         # 1. Try database-configured providers first
         db_providers = cls._get_db_providers()
@@ -454,46 +627,59 @@ class GeminiAIService:
                 if not res:
                     res = cls._call_gemini_rest(api_key, vision_prompt, image_file)
                 if res:
-                    res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
+                    res["reply_text"] = _truncate_to_words(cls.clean_no_asterisks(res.get("reply_text", "")), 100)
                     return res
             else:
-                res = cls._call_openai_compatible(provider, base_prompt, image_file=None)
+                res = cls._call_openai_compatible(provider, vision_prompt, image_file=image_file)
                 if res:
-                    res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
+                    res["reply_text"] = _truncate_to_words(cls.clean_no_asterisks(res.get("reply_text", "")), 100)
                     return res
 
-        # 2. Try .env-configured Gemini
+        # 2. Try .env-configured OpenRouter
+        res = cls._fallback_env_openrouter(vision_prompt, image_file=image_file, preferred_language=preferred_language)
+        if res:
+            res["reply_text"] = _truncate_to_words(cls.clean_no_asterisks(res.get("reply_text", "")), 100)
+            return res
+
+        # 3. Try .env-configured Gemini
         res = cls._fallback_env_gemini(vision_prompt, image_file)
         if res:
-            res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
+            res["reply_text"] = _truncate_to_words(cls.clean_no_asterisks(res.get("reply_text", "")), 100)
             return res
 
-        # 3. Try .env-configured Groq
-        res = cls._fallback_env_groq(base_prompt, image_file=None, preferred_language=preferred_language)
+        # 4. Try .env-configured Groq
+        res = cls._fallback_env_groq(vision_prompt, image_file=image_file, preferred_language=preferred_language)
         if res:
-            res["reply_text"] = _truncate_to_words(res.get("reply_text", ""), 200)
+            res["reply_text"] = _truncate_to_words(cls.clean_no_asterisks(res.get("reply_text", "")), 100)
             return res
 
-        fallback_text = cls.generate_contextual_fallback(user_message, preferred_language)
-        fallback_text = _truncate_to_words(fallback_text, 200)
+        fallback_text = cls.clean_no_asterisks(cls.generate_contextual_fallback(user_message, preferred_language))
+        fallback_text = _truncate_to_words(fallback_text, 100)
         return {"reply_text": fallback_text, "status": "fallback"}
 
     @classmethod
     def generate_text(cls, prompt, language="bn"):
         res = cls.chat_with_patient(user_message=prompt, preferred_language=language)
         text = res.get("reply_text") or cls.generate_contextual_fallback(prompt, language)
-        return _truncate_to_words(text, 200)
+        return _truncate_to_words(text, 100)
 
     @classmethod
     def scan_prescription_image(cls, image_file_path_or_bytes):
         db_providers = cls._get_db_providers()
+        attach_info = cls._process_attachment(image_file_path_or_bytes)
 
-        try:
-            img = Image.open(image_file_path_or_bytes)
-        except Exception as e:
+        img = None
+        if attach_info["is_image"] and attach_info["bytes"]:
+            try:
+                from io import BytesIO
+                img = Image.open(BytesIO(attach_info["bytes"]))
+            except Exception:
+                img = None
+
+        if not img and not attach_info["extracted_text"] and not attach_info["bytes"]:
             return {
                 "success": False,
-                "error": f"Failed to load image: {e}",
+                "error": "Failed to load prescription image or PDF file.",
                 "data": cls._empty_ocr_result(),
             }
 
@@ -520,6 +706,9 @@ class GeminiAIService:
             "}"
         )
 
+        if attach_info["extracted_text"]:
+            prompt += f"\n\nExtracted Text from Prescription File:\n{attach_info['extracted_text']}\n"
+
         # Try DB providers
         for provider in db_providers:
             if not provider.is_available:
@@ -529,9 +718,19 @@ class GeminiAIService:
                 try:
                     from google import genai
                     client = genai.Client(api_key=api_key)
+                    contents = [prompt]
+                    if img:
+                        contents.append(img)
+                    elif attach_info["is_pdf"] and attach_info["bytes"]:
+                        try:
+                            from google.genai import types
+                            contents.append(types.Part.from_bytes(data=attach_info["bytes"], mime_type="application/pdf"))
+                        except Exception:
+                            pass
+
                     response = client.models.generate_content(
                         model=provider.model_name,
-                        contents=[prompt, img],
+                        contents=contents,
                     )
                     if response and response.text:
                         raw_text = response.text.strip()
@@ -549,7 +748,7 @@ class GeminiAIService:
                     logger.warning(f"DB Provider {provider.name} OCR failed: {e}")
                     continue
             else:
-                res = cls._call_openai_compatible(provider, prompt)
+                res = cls._call_openai_compatible(provider, prompt, image_file=image_file_path_or_bytes)
                 if res:
                     return {
                         "success": True,
@@ -558,17 +757,43 @@ class GeminiAIService:
                         "model": provider.model_name,
                     }
 
+        # Fallback to .env OpenRouter
+        res_or = cls._fallback_env_openrouter(prompt, image_file=image_file_path_or_bytes)
+        if res_or and res_or.get("reply_text"):
+            raw_text = res_or["reply_text"].strip()
+            clean_json_str = raw_text.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed_data = json.loads(clean_json_str)
+            except Exception:
+                parsed_data = {"notes": raw_text}
+            return {
+                "success": True,
+                "raw_text": raw_text,
+                "data": parsed_data,
+                "model": res_or.get("model", "openrouter"),
+            }
+
         # Fallback to .env Gemini
         api_key = cls.get_api_key()
         if api_key:
             try:
                 from google import genai
                 client = genai.Client(api_key=api_key)
+                contents = [prompt]
+                if img:
+                    contents.append(img)
+                elif attach_info["is_pdf"] and attach_info["bytes"]:
+                    try:
+                        from google.genai import types
+                        contents.append(types.Part.from_bytes(data=attach_info["bytes"], mime_type="application/pdf"))
+                    except Exception:
+                        pass
+
                 for model_name in FALLBACK_MODELS:
                     try:
                         response = client.models.generate_content(
                             model=model_name,
-                            contents=[prompt, img],
+                            contents=contents,
                         )
                         if response and response.text:
                             raw_text = response.text.strip()
@@ -592,12 +817,52 @@ class GeminiAIService:
         }
 
     @classmethod
+    def clean_no_asterisks(cls, text):
+        """Remove markdown bold asterisks (**) and trailing/leading asterisks from lines."""
+        if not text:
+            return ""
+        cleaned = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        cleaned = cleaned.replace("**", "").replace("__", "")
+        cleaned_lines = []
+        for line in cleaned.splitlines():
+            s = line.strip()
+            s = re.sub(r'^\*+\s*', '', s)
+            s = re.sub(r'\s*\*+$', '', s)
+            if s:
+                cleaned_lines.append(s)
+        return "\n".join(cleaned_lines)
+
+    @classmethod
+    def sanitize_bullet_points(cls, text):
+        """Ensure response is clean bullet-point based without any double asterisks (**)."""
+        if not text:
+            return ""
+        cleaned = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        cleaned = cleaned.replace("**", "").replace("__", "")
+        lines = cleaned.splitlines()
+        formatted_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Remove leading bullet symbols / asterisks / numbering
+            stripped = re.sub(r'^[\*\-\•\–\—\d\.\)\s]+', '', stripped).strip()
+            stripped = re.sub(r'[\*\_\s]+$', '', stripped).strip()
+            if stripped:
+                formatted_lines.append(f"• {stripped}")
+        return "\n".join(formatted_lines) if formatted_lines else cleaned.strip()
+
+    @classmethod
     def generate_clinical_summary(cls, patient_name, history_text, metrics_summary="", language="en"):
         db_providers = cls._get_db_providers()
-        language_instruction = "in Bangla" if language == "bn" else "in English"
+        language_instruction = "in fluent Bangla (বাংলা)" if language == "bn" else "in clear English"
         prompt = (
-            f"You are a clinical AI assistant for doctors in Bangladesh. Generate a concise 3-bullet point "
-            f"clinical summary and drug interaction check for doctor chamber review {language_instruction}:\n"
+            f"You are an expert clinical AI assistant for doctors in Bangladesh. Generate a concise 3 to 4 bullet-point "
+            f"clinical summary, observation checklist, and safety review for doctor chamber review {language_instruction}.\n"
+            "STRICT FORMATTING RULES:\n"
+            "1. Answer ONLY in clear, concise bullet points (• ...).\n"
+            "2. DO NOT use markdown bold asterisks (**) anywhere. NEVER put ** before or at the end of sentences.\n"
+            "3. Provide direct clinical points without any intro, outro, or conversational filler.\n\n"
             f"Patient Name: {patient_name}\n"
             f"Medical History: {history_text}\n"
             f"Health Vitals: {metrics_summary}\n"
@@ -609,20 +874,66 @@ class GeminiAIService:
             if provider.provider == "gemini":
                 api_key = provider.api_key
                 res = cls._call_gemini_sdk(api_key, prompt)
-                if res:
-                    return res["reply_text"]
+                if res and res.get("reply_text"):
+                    return cls.sanitize_bullet_points(res["reply_text"])
             else:
                 res = cls._call_openai_compatible(provider, prompt)
-                if res:
-                    return res["reply_text"]
+                if res and res.get("reply_text"):
+                    return cls.sanitize_bullet_points(res["reply_text"])
+
+        res_or = cls._fallback_env_openrouter(prompt, preferred_language=language)
+        if res_or and res_or.get("reply_text"):
+            return cls.sanitize_bullet_points(res_or["reply_text"])
 
         fallback_briefing = (
-            f"📋 Clinical Briefing for {patient_name}:\n"
             f"• Patient History: {history_text}\n"
-            f"• Current Vitals: {metrics_summary}\n"
-            f"• Note: Standard record logged."
+            f"• Current Recorded Vitals: {metrics_summary}\n"
+            f"• Clinical Assessment: Standard baseline observation recorded."
+            if language == "en" else
+            f"• রোগীর অতীত ইতিহাস: {history_text}\n"
+            f"• বর্তমান শারীরিক লক্ষণ/ভাইটালস: {metrics_summary}\n"
+            f"• ক্লিনিকাল পর্যবেক্ষণ: নিয়মিত স্বাস্থ্য রেকর্ড সংরক্ষিত রয়েছে।"
         )
-        return fallback_briefing
+        return cls.sanitize_bullet_points(fallback_briefing)
+
+    @classmethod
+    def translate_text(cls, text, target_lang="bn"):
+        if not text or not text.strip():
+            return text or ""
+
+        target_name = "Bangla" if target_lang == "bn" else "English"
+        prompt = f"Translate the following text to {target_name}. Respond ONLY with the translation text without any preamble or commentary:\n\n{text}"
+
+        db_providers = cls._get_db_providers()
+        for provider in db_providers:
+            if not provider.is_available:
+                continue
+            if provider.provider == "gemini":
+                api_key = provider.api_key
+                res = cls._call_gemini_sdk(api_key, prompt)
+                if res and res.get("reply_text"):
+                    return res["reply_text"]
+                res_rest = cls._call_gemini_rest(api_key, prompt)
+                if res_rest and res_rest.get("reply_text"):
+                    return res_rest["reply_text"]
+            else:
+                res = cls._call_openai_compatible(provider, prompt)
+                if res and res.get("reply_text"):
+                    return res["reply_text"]
+
+        res_or = cls._fallback_env_openrouter(prompt, preferred_language=target_lang)
+        if res_or and res_or.get("reply_text"):
+            return res_or["reply_text"]
+
+        res = cls._fallback_env_gemini(prompt)
+        if res and res.get("reply_text"):
+            return res["reply_text"]
+
+        res_groq = cls._fallback_env_groq(prompt, preferred_language=target_lang)
+        if res_groq and res_groq.get("reply_text"):
+            return res_groq["reply_text"]
+
+        return text
 
     @staticmethod
     def _empty_ocr_result():

@@ -15,12 +15,13 @@
   <div class="grid gap-6 lg:grid-cols-3">
     <div class="lg:col-span-1">
       <div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-4">Add new schedule</h2>
-        <form method="post" class="space-y-3">
+        <h2 id="formTitle" class="text-sm font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">Set Schedule</h2>
+        <p class="text-xs text-stone-400 dark:text-stone-500 mb-4">Selecting a day that already has a schedule will automatically update it.</p>
+        <form id="scheduleForm" method="post" class="space-y-3">
           {% csrf_token %}
           <div>
             <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Day</label>
-            <select name="day_of_week" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+            <select id="daySelect" name="day_of_week" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200" onchange="checkExistingDay(this.value)">
               {% for val, label in days %}
                 <option value="{{ val }}">{{ label }}</option>
               {% endfor %}
@@ -29,19 +30,19 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Start time</label>
-              <input type="time" name="start_time" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+              <input type="time" id="startTimeInput" name="start_time" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
             </div>
             <div>
               <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">End time</label>
-              <input type="time" name="end_time" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+              <input type="time" id="endTimeInput" name="end_time" required class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
             </div>
           </div>
           <div>
             <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Slot duration (minutes)</label>
-            <input type="number" name="slot_duration_minutes" value="20" class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
+            <input type="number" id="slotDurationInput" name="slot_duration_minutes" value="20" min="5" max="180" class="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-stone-200">
           </div>
-          <button type="submit" class="w-full inline-flex h-10 items-center justify-center rounded-full bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
-            <i class="fa-solid fa-plus mr-2"></i> Add Schedule
+          <button type="submit" id="submitBtn" class="w-full inline-flex h-10 items-center justify-center rounded-full bg-teal-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+            <i class="fa-solid fa-calendar-check mr-2"></i> <span id="submitBtnText">Save Schedule</span>
           </button>
         </form>
       </div>
@@ -54,7 +55,7 @@
         </div>
         <div class="divide-y divide-stone-100 dark:divide-slate-800">
           {% for sch in schedules %}
-            <div class="flex items-center justify-between px-6 py-4">
+            <div class="flex items-center justify-between px-6 py-4 hover:bg-stone-50/50 dark:hover:bg-slate-800/30 transition">
               <div class="flex items-center gap-4">
                 <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
                   <span class="text-xs font-bold uppercase">{{ sch.get_day_of_week_display|slice:":3" }}</span>
@@ -64,7 +65,14 @@
                   <p class="text-xs text-stone-500 dark:text-stone-400">{{ sch.start_time|time:"h:i A" }} - {{ sch.end_time|time:"h:i A" }} • {{ sch.slot_duration_minutes }} min slots</p>
                 </div>
               </div>
-              <a href="#" class="text-xs font-bold text-red-600 hover:text-red-700" data-delete-url="{% url 'doctors:delete_schedule' sch.pk %}" onclick="event.preventDefault(); showWarningModal('{% translate_bn "Are you sure?" %}', '{% translate_bn "This action cannot be undone." %}', function() { window.location.href = this.dataset.deleteUrl; }.bind(this));">{% translate_bn "Delete" %}</a>
+              <div class="flex items-center gap-3">
+                <button type="button" 
+                        onclick="editSchedule('{{ sch.day_of_week }}', '{{ sch.start_time|time:'H:i' }}', '{{ sch.end_time|time:'H:i' }}', '{{ sch.slot_duration_minutes }}')" 
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700 hover:bg-teal-600 hover:text-white dark:border-teal-800 dark:bg-teal-950/70 dark:text-teal-300 dark:hover:bg-teal-600 dark:hover:text-white transition shadow-2xs">
+                  <i class="fa-solid fa-pen-to-square text-[10px]"></i> Edit
+                </button>
+                <a href="#" class="text-xs font-bold text-red-600 hover:text-red-700" data-delete-url="{% url 'doctors:delete_schedule' sch.pk %}" onclick="event.preventDefault(); showWarningModal('{% translate_bn "Are you sure?" %}', '{% translate_bn "This action cannot be undone." %}', function() { window.location.href = this.dataset.deleteUrl; }.bind(this));">{% translate_bn "Delete" %}</a>
+              </div>
             </div>
           {% empty %}
             <div class="px-6 py-12 text-center">
@@ -79,4 +87,48 @@
     </div>
   </div>
 </section>
+
+<script>
+  const existingSchedules = {
+    {% for sch in schedules %}
+      "{{ sch.day_of_week }}": {
+        startTime: "{{ sch.start_time|time:'H:i' }}",
+        endTime: "{{ sch.end_time|time:'H:i' }}",
+        duration: "{{ sch.slot_duration_minutes }}"
+      },
+    {% endfor %}
+  };
+
+  function checkExistingDay(day) {
+    const data = existingSchedules[day];
+    const submitBtnText = document.getElementById('submitBtnText');
+    const formTitle = document.getElementById('formTitle');
+    if (data) {
+      document.getElementById('startTimeInput').value = data.startTime;
+      document.getElementById('endTimeInput').value = data.endTime;
+      document.getElementById('slotDurationInput').value = data.duration;
+      if (formTitle) formTitle.textContent = 'Update Schedule';
+      if (submitBtnText) submitBtnText.textContent = 'Update Schedule';
+    } else {
+      if (formTitle) formTitle.textContent = 'Set Schedule';
+      if (submitBtnText) submitBtnText.textContent = 'Save Schedule';
+    }
+  }
+
+  function editSchedule(day, startTime, endTime, duration) {
+    const daySelect = document.getElementById('daySelect');
+    if (daySelect) {
+      daySelect.value = day;
+      checkExistingDay(day);
+      daySelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const daySelect = document.getElementById('daySelect');
+    if (daySelect) {
+      checkExistingDay(daySelect.value);
+    }
+  });
+</script>
 {% endblock %}

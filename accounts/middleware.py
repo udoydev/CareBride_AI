@@ -5,21 +5,20 @@ from django.urls import reverse
 class RoleBasedAccessMiddleware:
     """
     Enforces role-based access control and verification status:
-    - Admin/staff users can only access admin panel and admin-provided spaces
-    - Doctor users can only access doctor panel and patient-facing spaces (for their own patients)
-    - Patient users can only access patient panel
-    - Unverified users are redirected to verification pending page
+    - Admin/staff users can access admin panel and admin dashboards
+    - Doctor users can access doctor panel and common authenticated routes
+    - Patient users can access patient panel and common authenticated routes
+    - Unverified users are strictly redirected to verification pending page
     """
     def __init__(self, get_response):
         self.get_response = get_response
         self.allowed_common_paths = [
-            "/accounts/",
+            "/logout/",
             "/profile/",
             "/language/",
             "/prescriptions/",
             "/api/",
             "/voice/",
-            "/logout/",
             "/payment/",
             "/session-ping/",
             "/session-end/",
@@ -43,11 +42,7 @@ class RoleBasedAccessMiddleware:
             if path.startswith("/static/") or path.startswith("/media/"):
                 return self.get_response(request)
             
-            # Allow common authenticated paths for everyone
-            if any(path.startswith(allowed) for allowed in self.allowed_common_paths):
-                return self.get_response(request)
-            
-            # Admin/staff bypass verification
+            # Admin/staff bypass verification checks
             if request.user.is_superuser or request.user.is_staff:
                 if any(path.startswith(allowed) for allowed in self.allowed_admin_paths):
                     return self.get_response(request)
@@ -63,25 +58,36 @@ class RoleBasedAccessMiddleware:
                 is_verified = request.user.doctor_profile.is_verified
 
             if not is_verified:
-                # Allow verification pending page and public pages
-                if path == "/verification-pending/":
+                # Allowed paths for unverified users (without /accounts/ prefix as accounts.urls is included at root)
+                allowed_unverified = [
+                    "/verification-pending/",
+                    "/logout/",
+                    "/profile/",
+                    "/language/",
+                    "/session-ping/",
+                    "/session-end/",
+                ]
+                if any(path == p or path.startswith(p) for p in allowed_unverified):
                     return self.get_response(request)
-                if path in ["/", "/home/"]:
-                    return self.get_response(request)
-                # Redirect all other unverified users to verification pending
+                
+                # Redirect all other attempts by unverified users to verification pending screen
                 return redirect("accounts:verification_pending")
 
-            # Doctor users
+            # Verified Doctor users
             if hasattr(request.user, 'doctor_profile'):
                 if path.startswith("/doctors/") or path.startswith("/doctor/"):
+                    return self.get_response(request)
+                if any(path.startswith(allowed) for allowed in self.allowed_common_paths):
                     return self.get_response(request)
                 if path in ["/", "/home/"]:
                     return redirect("doctors:dashboard")
                 return redirect("doctors:dashboard")
             
-            # Patient users
+            # Verified Patient users
             if hasattr(request.user, 'patient_profile'):
                 if path.startswith("/patient/"):
+                    return self.get_response(request)
+                if any(path.startswith(allowed) for allowed in self.allowed_common_paths):
                     return self.get_response(request)
                 if path in ["/", "/home/"]:
                     return redirect("patient:dashboard")

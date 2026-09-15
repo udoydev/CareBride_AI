@@ -376,6 +376,9 @@ def prescription_detail(request, prescription_id):
     
     if request.GET.get("lang"):
         request.session["site_lang"] = summary_language
+        if hasattr(patient, "preferred_language"):
+            patient.preferred_language = summary_language
+            patient.save(update_fields=["preferred_language"])
 
     cache_key = f"prescription-summary:{prescription.pk}:{summary_language}"
     summary_payload = request.session.get(cache_key)
@@ -723,7 +726,7 @@ def health_record(request):
             "date": rx.issued_at.date(),
             "title": f"Prescription by Dr. {rx.doctor.user.get_full_name() or rx.doctor.user.username}",
             "subtitle": rx.doctor.specialty or "General Specialist",
-            "details": f"Diagnosis: {rx.diagnosis or 'N/A'}\nComplaints: {rx.chief_complaints or 'N/A'}\nTests: {rx.tests_investigations or 'N/A'}\nAdvice: {rx.advice_rules or 'N/A'}",
+            "details": "",
             "obj": rx,
             "download_url": f"/patient/prescriptions/{rx.pk}/download/",
         })
@@ -755,8 +758,73 @@ def health_record(request):
             prescription_id=None,
         )
 
-    # 5. Holistic AI Summary of Health History
-    history_text_summary = f"Total Medical Records: {len(timeline_items)} ({len(prescriptions)} Doctor Prescriptions, {len(reports)} Self-Uploaded Lab Tests/External Reports)."
+    # 5. Holistic Clinical Summary of Health History
+    latest_rx = prescriptions.first() if prescriptions else None
+    latest_rpt = reports.first() if reports else None
+    is_bn = language == "bn"
+
+    if not latest_rx and not latest_rpt:
+        if is_bn:
+            history_text_summary = "বর্তমানে কোনো সক্রিয় প্রেসক্রিপশন বা মেডিকেল রেকর্ড যুক্ত নেই। আপনার স্বাস্থ্য প্রোফাইল আপডেট রাখতে নতুন অ্যাপয়েন্টমেন্ট বুক করুন বা ল্যাব রিপোর্ট আপলোড করুন।"
+        else:
+            history_text_summary = "No active medical conditions or prescriptions recorded yet. Your medical profile is clear. You can book an appointment or upload lab reports to track your complete health journey."
+    else:
+        parts = []
+        if latest_rx:
+            doc_name = latest_rx.doctor.user.get_full_name() or latest_rx.doctor.user.username
+            specialty = latest_rx.doctor.specialty or ("মেডিসিন বিশেষজ্ঞ" if is_bn else "General Specialist")
+
+            if latest_rx.diagnosis:
+                if is_bn:
+                    parts.append(f"বর্তমান স্বাস্থ্য অবস্থা: ডা. {doc_name} ({specialty})-এর অধীনে '{latest_rx.diagnosis}'-এর চিকিৎসাধীন।")
+                else:
+                    parts.append(f"Current Clinical Status: Under the care of Dr. {doc_name} ({specialty}) for {latest_rx.diagnosis}.")
+            elif latest_rx.chief_complaints:
+                if is_bn:
+                    parts.append(f"বর্তমান স্বাস্থ্য অবস্থা: ডা. {doc_name} ({specialty})-এর সাথে '{latest_rx.chief_complaints}'-এর জন্য পরামর্শ গ্রহণ করেছেন।")
+                else:
+                    parts.append(f"Current Clinical Status: Under consultation with Dr. {doc_name} ({specialty}) for {latest_rx.chief_complaints}.")
+            else:
+                if is_bn:
+                    parts.append(f"বর্তমান স্বাস্থ্য অবস্থা: ডা. {doc_name} ({specialty})-এর পরামর্শ গ্রহণ করেছেন।")
+                else:
+                    parts.append(f"Current Clinical Status: Under consultation with Dr. {doc_name} ({specialty}).")
+
+            rx_items = list(latest_rx.items.select_related("medicine").all())
+            if rx_items:
+                med_list = ", ".join([f"{item.medicine.brand_name or item.medicine.generic_name} ({item.dosage})" for item in rx_items[:3]])
+                if is_bn:
+                    parts.append(f"চলমান প্রধান ওষুধ: {med_list}।")
+                else:
+                    parts.append(f"Active Prescribed Regimen: {med_list}.")
+
+            fu = getattr(latest_rx, "follow_up", None)
+            if fu and fu.status == "upcoming":
+                if is_bn:
+                    parts.append(f"পরবর্তী ফলো-আপ সাক্ষাত: {fu.scheduled_date} তারিখে নির্ধারিত।")
+                else:
+                    parts.append(f"Next Scheduled Follow-up: {fu.scheduled_date}.")
+
+        if latest_rpt:
+            if is_bn:
+                parts.append(f"সর্বশেষ ল্যাব রিপোর্ট: {latest_rpt.title} ({latest_rpt.date_performed})।")
+            else:
+                parts.append(f"Latest Diagnostic Report: {latest_rpt.title} ({latest_rpt.date_performed}).")
+
+        if is_bn:
+            parts.append("প্রেসক্রিপশন অনুযায়ী সঠিক সময়ে নিয়মিত ওষুধ সেবন এবং সুস্থ জীবনধারা বজায় রাখুন।")
+        else:
+            parts.append("Maintain regular adherence to your prescribed regimen and monitor your overall recovery.")
+
+        history_text_summary = " ".join(parts)
+
+    overview_diagnosis = latest_rx.diagnosis if latest_rx else None
+    overview_doctor = latest_rx.doctor if latest_rx else None
+    overview_next_followup = (
+        latest_rx.follow_up.scheduled_date
+        if (latest_rx and hasattr(latest_rx, "follow_up") and latest_rx.follow_up and latest_rx.follow_up.status == "upcoming")
+        else None
+    )
 
     adherence_chart = _build_adherence_data(patient)
 
@@ -796,6 +864,9 @@ def health_record(request):
         "ai_answer": ai_answer,
         "ai_query": ai_query,
         "history_text_summary": history_text_summary,
+        "overview_diagnosis": overview_diagnosis,
+        "overview_doctor": overview_doctor,
+        "overview_next_followup": overview_next_followup,
         "ai_available": GeminiAIService.is_ai_available(),
         "adherence_chart": adherence_chart,
         "prescriptions_page": prescriptions_page,
@@ -806,30 +877,60 @@ def health_record(request):
 
 @login_required
 def doctor_list(request):
+    import re
     from accounts.models import Doctor
+    from django.db.models import Count, Q, Value
+    from django.db.models.functions import Concat
 
-    query = request.GET.get("q", "")
-    category = request.GET.get("category", "")
+    query = request.GET.get("q", "").strip()
+    category = request.GET.get("category", "").strip()
+    clean_query = re.sub(r'^(?:Dr\.?\s*|Doctor\s*)+', '', query, flags=re.IGNORECASE).strip()
 
-    doctors = Doctor.objects.select_related("user").filter(is_verified=True).order_by("-id")
+    doctors = Doctor.objects.select_related("user").filter(is_verified=True).annotate(
+        full_name_clean=Concat('user__first_name', Value(' '), 'user__last_name'),
+        full_name_dr=Concat(Value('Dr. '), 'user__first_name', Value(' '), 'user__last_name')
+    ).order_by("-id")
+
     if query:
-        doctors = doctors.filter(Q(user__first_name__icontains=query) | Q(user__last_name__icontains=query) | Q(specialty__icontains=query))
-    if category and category != "All":
-        doctors = doctors.filter(specialty=category)
+        doctors = doctors.filter(
+            Q(full_name_clean__icontains=clean_query if clean_query else query) |
+            Q(full_name_dr__icontains=query) |
+            Q(user__first_name__icontains=clean_query if clean_query else query) |
+            Q(user__last_name__icontains=clean_query if clean_query else query) |
+            Q(user__email__icontains=query) |
+            Q(specialty__icontains=query) |
+            Q(designation__icontains=query) |
+            Q(clinic_name__icontains=query) |
+            Q(location_text__icontains=query) |
+            Q(degrees__icontains=query) |
+            Q(bio__icontains=query)
+        )
+    if category and category not in ["All", "সকল ক্যাটাগরি", "All Departments", "সকল ডিপার্টমেন্ট"]:
+        doctors = doctors.filter(specialty__iexact=category)
 
-    categories = ["All"] + list(
-        Doctor.objects.exclude(specialty="").values_list("specialty", flat=True).distinct()
-    )
+    # Calculate Most Visited Doctors suggestions
+    most_visited = Doctor.objects.select_related("user").filter(
+        is_verified=True
+    ).annotate(
+        visit_count=Count("appointments")
+    ).order_by("-visit_count", "-experience_years", "-id")[:4]
 
-    paginator = Paginator(doctors, 12)
+    categories = ["All"] + sorted(list(
+        set(filter(None, Doctor.objects.filter(is_verified=True).values_list("specialty", flat=True)))
+    ))
+
+    paginator = Paginator(doctors, 24)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     return render(request, "patient/doctor_list.html", {
         "doctors": page_obj,
         "categories": categories,
-        "suggested": doctors[:2],
+        "suggested": most_visited,
+        "most_visited": most_visited,
         "page_obj": page_obj,
+        "query": query,
+        "category": category,
     })
 
 
@@ -885,12 +986,18 @@ def book_doctor(request, doctor_id):
         apt_date = datetime.strptime(appointment_date, "%Y-%m-%d").date()
         day_name = apt_date.strftime("%A").lower()
         schedule = DoctorSchedule.objects.filter(doctor=doctor, day_of_week=day_name, is_active=True).first()
-        if not schedule:
-            messages.error(request, "Doctor is not available on this day.")
-            return redirect("patient:book_doctor", doctor_id=doctor.pk)
+        slot_duration = schedule.slot_duration_minutes if schedule else 30
 
-        start_dt = datetime.strptime(start_time, "%H:%M").time()
-        end_dt = (datetime.combine(apt_date, start_dt) + timedelta(minutes=schedule.slot_duration_minutes)).time()
+        try:
+            start_dt = datetime.strptime(start_time, "%H:%M").time()
+        except ValueError:
+            try:
+                start_dt = datetime.strptime(start_time, "%I:%M %p").time()
+            except ValueError:
+                start_dt = datetime.strptime(start_time, "%H:%M:%S").time()
+
+        end_dt = (datetime.combine(apt_date, start_dt) + timedelta(minutes=slot_duration)).time()
+
 
         # Double-booking check
         existing = Appointment.objects.filter(
@@ -943,34 +1050,56 @@ def book_doctor(request, doctor_id):
 
         return redirect("accounts:payment_process", appointment_id=appointment.pk)
 
-    # Generate available slots for next 14 days
-    from datetime import timedelta
+    # Generate available slots for next 60 days (2 months)
+
+    import json
+    from datetime import datetime, timedelta
     from collections import OrderedDict
     today = timezone.localdate()
     now = timezone.localtime()
-    min_booking_time = (now + timedelta(hours=2)).time()
+    max_date = today + timedelta(days=60)
+    current_time = now.time()
+
     available_slots = []
-    for i in range(14):
+    for i in range(61):
         date = today + timedelta(days=i)
         day_name = date.strftime("%A").lower()
         day_schedules = DoctorSchedule.objects.filter(doctor=doctor, day_of_week=day_name, is_active=True)
         for sch in day_schedules:
-            blocked = min_booking_time if date == today else None
+            # Block past slots if selected date is today
+            blocked = current_time if date == today else None
             slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, doctor, date, blocked_before_time=blocked)
             available_slots.extend(slots)
 
-    grouped_slots = OrderedDict()
+    grouped_slots_dict = OrderedDict()
     for slot in available_slots:
         key = slot["date"]
-        grouped_slots.setdefault(key, []).append(slot)
-    grouped_slots = list(grouped_slots.items())
+        grouped_slots_dict.setdefault(key, []).append(slot)
+
+    date_options = []
+    for date_str, slots in grouped_slots_dict.items():
+        dt = datetime.strptime(date_str, "%Y-%m-%d").date()
+        avail_count = sum(1 for s in slots if s.get("available"))
+        date_options.append({
+            "date": date_str,
+            "display": dt.strftime("%A, %d %b %Y"),
+            "short_day": dt.strftime("%a"),
+            "short_date": dt.strftime("%d %b"),
+            "avail_count": avail_count,
+            "slots": slots
+        })
+
+    grouped_slots_json = json.dumps(grouped_slots_dict)
 
     return render(request, "patient/book_appointment.html", {
         "doctor": doctor,
         "schedules": schedules,
         "available_slots": available_slots,
-        "grouped_slots": grouped_slots,
-        "today": timezone.localdate(),
+        "grouped_slots": grouped_slots_dict,
+        "grouped_slots_json": grouped_slots_json,
+        "date_options": date_options,
+        "today": today,
+        "max_date": max_date,
     })
 
 
@@ -987,11 +1116,10 @@ def _generate_slots(start_time, end_time, slot_duration, doctor, date, blocked_b
         exclude_appointment_id: ID to exclude (for edit mode, so current apt doesn't block itself)
 
     Returns:
-        List of slot dicts with date, start/end times (AM/PM format), and availability flag.
+        List of slot dicts with date, start/end times, availability flags, is_booked, is_past.
     """
     from datetime import datetime, timedelta
     slots = []
-    # Iterate through each slot from start_time to end_time
     current = datetime.combine(date, start_time)
     end = datetime.combine(date, end_time)
     while current + timedelta(minutes=slot_duration) <= end:
@@ -1005,18 +1133,27 @@ def _generate_slots(start_time, end_time, slot_duration, doctor, date, blocked_b
         )
         if exclude_appointment_id:
             is_booked = is_booked.exclude(pk=exclude_appointment_id)
-        is_booked = is_booked.exists()
-        available = not is_booked
-        if available and blocked_before_time and current.time() < blocked_before_time:
-            available = False
+
+        is_booked_flag = is_booked.exists()
+        is_past_flag = False
+
+        if blocked_before_time and current.time() < blocked_before_time:
+            is_past_flag = True
+
+        available = (not is_booked_flag) and (not is_past_flag)
+
         slots.append({
             "date": date.strftime("%Y-%m-%d"),
             "start": current.strftime("%I:%M %p"),
+            "start_raw": current.strftime("%H:%M"),
             "end": slot_end.strftime("%I:%M %p"),
             "available": available,
+            "is_booked": is_booked_flag,
+            "is_past": is_past_flag,
         })
         current = slot_end
     return slots
+
 
 
 @login_required
@@ -1076,11 +1213,8 @@ def appointments(request):
         )
         window_end = apt_datetime + timezone.timedelta(hours=4)
         hours_until = (apt_datetime - now).total_seconds() / 3600
-        apt.can_cancel = apt.status in ("pending", "confirmed") and hours_until >= 24
-        if enable_4h_rule:
-            apt.can_edit = apt.status == "pending" and hours_until >= 4 and apt.edit_count < 3
-        else:
-            apt.can_edit = apt.status == "pending" and apt.edit_count < 3
+        apt.can_cancel = (apt.status == "confirmed" and apt.payment_status == "paid" and hours_until > 24)
+        apt.can_edit = False
         apt.window_expired = apt.status in ("completed", "missed", "cancelled", "refunded") or (now > window_end and apt.status in ("pending", "confirmed"))
         apts.append(apt)
 
@@ -1144,13 +1278,8 @@ def appointment_detail_patient(request, appointment_id):
     window_end = appointment_datetime + timezone.timedelta(hours=4)
     now_local = timezone.localtime(timezone.now())
     hours_until = (appointment_datetime - now_local).total_seconds() / 3600
-    appointment.can_cancel = appointment.status in ("pending", "confirmed") and hours_until >= 24
-    from accounts.models import SiteSettings
-    enable_4h_rule = SiteSettings.get_solo().booking_edit_rule == "enabled"
-    if enable_4h_rule:
-        appointment.can_edit = appointment.status == "pending" and hours_until >= 4 and appointment.edit_count < 3
-    else:
-        appointment.can_edit = appointment.status == "pending" and appointment.edit_count < 3
+    appointment.can_cancel = (appointment.status == "confirmed" and appointment.payment_status == "paid" and hours_until > 24)
+    appointment.can_edit = False
     appointment.window_expired = appointment.status in ("completed", "missed", "cancelled", "refunded") or (timezone.localtime(timezone.now()) > window_end and appointment.status in ("pending", "confirmed"))
     appointment.window_end = window_end
     return render(request, "patient/appointment_detail.html", {"appointment": appointment})
@@ -1548,6 +1677,39 @@ def chat_api_clear(request):
 
 
 @require_POST
+def chat_api_translate(request):
+    text = ""
+    target_lang = "bn"
+    if "application/json" in (request.content_type or "") and request.body:
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+            text = (payload.get("text") or "").strip()
+            target_lang = payload.get("target_lang") or "bn"
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    else:
+        text = (request.POST.get("text") or "").strip()
+        target_lang = request.POST.get("target_lang") or "bn"
+
+    if not text:
+        return JsonResponse({"error": "Text to translate is required."}, status=400)
+
+    try:
+        from carebridge.ai_services import GeminiAIService
+        target_name = "Bangladeshi Bangla (বাংলা)" if target_lang == "bn" else "English"
+        prompt = (
+            f"Translate the following medical assistant response fluently into {target_name}. "
+            "Keep the meaning, medical advice, tone, and bullet point formatting intact. "
+            "Do NOT add meta commentary or introductory remarks, output ONLY the translated text:\n\n"
+            f"{text}"
+        )
+        translated = GeminiAIService.generate_text(prompt, language=target_lang)
+        return JsonResponse({"translated_text": translated, "target_lang": target_lang})
+    except Exception as e:
+        return JsonResponse({"error": f"Translation failed: {e}"}, status=500)
+
+
+@require_POST
 def chat_api_new_session(request):
     patient = _get_patient(request)
     if not patient:
@@ -1683,73 +1845,69 @@ def request_cancellation(request, appointment_id):
     patient = request.user.patient_profile
     appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
 
-    if appointment.status not in ("pending", "confirmed"):
-        messages.error(request, "This appointment cannot be cancelled.")
-        return redirect("patient:appointments")
-
     tz = timezone.get_current_timezone()
-    appointment_datetime = timezone.make_aware(
+    now_local = timezone.localtime(timezone.now())
+    apt_datetime = timezone.make_aware(
         timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
     )
-    now_local = timezone.localtime(timezone.now())
-    hours_until = (appointment_datetime - now_local).total_seconds() / 3600
+    hours_until = (apt_datetime - now_local).total_seconds() / 3600
 
-    if hours_until < 24:
-        messages.error(request, "Appointments can only be cancelled at least 24 hours before the scheduled time.")
+    if hours_until <= 24:
+        messages.error(request, "Cancellation is not allowed within 24 hours or less of the scheduled appointment time.")
+        return redirect("patient:appointments")
+
+    if appointment.payment_status == "pending_verification" or appointment.status == "pending":
+        messages.error(request, "Cancellation is not allowed while payment is pending verification. The doctor must verify the booking first within 24 hours.")
+        return redirect("patient:appointments")
+
+    if appointment.status in ("cancelled", "completed", "refunded"):
+        messages.error(request, f"This appointment cannot be cancelled because it is already {appointment.get_status_display().lower()}.")
         return redirect("patient:appointments")
 
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
 
-        if hours_until >= 24:
-            appointment.status = "cancelled"
-            appointment.cancellation_reason = reason
+        appointment.status = "cancelled"
+        appointment.cancellation_reason = reason
+        appointment.cancellation_requested_at = timezone.now()
 
-            if appointment.payment_status == "paid":
-                from accounts.models import SiteSettings
-                settings_obj = SiteSettings.get_solo()
-                comm_rate = Decimal(str(settings_obj.platform_commission_rate or "15.00")) / Decimal("100")
-                refund_pct = Decimal(str(settings_obj.patient_refund_percentage or "35.00")) / Decimal("100")
-                display_pct = settings_obj.patient_refund_percentage
+        from accounts.models import SiteSettings
+        settings_obj = SiteSettings.get_solo()
+        refund_pct = Decimal(str(settings_obj.patient_refund_percentage or "35.00")) / Decimal("100")
+        display_pct = settings_obj.patient_refund_percentage
 
-                site_charge = (appointment.fee_bdt * comm_rate).quantize(Decimal("0.01"))
-                remaining_money = max(Decimal("0.00"), appointment.fee_bdt - site_charge)
-                appointment.refund_status = "partial"
-                appointment.refund_amount = (remaining_money * refund_pct).quantize(Decimal("0.01"))
-                appointment.payment_status = "refunded"
-                appointment.save()
+        # Cancelled AFTER verification: 35% patient refund, 15% site fee, 50% doctor payout
+        appointment.refund_status = "partial"
+        appointment.refund_amount = (appointment.fee_bdt * refund_pct).quantize(Decimal("0.01"))
+        appointment.payment_status = "refunded"
+        appointment.save()
 
-                patient.balance = (patient.balance or Decimal("0")) + appointment.refund_amount
-                patient.save(update_fields=["balance"])
+        patient.balance = (patient.balance or Decimal("0")) + appointment.refund_amount
+        patient.save(update_fields=["balance"])
 
-                AppNotification.objects.create(
-                    user=request.user,
-                    title="Refund Credited to Wallet",
-                    message=f"A refund of {appointment.refund_amount} BDT ({display_pct}%) has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
-                    notification_type="booking",
-                    link_url=reverse("patient:appointments"),
-                )
+        AppNotification.objects.create(
+            user=request.user,
+            title="Refund Credited to Wallet",
+            message=f"A refund of {appointment.refund_amount} BDT ({display_pct}%) has been credited to your CareBridge wallet balance for the appointment on {appointment.appointment_date}.",
+            notification_type="booking",
+            link_url=reverse("patient:appointments"),
+        )
 
-                AppNotification.objects.create(
-                    user=appointment.doctor.user,
-                    title="Appointment Cancelled by Patient",
-                    message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT ({display_pct}%) processed.",
-                    notification_type="booking",
-                    link_url=reverse("doctors:appointment_list"),
-                )
-                AppNotification.objects.create(
-                    user=request.user,
-                    title="Cancellation Confirmed",
-                    message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT ({display_pct}%) has been processed.",
-                    notification_type="booking",
-                    link_url=reverse("patient:appointments"),
-                )
-                messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded ({display_pct}%).")
-            else:
-                appointment.refund_status = "none"
-                appointment.refund_amount = Decimal("0.00")
-                appointment.save()
-                messages.success(request, "Appointment cancelled successfully.")
+        AppNotification.objects.create(
+            user=appointment.doctor.user,
+            title="Appointment Cancelled by Patient",
+            message=f"Patient {patient.user.get_full_name()} cancelled appointment on {appointment.appointment_date}. Refund: {appointment.refund_amount} BDT ({display_pct}%) processed.",
+            notification_type="booking",
+            link_url=reverse("doctors:appointment_list"),
+        )
+        AppNotification.objects.create(
+            user=request.user,
+            title="Cancellation Confirmed",
+            message=f"Your appointment on {appointment.appointment_date} has been cancelled. Refund: {appointment.refund_amount} BDT ({display_pct}%) has been processed.",
+            notification_type="booking",
+            link_url=reverse("patient:appointments"),
+        )
+        messages.success(request, f"Appointment cancelled. {appointment.refund_amount} BDT refunded ({display_pct}%).")
 
         return redirect("patient:appointments")
 
@@ -1758,116 +1916,10 @@ def request_cancellation(request, appointment_id):
 
 @login_required
 def edit_appointment(request, appointment_id):
-    """Allow a patient to edit their own appointment within constraints.
+    """Editing appointments is disabled for patients. Booking is one-time only."""
+    messages.error(request, "Editing appointments is not allowed. Booking is one-time only.")
+    return redirect("patient:appointments")
 
-    Constraints:
-      - Appointment must be in 'pending' status (not yet confirmed)
-      - Maximum 3 edits per appointment (tracked via edit_count)
-      - If booking_edit_rule is 'enabled', edits must be within 4h of
-        the appointment start time (prevents last-minute changes)
-    """
-    patient = request.user.patient_profile
-    appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
-
-    if appointment.status != "pending":
-        messages.error(request, "Only pending appointments can be edited. Confirmed appointments cannot be changed.")
-        return redirect("patient:appointments")
-
-    if appointment.edit_count >= 3:
-        messages.error(request, "You have reached the maximum of 3 edits for this booking.")
-        return redirect("patient:appointments")
-
-    from accounts.models import SiteSettings
-    enable_4h_rule = SiteSettings.get_solo().booking_edit_rule == "enabled"
-    if enable_4h_rule:
-        tz = timezone.get_current_timezone()
-        appointment_datetime = timezone.make_aware(
-            timezone.datetime.combine(appointment.appointment_date, appointment.start_time), tz
-        )
-        now_local = timezone.localtime(timezone.now())
-        hours_until = (appointment_datetime - now_local).total_seconds() / 3600
-        if hours_until < 4:
-            messages.error(request, "Appointments can only be edited at least 4 hours before the scheduled time.")
-            return redirect("patient:appointments")
-
-    if request.method == "POST":
-        new_date = request.POST.get("appointment_date", "").strip()
-        new_start_time = request.POST.get("start_time", "").strip()
-        new_consultation_type = request.POST.get("consultation_type", appointment.consultation_type)
-
-        if not new_date or not new_start_time:
-            messages.error(request, "Please select both date and time.")
-            return redirect("patient:edit_appointment", appointment_id=appointment.pk)
-
-        if new_consultation_type not in ["in_person", "video_online"]:
-            new_consultation_type = "in_person"
-
-        from datetime import datetime, timedelta
-        apt_date = datetime.strptime(new_date, "%Y-%m-%d").date()
-        day_name = apt_date.strftime("%A").lower()
-        schedule = DoctorSchedule.objects.filter(doctor=appointment.doctor, day_of_week=day_name, is_active=True).first()
-        if not schedule:
-            messages.error(request, "Doctor is not available on this day.")
-            return redirect("patient:edit_appointment", appointment_id=appointment.pk)
-
-        start_dt = datetime.strptime(new_start_time, "%H:%M").time()
-        end_dt = (datetime.combine(apt_date, start_dt) + timedelta(minutes=schedule.slot_duration_minutes)).time()
-
-        existing = Appointment.objects.filter(
-            doctor=appointment.doctor,
-            appointment_date=apt_date,
-            status__in=["pending", "confirmed"],
-        ).filter(start_time__lt=end_dt, end_time__gt=start_dt).exclude(pk=appointment.pk)
-        if existing.exists():
-            messages.error(request, "This time slot is already booked. Please choose another.")
-            return redirect("patient:edit_appointment", appointment_id=appointment.pk)
-
-        old_date = appointment.appointment_date
-        old_time = appointment.start_time.strftime("%H:%M")
-        appointment.appointment_date = apt_date
-        appointment.start_time = start_dt
-        appointment.end_time = end_dt
-        appointment.consultation_type = new_consultation_type
-        appointment.edit_count += 1
-        appointment.save(update_fields=["appointment_date", "start_time", "end_time", "consultation_type", "edit_count"])
-
-        AppNotification.objects.create(
-            user=appointment.doctor.user,
-            title="Appointment Rescheduled by Patient",
-            message=f"Patient {patient.user.get_full_name()} changed appointment from {old_date} {old_time} to {apt_date} {start_dt.strftime('%H:%M')}. Edit count: {appointment.edit_count}/3.",
-            notification_type="booking",
-            link_url=reverse("doctors:appointment_list"),
-        )
-        AppNotification.objects.create(
-            user=request.user,
-            title="Appointment Updated",
-            message=f"Your appointment with Dr. {appointment.doctor.user.get_full_name()} has been updated to {apt_date} {start_dt.strftime('%H:%M')}.",
-            notification_type="booking",
-            link_url=reverse("patient:appointments"),
-        )
-
-        messages.success(request, f"Appointment updated successfully. Edit count: {appointment.edit_count}/3.")
-        return redirect("patient:appointments")
-
-    schedules = DoctorSchedule.objects.filter(doctor=appointment.doctor, is_active=True).order_by("day_of_week", "start_time")
-    available_slots = []
-    from datetime import timedelta
-    today = timezone.localdate()
-    for i in range(14):
-        date = today + timedelta(days=i)
-        day_name = date.strftime("%A").lower()
-        day_schedules = DoctorSchedule.objects.filter(doctor=appointment.doctor, day_of_week=day_name, is_active=True)
-        for sch in day_schedules:
-            slots = _generate_slots(sch.start_time, sch.end_time, sch.slot_duration_minutes, appointment.doctor, date, exclude_appointment_id=appointment.pk)
-            available_slots.extend(slots)
-
-    return render(request, "patient/edit_appointment.html", {
-        "appointment": appointment,
-        "doctor": appointment.doctor,
-        "schedules": schedules,
-        "available_slots": available_slots,
-        "edit_count": appointment.edit_count,
-    })
 
 
 @login_required
@@ -1999,7 +2051,14 @@ def overall_report(request):
     medical_history = getattr(patient, "medical_history", None)
     health_reports = patient.health_reports.all().order_by("-date_performed")
 
-    summary_language = request.GET.get("lang") or request.session.get("site_lang") or "en"
+    summary_language = request.GET.get("lang") or request.session.get("site_lang") or getattr(patient, "preferred_language", "en") or "en"
+    if summary_language not in {"bn", "en"}:
+        summary_language = "en"
+    if request.GET.get("lang"):
+        request.session["site_lang"] = summary_language
+        if hasattr(patient, "preferred_language"):
+            patient.preferred_language = summary_language
+            patient.save(update_fields=["preferred_language"])
 
     history_parts = []
     if medical_history and (medical_history.chronic_conditions or medical_history.allergies or medical_history.past_surgeries or medical_history.family_medical_history):
@@ -2287,3 +2346,43 @@ def calculate_age(date_of_birth):
         return None
     today = timezone.localdate()
     return today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+
+
+@login_required
+def submit_payment_appeal(request, appointment_id):
+    patient = getattr(request.user, "patient_profile", None)
+    if not patient:
+        messages.error(request, "Access restricted to patients.")
+        return redirect("home")
+
+    appointment = get_object_or_404(Appointment, pk=appointment_id, patient=patient)
+
+    if appointment.payment_status not in ("pending_verification", "pending") and not appointment.is_verification_overdue:
+        messages.info(request, "This appointment does not require a payment appeal.")
+        return redirect("patient:appointments")
+
+    if request.method == "POST":
+        reason = request.POST.get("reason", "").strip()
+        appointment.is_payment_appeal_requested = True
+        appointment.payment_appeal_reason = reason
+        appointment.payment_appeal_status = "pending"
+        appointment.payment_appeal_submitted_at = timezone.now()
+        appointment.save()
+
+        # Notify CareBridge Staff & Admins
+        from django.contrib.auth.models import User
+        from django.db.models import Q
+        admins = User.objects.filter(Q(is_superuser=True) | Q(is_staff=True))
+        for admin_user in admins:
+            AppNotification.objects.create(
+                user=admin_user,
+                title="💳 Overdue Payment Verification Appeal",
+                message=f"Patient {patient.user.get_full_name() or patient.user.email} appealed payment verification for Appointment #{appointment.id} ({appointment.fee_bdt} BDT).",
+                notification_type="booking",
+                link_url=reverse("accounts:admin_unverified_dashboard"),
+            )
+
+        messages.success(request, "Your payment appeal has been submitted to CareBridge Admin for verification or full refund review.")
+        return redirect("patient:appointments")
+
+    return render(request, "patient/submit_payment_appeal.html", {"appointment": appointment})

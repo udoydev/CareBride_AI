@@ -43,21 +43,11 @@
     </div>
 
     <div class="rounded-3xl border border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 p-5 md:p-6">
-        <div class="grid gap-4 md:grid-cols-2">
-            <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-950/80 shadow-xs backdrop-blur-sm p-4">
-                <p class="font-mono text-[10px] uppercase font-bold tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}ডিজিটাল প্রেসক্রিপশন{% else %}Digital Prescription{% endif %}</p>
-                <img src="{% static 'images/Prescription Image.png' %}" alt="{% if site_lang == 'bn' %}প্রেসক্রিপশন প্রিভিউ{% else %}Prescription preview{% endif %}"
-                    class="mt-3 h-36 w-full rounded-xl border border-stone-200 dark:border-stone-800 object-cover shadow-2xs" loading="lazy">
+        <div class="space-y-4">
+            <div class="overflow-hidden rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 shadow-md">
+                <img src="{% static 'images/image_e4b6b18b.jpeg' %}" alt="CareBridge AI Platform Preview" class="w-full h-auto max-h-[380px] object-cover object-top rounded-2xl">
             </div>
             <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-950/80 shadow-xs backdrop-blur-sm p-4">
-                <p class="font-mono text-[10px] uppercase font-bold tracking-widest text-purple-600 dark:text-purple-400">{% if site_lang == 'bn' %}ডাক্তার আয় ট্র্যাকিং{% else %}Doctor Financial Track{% endif %}</p>
-                <div class="mt-3 rounded-xl bg-purple-50 p-3 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 text-xs font-medium space-y-1.5">
-                    <div class="flex justify-between"><span>Gross Revenue:</span> <strong class="text-stone-900 dark:text-stone-100">৳24,500</strong></div>
-                    <div class="flex justify-between text-purple-700 dark:text-purple-300"><span>Site Commission:</span> <strong>৳3,675</strong></div>
-                    <div class="flex justify-between text-teal-700 dark:text-teal-300"><span>Net Doctor Payout:</span> <strong>৳20,825</strong></div>
-                </div>
-            </div>
-            <div class="md:col-span-2 rounded-2xl border border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-950/80 shadow-xs backdrop-blur-sm p-4">
                 <p class="font-mono text-[10px] uppercase font-bold tracking-widest text-teal-600 dark:text-teal-400">{% if site_lang == 'bn' %}AI ক্লিনিক্যাল অ্যানালিটিক্স{% else %}AI Clinical & Financial Analytics{% endif %}</p>
                 <p class="mt-2 text-xs text-stone-600 dark:text-stone-300">
                     {% if site_lang == 'bn' %}
@@ -72,7 +62,7 @@
 </section>
 
 <!-- Doctor Track Feature Spotlight Section -->
-<section class="border-t border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-slate-900/40 py-16 sm:py-20">
+<section class="border-t border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-slate-900 py-16 sm:py-20">
     <div class="mx-auto max-w-6xl px-4 sm:px-6">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12">
             <div>
@@ -213,7 +203,7 @@
                 <div class="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 p-6 shadow-xs">
                     <h3 class="text-base font-bold text-stone-900 dark:text-stone-100">{% if site_lang == 'bn' %}ডাক্তার ট্র্যাকিং ফিচার কীভাবে কাজ করে?{% else %}How does Doctor Performance Tracking work?{% endif %}</h3>
                     <p class="mt-2 text-xs leading-6 text-stone-600 dark:text-stone-300">
-                        {% if site_lang == 'bn' %}ডাক্তার এবং অ্যাডমিনরা চেম্বার সার্ভিস ফি, প্ল্যাটফর্ম চার্জ, ডাক্তার পে-আউট, রিফান্ড ইতিহাস এবং ১২ মাসের ট্রেন্ড দেখতে পান।{% else %}Doctors and system administrators can track consultation earnings, 15% site commission, 35% cancellation refunds, and 12-month revenue trend visualizations.{% endif %}
+                        {% if site_lang == 'bn' %}ডাক্তার এবং অ্যাডমিনরা চেম্বার সার্ভিস ফি, প্ল্যাটফর্ম চার্জ, ডাক্তার পে-আউট, রিফান্ড ইতিহাস এবং ১২ মাসের ট্রেন্ড দেখতে পান।{% else %}Doctors and system administrators can track consultation earnings, {% commission_rate %}% site commission, {% refund_percentage %}% cancellation refunds, and 12-month revenue trend visualizations.{% endif %}
                     </p>
                 </div>
             </div>

@@ -1,68 +1,192 @@
 {% extends "base.html" %}
-{% load static tailwind_tags %}
+{% load static tailwind_tags translation_tags %}
 
 {% block content %}
-<section class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
-  <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+<section class="mx-auto max-w-[1600px] px-4 py-8 sm:px-8 lg:px-12 lg:py-10">
+  <!-- Page Header & PDF Export Action -->
+  <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center border-b border-stone-200/80 pb-6 dark:border-slate-800">
     <div>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-teal-300 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300">Doctor Analytics</span>
-      <h1 class="mt-2 text-2xl font-bold tracking-tight text-stone-900 md:text-3xl dark:text-stone-100">Your Practice Overview</h1>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-teal-300 bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300">
+        <i class="fa-solid fa-chart-line text-xs"></i>
+        {% if site_lang == 'bn' %}ডাক্তার এনালিটিক্স{% else %}Doctor Practice Analytics{% endif %}
+      </span>
+      <h1 class="mt-2 text-2xl font-bold tracking-tight text-stone-900 md:text-3xl dark:text-stone-100">
+        {% if site_lang == 'bn' %}আপনার প্রাতিষ্ঠানিক ও আর্থিক অ্যানালিটিক্স{% else %}Customizable Practice & Financial Analytics{% endif %}
+      </h1>
+      <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
+        {% if site_lang == 'bn' %}নির্দিষ্ট তারিখ, রোগী বা স্ট্যাটাস ফিল্টার করে আপনার প্র্যাকটিস রিপোর্ট প্রস্তুত করুন।{% else %}Filter by date range, patient name, and booking status to generate custom practice reports.{% endif %}
+      </p>
+    </div>
+
+    <!-- Export Custom PDF Report Button -->
+    <div class="flex items-center gap-2">
+      <a href="{% url 'doctors:financial_report_export' %}?start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&q={{ search_query }}"
+        target="_blank"
+        class="inline-flex h-11 items-center gap-2 rounded-full bg-teal-600 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-teal-700">
+        <i class="fa-solid fa-file-pdf text-sm"></i>
+        {% if site_lang == 'bn' %}কাস্টমাইজড রিপোর্ট পিডিএফ ডাউনলোড{% else %}Export Filtered PDF Report{% endif %}
+      </a>
     </div>
   </div>
 
+  <!-- Customizable Report Filter Bar -->
+  <div class="mb-8 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex items-center justify-between border-b border-stone-100 pb-3 mb-4 dark:border-slate-800">
+      <h3 class="text-xs font-extrabold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-sm"></i>
+        {% if site_lang == 'bn' %}রিপোর্ট কাস্টমাইজ ও ফিল্টারিং অপশন{% else %}Custom Report Filter Options{% endif %}
+      </h3>
+      {% if start_date or end_date or status_filter or search_query or date_preset %}
+      <a href="{% url 'accounts:doctor_analytics' %}" class="text-xs font-bold text-red-600 hover:text-red-700 dark:text-red-400">
+        <i class="fa-solid fa-rotate-left mr-1"></i>{% if site_lang == 'bn' %}ফিল্টার রিসিট করুন{% else %}Reset Filters{% endif %}
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Date Range Quick Presets -->
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <span class="text-xs font-bold text-stone-500 dark:text-stone-400 mr-1">{% if site_lang == 'bn' %}দ্রুত নির্বাচন:{% else %}Quick Range:{% endif %}</span>
+      <a href="?preset=all" class="rounded-full px-3 py-1 text-xs font-bold transition {% if date_preset == 'all' or not date_preset and not start_date %}bg-teal-600 text-white shadow-xs{% else %}border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300{% endif %}">
+        {% if site_lang == 'bn' %}সকল সময়{% else %}All Time{% endif %}
+      </a>
+      <a href="?preset=today" class="rounded-full px-3 py-1 text-xs font-bold transition {% if date_preset == 'today' %}bg-teal-600 text-white shadow-xs{% else %}border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300{% endif %}">
+        {% translate_bn "Today" %}
+      </a>
+      <a href="?preset=week" class="rounded-full px-3 py-1 text-xs font-bold transition {% if date_preset == 'week' %}bg-teal-600 text-white shadow-xs{% else %}border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300{% endif %}">
+        {% if site_lang == 'bn' %}গত ৭ দিন{% else %}Last 7 Days{% endif %}
+      </a>
+      <a href="?preset=month" class="rounded-full px-3 py-1 text-xs font-bold transition {% if date_preset == 'month' %}bg-teal-600 text-white shadow-xs{% else %}border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300{% endif %}">
+        {% if site_lang == 'bn' %}এই মাস{% else %}This Month{% endif %}
+      </a>
+      <a href="?preset=year" class="rounded-full px-3 py-1 text-xs font-bold transition {% if date_preset == 'year' %}bg-teal-600 text-white shadow-xs{% else %}border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-300{% endif %}">
+        {% if site_lang == 'bn' %}এই বছর{% else %}This Year{% endif %}
+      </a>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="get" class="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 items-end">
+      <!-- Start Date -->
+      <div>
+        <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1.5">
+          <i class="fa-regular fa-calendar mr-1"></i>{% if site_lang == 'bn' %}শুরুর তারিখ{% else %}Start Date{% endif %}
+        </label>
+        <input type="date" name="start_date" value="{{ start_date }}"
+          class="w-full rounded-xl border border-stone-200 bg-stone-50/80 px-3.5 py-2 text-xs shadow-2xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+      </div>
+
+      <!-- End Date -->
+      <div>
+        <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1.5">
+          <i class="fa-regular fa-calendar-check mr-1"></i>{% if site_lang == 'bn' %}শেষের তারিখ{% else %}End Date{% endif %}
+        </label>
+        <input type="date" name="end_date" value="{{ end_date }}"
+          class="w-full rounded-xl border border-stone-200 bg-stone-50/80 px-3.5 py-2 text-xs shadow-2xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+      </div>
+
+      <!-- Status Filter -->
+      <div>
+        <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1.5">
+          <i class="fa-solid fa-list-check mr-1"></i>{% if site_lang == 'bn' %}অ্যাপয়েন্টমেন্ট স্ট্যাটাস{% else %}Status{% endif %}
+        </label>
+        <select name="status" class="w-full rounded-xl border border-stone-200 bg-stone-50/80 px-3.5 py-2 text-xs shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+          <option value="">{% if site_lang == 'bn' %}সকল স্ট্যাটাস{% else %}All Statuses{% endif %}</option>
+          <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>{% translate_bn "Completed" %}</option>
+          <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>{% translate_bn "Confirmed" %}</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{% translate_bn "Pending" %}</option>
+          <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>{% translate_bn "Cancelled" %}</option>
+          <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>{% if site_lang == 'bn' %}শুধুমাত্র পেইড{% else %}Paid Only{% endif %}</option>
+          <option value="refunded" {% if status_filter == 'refunded' %}selected{% endif %}>{% if site_lang == 'bn' %}শুধুমাত্র রিফান্ড{% else %}Refunded Only{% endif %}</option>
+        </select>
+      </div>
+
+      <!-- Patient Search Input -->
+      <div>
+        <label class="block text-xs font-bold text-stone-600 dark:text-stone-400 mb-1.5">
+          <i class="fa-solid fa-magnifying-glass mr-1"></i>{% if site_lang == 'bn' %}রোগী খুঁজুন{% else %}Search Patient{% endif %}
+        </label>
+        <input type="text" name="q" value="{{ search_query }}" placeholder="{% if site_lang == 'bn' %}রোগীর নাম বা ইমেইল...{% else %}Name, email, phone...{% endif %}"
+          class="w-full rounded-xl border border-stone-200 bg-stone-50/80 px-3.5 py-2 text-xs shadow-2xs focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-stone-100">
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button type="submit" class="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-teal-600 px-4 text-xs font-bold text-white shadow-xs transition hover:bg-teal-700">
+          <i class="fa-solid fa-filter"></i> {% if site_lang == 'bn' %}প্রয়োগ করুন{% else %}Filter Report{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Custom Metric Summary Cards -->
   <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Patients</p>
-      <p class="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-100">{{ total_patients }}</p>
+      <p class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{% translate_bn "Total Patients" %}</p>
+      <p class="mt-2 text-3xl font-extrabold text-stone-900 dark:text-stone-100">{{ total_patients }}</p>
+      <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">{% if site_lang == 'bn' %}ফিল্টারে অন্তর্ভুক্ত রোগী{% else %}Filtered unique patients{% endif %}</p>
     </div>
     <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <p class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Total Appointments</p>
-      <p class="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-100">{{ total_appointments }}</p>
-      <p class="text-xs text-stone-500">{{ month_appointments }} this month</p>
+      <p class="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">{% translate_bn "Total Appointments" %}</p>
+      <p class="mt-2 text-3xl font-extrabold text-stone-900 dark:text-stone-100">{{ total_appointments }}</p>
+      <p class="text-xs text-teal-600 font-bold dark:text-teal-400 mt-1">{{ completed_count }} {% if site_lang == 'bn' %}সম্পূর্ণ পরামর্শ{% else %}completed consults{% endif %}</p>
     </div>
     <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-      <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Net Earnings</p>
-      <p class="mt-2 text-3xl font-bold text-emerald-900 dark:text-emerald-200">{{ net_earnings|floatformat:2 }} BDT</p>
-      <p class="text-xs text-emerald-600 dark:text-emerald-400">After platform fee & refunds</p>
+      <p class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{% if site_lang == 'bn' %}নিট ইনকাম{% else %}Net Earnings{% endif %}</p>
+      <p class="mt-2 text-3xl font-extrabold text-emerald-900 dark:text-emerald-200">{{ net_earnings|floatformat:2 }} BDT</p>
+      <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{% if site_lang == 'bn' %}১৫% সার্ভিস ফি ও রিফান্ড বাদ দিয়ে{% else %}After platform fee & refunds{% endif %}</p>
     </div>
     <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900/50 dark:bg-amber-950/20">
-      <p class="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Total Refunds</p>
-      <p class="mt-2 text-3xl font-bold text-amber-900 dark:text-amber-200">{{ total_refunds|floatformat:2 }} BDT</p>
+      <p class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">{% translate_bn "Total Refunds" %}</p>
+      <p class="mt-2 text-3xl font-extrabold text-amber-900 dark:text-amber-200">{{ total_refunds|floatformat:2 }} BDT</p>
+      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">{% if site_lang == 'bn' %}বাতিলকৃত রিফান্ড পেমেন্ট{% else %}Cancelled booking refunds{% endif %}</p>
     </div>
   </div>
 
+  <!-- Filtered Transactions Table -->
   <div class="mt-8 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-    <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">Recent Transactions</h2>
+    <div class="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-slate-800">
+      <div>
+        <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">{% translate_bn "Recent Transactions" %}</h2>
+        <p class="text-xs text-stone-500 dark:text-stone-400">{% if site_lang == 'bn' %}ফিল্টাকৃত পরামর্শ ও পেমেন্ট তালিকা (সর্বোচ্চ ৫০টি দেখানো হচ্ছে){% else %}Filtered list of bookings and payouts (Showing top 50 matches){% endif %}</p>
+      </div>
+      <a href="{% url 'doctors:financial_report_export' %}?start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&q={{ search_query }}"
+        target="_blank"
+        class="inline-flex items-center gap-1.5 rounded-full bg-teal-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-teal-700 transition">
+        <i class="fa-solid fa-file-pdf"></i> {% translate_bn "Export Report" %}
+      </a>
+    </div>
     <div class="mt-4 overflow-x-auto">
       <table class="w-full text-left text-xs text-stone-700 dark:text-stone-300">
-        <thead class="bg-stone-50 font-semibold uppercase text-stone-600 dark:bg-slate-800/60 dark:text-stone-400">
+        <thead class="bg-stone-50 font-bold uppercase text-stone-600 dark:bg-slate-800/60 dark:text-stone-400">
           <tr>
-            <th class="px-4 py-3">Patient</th>
-            <th class="px-4 py-3">Date</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Fee</th>
-            <th class="px-4 py-3">Platform Fee</th>
-            <th class="px-4 py-3">Net Payout</th>
-            <th class="px-4 py-3">Refund</th>
+            <th class="px-4 py-3">{% translate_bn "Patient" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Date" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Status" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Fee" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Platform Fee" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Net Payout" %}</th>
+            <th class="px-4 py-3">{% translate_bn "Refund" %}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-200 dark:divide-slate-800">
           {% for apt in recent_appointments %}
           <tr class="hover:bg-stone-50/50 dark:hover:bg-slate-800/30">
-            <td class="px-4 py-3.5">{{ apt.patient.user.get_full_name|default:apt.patient.user.email }}</td>
-            <td class="px-4 py-3.5">{{ apt.appointment_date }}</td>
+            <td class="px-4 py-3.5 font-bold text-stone-900 dark:text-stone-100">
+              <p>{{ apt.patient.user.get_full_name|default:apt.patient.user.email }}</p>
+              <p class="text-[10px] text-stone-500 font-normal">{{ apt.patient.phone_number|default:"" }}</p>
+            </td>
+            <td class="px-4 py-3.5">{{ apt.appointment_date|date:"d M Y" }}</td>
             <td class="px-4 py-3.5">
-              <span class="rounded-full px-2.5 py-0.5 font-semibold {% if apt.status == 'completed' %}bg-emerald-100 text-emerald-800{% elif apt.status == 'cancelled' %}bg-red-100 text-red-800{% elif apt.status == 'confirmed' %}bg-blue-100 text-blue-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+              <span class="rounded-full px-2.5 py-0.5 font-bold {% if apt.status == 'completed' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif apt.status == 'cancelled' %}bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300{% elif apt.status == 'confirmed' %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% endif %}">
                 {{ apt.get_status_display }}
               </span>
             </td>
-            <td class="px-4 py-3.5">{{ apt.fee_bdt|floatformat:2 }}</td>
-            <td class="px-4 py-3.5">{{ apt.platform_fee_bdt|floatformat:2 }}</td>
-            <td class="px-4 py-3.5 font-semibold">{{ apt.net_doctor_payout_bdt|floatformat:2 }}</td>
-            <td class="px-4 py-3.5 {% if apt.refund_amount > 0 %}text-red-600{% endif %}">{{ apt.refund_amount|floatformat:2|default:"0" }}</td>
+            <td class="px-4 py-3.5">{{ apt.fee_bdt|floatformat:2 }} BDT</td>
+            <td class="px-4 py-3.5">{{ apt.platform_fee_bdt|floatformat:2 }} BDT</td>
+            <td class="px-4 py-3.5 font-bold text-teal-700 dark:text-teal-400">{{ apt.net_doctor_payout_bdt|floatformat:2 }} BDT</td>
+            <td class="px-4 py-3.5 {% if apt.refund_amount > 0 %}text-red-600 font-bold{% endif %}">{{ apt.refund_amount|floatformat:2|default:"0" }} BDT</td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="px-4 py-6 text-center text-stone-500">No appointments yet.</td></tr>
+          <tr><td colspan="7" class="px-4 py-6 text-center text-stone-500">{% translate_bn "No appointments found matching the selected filters." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>

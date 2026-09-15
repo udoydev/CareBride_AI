@@ -73,9 +73,9 @@
       <h2 class="text-lg font-bold text-teal-900 dark:text-teal-300 flex items-center gap-2">
         <span>🤖</span> AI Overall Health Assessment
       </h2>
-      <span class="text-xs font-bold text-teal-700 dark:text-teal-400 bg-teal-100 dark:bg-teal-950 px-2.5 py-1 rounded-md border border-teal-200 dark:border-teal-800">
-        {% if summary_language == 'bn' %}বাংলা{% else %}English{% endif %}
-      </span>
+      <a href="?lang={% if summary_language == 'bn' %}en{% else %}bn{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="inline-flex items-center gap-1.5 rounded-full border border-teal-300 bg-white px-3 py-1 text-xs font-bold text-teal-800 shadow-xs transition hover:bg-teal-100 dark:border-teal-700 dark:bg-slate-800 dark:text-teal-200 dark:hover:bg-slate-700" title="Switch language">
+        <i class="fa-solid fa-language"></i> {% if summary_language == 'bn' %}View in English{% else %}বাংলায় দেখুন (Bangla){% endif %}
+      </a>
     </div>
     <div class="text-sm font-medium text-stone-800 dark:text-stone-200 whitespace-pre-line leading-relaxed bg-white/60 dark:bg-slate-850 p-4 rounded-2xl border border-teal-100 dark:border-slate-800">
       {{ ai_summary }}

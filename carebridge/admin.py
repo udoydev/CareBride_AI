@@ -39,7 +39,7 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
         month_start = today.replace(day=1)
         
         settings_obj = SiteSettings.get_solo()
-        commission_rate = Decimal(str(settings_obj.platform_commission_rate or "3.00"))
+        commission_rate = Decimal(str(settings_obj.platform_commission_rate or "15.00"))
 
         paid_appointments = Appointment.objects.filter(payment_status="paid")
         total_platform_income = paid_appointments.aggregate(total=Sum("platform_fee_bdt"))["total"] or 0
@@ -47,7 +47,7 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
         weekly_platform_income = paid_appointments.filter(appointment_date__gte=week_start).aggregate(total=Sum("platform_fee_bdt"))["total"] or 0
         
         total_refunds = Appointment.objects.filter(status="cancelled").aggregate(total=Sum("refund_amount"))["total"] or 0
-        net_platform_income = total_platform_income or 0
+        net_platform_income = max(Decimal("0.00"), Decimal(str(total_platform_income or 0)) - Decimal(str(total_refunds or 0)))
 
         total_appointments = Appointment.objects.count()
         total_patients = Patient.objects.count()
@@ -120,7 +120,9 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
             elif action_type == "edit_news":
                 news_id = request.POST.get("news_id")
                 title = request.POST.get("title", "").strip()
+                title_bn = request.POST.get("title_bn", "").strip() or None
                 message = request.POST.get("message", "").strip()
+                message_bn = request.POST.get("message_bn", "").strip() or None
                 target = request.POST.get("target_audience", "all")
                 is_urgent = bool(request.POST.get("is_urgent"))
                 is_active = bool(request.POST.get("is_active"))
@@ -129,7 +131,9 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
                     news_item = News.objects.filter(pk=news_id).first()
                     if news_item:
                         news_item.title = title
+                        news_item.title_bn = title_bn
                         news_item.message = message
+                        news_item.message_bn = message_bn
                         news_item.target_audience = target
                         news_item.is_urgent = is_urgent
                         news_item.is_active = is_active
@@ -139,13 +143,17 @@ class AnalyticsDashboardAdmin(admin.ModelAdmin):
 
             elif action_type == "create_news":
                 title = request.POST.get("title", "").strip()
+                title_bn = request.POST.get("title_bn", "").strip() or None
                 message = request.POST.get("message", "").strip()
+                message_bn = request.POST.get("message_bn", "").strip() or None
                 target = request.POST.get("target_audience", "all")
                 is_urgent = bool(request.POST.get("is_urgent"))
                 if title and message:
                     News.objects.create(
                         title=title,
+                        title_bn=title_bn,
                         message=message,
+                        message_bn=message_bn,
                         target_audience=target,
                         is_urgent=is_urgent,
                         is_active=True,
