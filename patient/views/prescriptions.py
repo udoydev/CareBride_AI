@@ -107,7 +107,7 @@ def prescription_detail(request, prescription_id):
     follow_up = getattr(prescription, "follow_up", None)
 
     from patient.services import summarize_prescription
-    ai_summary = summarize_prescription(prescription, language=patient.preferred_language if patient else "bn")
+    ai_summary = summarize_prescription(prescription, language=patient.preferred_language if patient else "en")
 
     return render(
         request,

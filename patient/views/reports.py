@@ -22,7 +22,7 @@ def health_record(request):
         messages.error(request, "Only patients can access health records.")
         return redirect("home")
 
-    language = request.session.get("site_lang") or getattr(patient, "preferred_language", None) or "bn"
+    language = request.session.get("site_lang") or getattr(patient, "preferred_language", None) or "en"
     today = timezone.localdate()
 
     ai_answer = ""

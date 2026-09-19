@@ -16,13 +16,6 @@ def ui_settings(request):
         cookie_lang = request.COOKIES.get(getattr(settings, "LANGUAGE_COOKIE_NAME", "django_language"))
         site_lang = cookie_lang
 
-    if not site_lang:
-        current_active = translation.get_language()
-        if current_active and current_active.startswith("bn"):
-            site_lang = "bn"
-        else:
-            site_lang = "en"
-
     target_lang = "bn" if site_lang == "bn" else "en"
     translation.activate(target_lang)
     request.session["site_lang"] = target_lang

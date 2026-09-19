@@ -43,7 +43,7 @@ class Patient(models.Model):
     preferred_language = models.CharField(
         max_length=10,
         choices=[("bn", "Bangla"), ("en", "English")],
-        default="bn",
+        default="en",
     )
     custom_dose_times = JSONField(default=list, blank=True, help_text="Custom dose times in HH:MM format, e.g. ['08:00', '14:00', '20:00']")
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Refundable wallet balance in BDT")

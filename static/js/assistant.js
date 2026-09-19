@@ -8,7 +8,7 @@
   let isOpen = false;
   let isSending = false;
   let historyLoaded = false;
-  let currentLang = cfg.lang || "bn";
+  let currentLang = cfg.lang || "en";
   let attachedFile = null;
   let isListening = false;
   let activeRecognition = null;
@@ -22,7 +22,7 @@
       this.currentAudio = null;
       this.isEnabled = false;
       this.currentText = "";
-      this.currentLang = "bn";
+      this.currentLang = "en";
       this.isPlaying = false;
     }
 
