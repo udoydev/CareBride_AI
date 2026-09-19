@@ -18,8 +18,52 @@ from reportlab.pdfbase import pdfmetrics, ttfonts
 from pypdf import PdfReader, PdfWriter
 from carebridge.ai_services import GeminiAIService
 from accounts.decorators import never_cache_auth
-from .models import Prescription, PrescriptionItem, Medicine
+from .models import Prescription, PrescriptionItem, Medicine, AIPrescriptionScan
 from doctors.models import Appointment
+
+
+@login_required
+def scan_prescription_view(request):
+    patient = getattr(request.user, "patient_profile", None)
+    if not patient:
+        messages.error(request, "Only patients can scan prescriptions.")
+        return redirect("home")
+
+    recent_scans = AIPrescriptionScan.objects.filter(patient=patient).order_by("-created_at")[:10]
+
+    if request.method == "POST":
+        image = request.FILES.get("prescription_image")
+        if not image:
+            messages.error(request, "Please upload a prescription image.")
+            return redirect("prescriptions:scan_prescription")
+
+        scan = AIPrescriptionScan.objects.create(
+            patient=patient,
+            image=image,
+            status="pending",
+        )
+
+        try:
+            extracted = GeminiAIService.scan_prescription_image(scan.image.path)
+            if extracted and isinstance(extracted, dict):
+                scan.extracted_json = extracted
+                scan.status = "completed"
+                scan.save()
+                messages.success(request, "Prescription scanned and analyzed successfully!")
+            else:
+                scan.status = "failed"
+                scan.save()
+                messages.warning(request, "Could not extract structured data from image, but upload was saved.")
+        except Exception as e:
+            scan.status = "failed"
+            scan.save()
+            messages.error(request, f"Analysis error: {str(e)}")
+
+        return redirect("prescriptions:scan_prescription")
+
+    return render(request, "prescriptions/scan_prescription.html", {
+        "recent_scans": recent_scans,
+    })
 
 
 def calculate_age(date_of_birth):

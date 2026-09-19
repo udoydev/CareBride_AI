@@ -90,10 +90,18 @@ def voice_chatbot_view(request):
     return render(request, "voice_chatbot.html", context)
 
 
+SONEX_API_KEY = os.environ.get("SONEX_API_KEY") or os.environ.get("SONIOX_API_KEY")
+SONEX_VOICE_MAP = {
+    "bn": "sas4xmzq2a",  # Nupur - Native Bengali Studio voice
+    "en": "9b8fsavyez",  # Diya - Fluent English Studio voice
+}
+
+
 def voice_tts_stream_api(request):
     """
-    Official Google Text-to-Speech API Endpoint for Bangla (bn) & English (en).
-    Generates official Google Audio MP3 streams directly for HTML5 Audio player.
+    High-Fidelity Text-to-Speech API Endpoint for Bangla (bn) & English (en).
+    Powered by Sonex Labs Studio Voice AI with fallback to Google TTS.
+    Returns live audio stream directly for HTML5 Audio playback.
     """
     text = request.GET.get("text") or request.POST.get("text") or ""
     lang = request.GET.get("lang") or request.POST.get("lang") or "bn"
@@ -103,20 +111,43 @@ def voice_tts_stream_api(request):
     if not cleaned_text:
         return HttpResponse(b"", content_type="audio/mpeg", status=400)
 
-    short_text = cleaned_text[:220]
+    short_text = cleaned_text[:350]
 
-    if gTTS is None:
-        logger.warning("gTTS is unavailable; returning empty audio response.")
-        return HttpResponse(b"", content_type="audio/mpeg", status=502)
+    # 1. Primary: Sonex Labs High-Fidelity Voice API
+    sonex_key = os.environ.get("SONEX_API_KEY") or os.environ.get("SONIOX_API_KEY") or SONEX_API_KEY
+    if sonex_key and requests:
+        try:
+            voice_id = SONEX_VOICE_MAP.get(google_lang, "sas4xmzq2a" if google_lang == "bn" else "9b8fsavyez")
+            resp = requests.post(
+                "https://api.sonexlabs.com/v1/speech/stream",
+                headers={
+                    "Authorization": f"Bearer {sonex_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "text": short_text,
+                    "voice_id": voice_id,
+                },
+                timeout=10,
+            )
+            if resp.status_code == 200 and len(resp.content) > 0:
+                content_type = resp.headers.get("Content-Type", "audio/wav")
+                return HttpResponse(resp.content, content_type=content_type)
+            else:
+                logger.warning(f"Sonex Labs returned status {resp.status_code}, falling back to gTTS")
+        except Exception as e:
+            logger.warning(f"Sonex Labs speech error: {e}, falling back to gTTS")
 
-    try:
-        tts = gTTS(text=short_text, lang=google_lang, slow=False)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        return HttpResponse(fp.read(), content_type="audio/mpeg")
-    except Exception as e:
-        logger.error(f"Official Google TTS API error: {e}")
+    # 2. Fallback: Google Text-to-Speech (gTTS)
+    if gTTS is not None:
+        try:
+            tts = gTTS(text=short_text[:220], lang=google_lang, slow=False)
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            fp.seek(0)
+            return HttpResponse(fp.read(), content_type="audio/mpeg")
+        except Exception as e:
+            logger.error(f"Google TTS API error: {e}")
 
     return HttpResponse(b"", content_type="audio/mpeg", status=502)
 

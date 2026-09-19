@@ -20,6 +20,7 @@ urlpatterns = [
     path("doctors/prescriptions/<int:prescription_id>/download/", views.download_prescription, name="download_prescription"),
     path("doctors/followup/<int:followup_id>/status/", views.update_followup_status, name="update_followup_status"),
     path("doctors/schedule/", views.schedule_management, name="schedule_management"),
+    path("doctors/schedule/manage/", views.schedule_management, name="schedule"),
     path("doctors/schedule/<int:schedule_id>/delete/", views.delete_schedule, name="delete_schedule"),
     path("doctors/financial-report/export/", views.doctor_financial_report, name="financial_report_export"),
     path("doctors/appointments/", views.appointment_list, name="appointment_list"),

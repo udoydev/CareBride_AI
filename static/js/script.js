@@ -108,17 +108,13 @@ function cleanMarkdownForSpeech(text, isBn) {
   return cleaned;
 }
 
-function speakText(text, lang) {
+let currentSpeechAudio = null;
+
+function fallbackSpeechSynthesis(text, isBn) {
   if (!window.speechSynthesis || !text) return;
-  const isBn = (lang || "bn-BD").startsWith("bn");
-
-  const cleaned = cleanMarkdownForSpeech(text, isBn);
-  if (!cleaned) return;
-
   window.speechSynthesis.cancel();
-  const chunks = cleaned.split(/(?<=[.!?।])\s+/).filter(Boolean);
-
-  const queue = chunks.length ? chunks : [cleaned];
+  const chunks = text.split(/(?<=[.!?।])\s+/).filter(Boolean);
+  const queue = chunks.length ? chunks : [text];
   queue.forEach((chunk) => {
     const utterance = new SpeechSynthesisUtterance(chunk);
     const voiceLang = isBn ? "bn-BD" : "en-US";
@@ -130,6 +126,46 @@ function speakText(text, lang) {
     utterance.volume = 1.0;
     window.speechSynthesis.speak(utterance);
   });
+}
+
+function speakText(text, lang) {
+  if (!text) return;
+  const isBn = (lang || "bn-BD").toLowerCase().includes("bn");
+  const cleaned = cleanMarkdownForSpeech(text, isBn);
+  if (!cleaned) return;
+
+  // Stop any previously playing audio
+  if (currentSpeechAudio) {
+    try {
+      currentSpeechAudio.pause();
+      currentSpeechAudio.currentTime = 0;
+    } catch(e) {}
+    currentSpeechAudio = null;
+  }
+  if (window.speechSynthesis) {
+    try { window.speechSynthesis.cancel(); } catch(e) {}
+  }
+
+  // Primary: Stream HD Studio Voice from Sonex Labs
+  const targetLang = isBn ? "bn" : "en";
+  const ttsUrl = `/api/voice/tts/?text=${encodeURIComponent(cleaned.substring(0, 300))}&lang=${targetLang}&t=${Date.now()}`;
+  const audio = new Audio(ttsUrl);
+  currentSpeechAudio = audio;
+
+  let fallbackTriggered = false;
+  const triggerFallback = () => {
+    if (fallbackTriggered) return;
+    fallbackTriggered = true;
+    fallbackSpeechSynthesis(cleaned, isBn);
+  };
+
+  audio.onerror = triggerFallback;
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      triggerFallback();
+    });
+  }
 }
 
 function getVoiceModal(lang) {
@@ -178,7 +214,7 @@ function renderVoiceModalPills(commands, lang) {
 
   pillsContainer.innerHTML = "";
   (commands || []).forEach((cmd) => {
-    if (!cmd.url || cmd.url.includes("/chat") || cmd.url.includes("chatbot")) return;
+    if (!cmd.url) return;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.onclick = () => { window.location.href = cmd.url; };
@@ -212,7 +248,7 @@ function hideVoiceModal() {
   }
 }
 
-async function startSpeechRecognition(options) {
+async function startSpeechRecognition(options = {}) {
   const Recognition = getSpeechRecognition();
   if (!Recognition) {
     alert("Voice recognition is not supported on this browser. Please use Chrome or Edge.");
@@ -222,64 +258,118 @@ async function startSpeechRecognition(options) {
   const recognition = new Recognition();
   recognition.lang = options.lang || "en-US";
   recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   recognition.maxAlternatives = 5;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let finalTranscript = "";
+    let alternatives = [];
+
+    const finish = (result) => {
+      if (resolved) return;
+      resolved = true;
+      try { recognition.stop(); } catch(e) {}
+      resolve(result);
+    };
+
     recognition.onresult = (event) => {
-      let results = [];
-      if (event.results && event.results[0]) {
-        for (let i = 0; i < event.results[0].length; i++) {
-          results.push(event.results[0][i].transcript);
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript = event.results[i][0].transcript;
+          for (let j = 0; j < event.results[i].length; j++) {
+            alternatives.push(event.results[i][j].transcript);
+          }
+        } else {
+          interim += event.results[i][0].transcript;
         }
       }
-      const primary = results[0] || "";
-      resolve({ primary, alternatives: results });
+
+      const activeText = finalTranscript || interim;
+      if (options.onInterim && activeText) {
+        options.onInterim(activeText);
+      }
+
+      if (finalTranscript) {
+        finish({ primary: finalTranscript, alternatives });
+      }
     };
 
     recognition.onerror = (event) => {
-      reject(new Error(event.error || "speech recognition error"));
+      if (event.error === "no-speech") {
+        finish({ primary: "", alternatives: [] });
+      } else {
+        finish(null);
+      }
     };
 
-    recognition.onend = () => {};
-    recognition.start();
+    recognition.onend = () => {
+      finish(finalTranscript ? { primary: finalTranscript, alternatives } : null);
+    };
+
+    try {
+      recognition.start();
+    } catch(err) {
+      finish(null);
+    }
   });
 }
 
+function cleanCommandIntent(text) {
+  let cleaned = normalizeSpeech(text);
+  const fillers = [
+    /\b(যাও|যান|যাব|খোলো|খুলুন|দেখাও|দেখান|নিয়ে চল|নিয়ে চলো|পেজে|পেজ|এ|তে|আমার|একটু|দয়া করে)\b/g,
+    /\b(go to|navigate to|open|show me|take me to|please|can you|i want to see|page)\b/g,
+  ];
+  fillers.forEach(rx => {
+    cleaned = cleaned.replace(rx, " ");
+  });
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
 function matchVoiceTarget(text, alternatives, targets) {
-  const allTexts = [text, ...(alternatives || [])];
+  const allTexts = [text, ...(alternatives || [])].filter(Boolean);
+  
   for (const candidate of allTexts) {
-    const normalized = normalizeSpeech(candidate);
-    const matched = targets.find((target) =>
-      target.terms.some((term) => normalized.includes(normalizeSpeech(term)))
-    );
-    if (matched) return matched;
+    const norm = normalizeSpeech(candidate);
+    const cleaned = cleanCommandIntent(candidate);
+    for (const target of targets) {
+      if (!target.terms) continue;
+      for (const term of target.terms) {
+        const normTerm = normalizeSpeech(term);
+        if (norm.includes(normTerm) || (cleaned && cleaned.includes(normTerm)) || (norm && normTerm.includes(norm))) {
+          return target;
+        }
+      }
+    }
   }
   return null;
 }
 
 const DEFAULT_VOICE_COMMANDS = [
-  { terms: ["scan", "ocr", "prescription scan", "প্রেসক্রিপশন স্ক্যান", "স্ক্যান", "ছবি স্ক্যান", "প্রেসক্রিপশন"], url: "/prescriptions/scan/", labelEn: "📄 Scan", labelBn: "📄 স্ক্যান / Scan" },
-  { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "main page"], url: "/patient/dashboard/", labelEn: "Dashboard", labelBn: "ড্যাশবোর্ড / Dashboard" },
-  { terms: ["today", "doses", "ডোজ", "আজ", "আজকের ওষুধ", "medicine", "oshud", "osud", "ওষুধ"], url: "/patient/doses/today/", labelEn: "Today's Doses", labelBn: "ওষুধ / Today" },
-  { terms: ["records", "record", "health record", "রেকর্ড", "স্বাস্থ্য", "মেডিকেল হিস্ট্রি"], url: "/patient/health-record/", labelEn: "Health Records", labelBn: "রেকর্ড / Records" },
-  { terms: ["appointments", "appointment", "অ্যাপয়েন্টমেন্ট", "ফলো আপ", "ফলোআপ", "visit"], url: "/patient/appointments/", labelEn: "Appointments", labelBn: "অ্যাপয়েন্টমেন্ট / Appointments" },
-  { terms: ["analytics", "অ্যানালিটিক্স", "report", "রিপোর্ট"], url: "/patient/analytics/", labelEn: "Analytics", labelBn: "অ্যানালিটিক্স / Analytics" },
-  { terms: ["overall report", "overall", "ওভারঅল রিপোর্ট"], url: "/patient/overall-report/", labelEn: "Overall Report", labelBn: "ওভারঅল / Overall Report" },
-  { terms: ["doctor", "doctors", "ডাক্তার", "daktar", "physician", "ডাক্তার তালিকা", "ডাক্তার খুঁজুন"], url: "/patient/doctors/", labelEn: "Doctors", labelBn: "ডাক্তার / Doctors" },
-  { terms: ["rules", "রুলস", "নিয়মাবলী", "নিয়ম"], url: "/patient/rules/", labelEn: "Rules", labelBn: "নিয়মাবলী / Rules" },
-  { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট", "আমার প্রোফাইল"], url: "/accounts/profile/", labelEn: "Profile", labelBn: "প্রোফাইল / Profile" },
-  { terms: ["logout", "log out", "exit", "বের হন", "লগ আউট"], url: "/accounts/logout/", labelEn: "Log out", labelBn: "লগ আউট / Logout" }
+  { terms: ["scan", "ocr", "prescription scan", "প্রেসক্রিপশন স্ক্যান", "স্ক্যান", "ছবি স্ক্যান", "প্রেসক্রিপশন"], url: "/prescriptions/scan/", labelEn: "📄 Scan", labelBn: "📄 স্ক্যান" },
+  { terms: ["dashboard", "ড্যাশবোর্ড", "home", "হোম", "main page"], url: "/patient/dashboard/", labelEn: "Dashboard", labelBn: "ড্যাশবোর্ড" },
+  { terms: ["today", "doses", "ডোজ", "আজ", "আজকের ওষুধ", "medicine", "oshud", "osud", "ওষুধ", "ঔষধ"], url: "/patient/doses/today/", labelEn: "Today's Doses", labelBn: "আজকের ওষুধ" },
+  { terms: ["records", "record", "health record", "রেকর্ড", "স্বাস্থ্য", "মেডিকেল হিস্ট্রি"], url: "/patient/health-record/", labelEn: "Health Records", labelBn: "স্বাস্থ্য রেকর্ড" },
+  { terms: ["appointments", "appointment", "অ্যাপয়েন্টমেন্ট", "ফলো আপ", "ফলোআপ", "visit", "সিরিয়াল"], url: "/patient/appointments/", labelEn: "Appointments", labelBn: "অ্যাপয়েন্টমেন্ট" },
+  { terms: ["analytics", "অ্যানালিটিক্স", "report", "রিপোর্ট"], url: "/patient/analytics/", labelEn: "Analytics", labelBn: "অ্যানালিটিক্স" },
+  { terms: ["overall report", "overall", "ওভারঅল রিপোর্ট", "মেডিকেল রিপোর্ট"], url: "/patient/overall-report/", labelEn: "Overall Report", labelBn: "ওভারঅল রিপোর্ট" },
+  { terms: ["doctor", "doctors", "ডাক্তার", "daktar", "physician", "ডাক্তার তালিকা", "ডাক্তার খুঁজুন"], url: "/patient/doctors/", labelEn: "Doctors", labelBn: "ডাক্তার খুঁজুন" },
+  { terms: ["voice", "voice assistant", "voice chatbot", "ভয়েস", "ভয়েস", "ভয়েস চ্যাট", "ভয়েস চ্যাটবট", "কথা বল", "কথা বলতে চাই"], url: "/voice/", labelEn: "🎙️ Voice AI", labelBn: "🎙️ ভয়েস এআই" },
+  { terms: ["rules", "রুলস", "নিয়মাবলী", "নিয়ম"], url: "/patient/rules/", labelEn: "Rules", labelBn: "নিয়মাবলী" },
+  { terms: ["profile", "প্রোফাইল", "account", "অ্যাকাউন্ট", "আমার প্রোফাইল"], url: "/accounts/profile/", labelEn: "Profile", labelBn: "প্রোফাইল" },
+  { terms: ["logout", "log out", "exit", "বের হন", "লগ আউট"], url: "/accounts/logout/", labelEn: "Sign Out", labelBn: "লগ আউট" }
 ];
 
 function getVoiceConfig() {
-  const dynamic = (window.CAREBRIDGE_VOICE_COMMANDS && window.CAREBRIDGE_VOICE_COMMANDS.patient) || [];
+  const userRole = window.CAREBRIDGE_USER_ROLE || "patient";
+  const dynamicMap = window.CAREBRIDGE_VOICE_COMMANDS || {};
+  const dynamic = dynamicMap[userRole] || dynamicMap.patient || [];
   let baseConfig = dynamic.length ? dynamic : DEFAULT_VOICE_COMMANDS;
   
-  // Filter out chat links completely
-  baseConfig = baseConfig.filter(cmd => !cmd.url.includes("/chat") && !(cmd.terms && cmd.terms.some(t => t === "chat" || t === "চ্যাট")));
+  baseConfig = baseConfig.filter(cmd => cmd.url);
 
-  // Dynamically attach labels if missing
   baseConfig.forEach(cmd => {
     if (!cmd.labelEn || !cmd.labelBn) {
       const matchDefault = DEFAULT_VOICE_COMMANDS.find(d => d.url === cmd.url);
@@ -305,8 +395,8 @@ async function runVoiceNavigation(button) {
 
   const initialTitle = isEn ? "Listening to Voice Command..." : "বাংলা ভয়েস কমান্ডে শুনছি...";
   const initialStatus = isEn
-    ? "Say: Scan, Dashboard, Doses, Records, Appointments, Doctors..."
-    : "বলুন: প্রেসক্রিপশন স্ক্যান, ড্যাশবোর্ড, ওষুধ, রেকর্ড, অ্যাপয়েন্টমেন্ট, ডাক্তার...";
+    ? "Say: Scan, Dashboard, Doses, Records, Appointments, Doctors, Voice..."
+    : "বলুন: প্রেসক্রিপশন স্ক্যান, ড্যাশবোর্ড, ওষুধ, রেকর্ড, অ্যাপয়েন্টমেন্ট, ডাক্তার, ভয়েস...";
 
   showVoiceModal(initialTitle, initialStatus, config, lang);
 
@@ -323,8 +413,18 @@ async function runVoiceNavigation(button) {
     const primaryLang = isEn ? "en-US" : "bn-BD";
     const secondaryLang = isEn ? "bn-BD" : "en-US";
 
+    const handleInterim = (heardText) => {
+      if (canceled || !heardText) return;
+      const liveStatus = isEn
+        ? `Hearing: "${heardText}"...`
+        : `শুনছি: "${heardText}"...`;
+      const statusEl = document.getElementById("carebridgeVoiceStatus");
+      if (statusEl) statusEl.textContent = liveStatus;
+    };
+
     let res = await startSpeechRecognition({
       lang: primaryLang,
+      onInterim: handleInterim,
     }).catch(() => null);
 
     let matched = res && res.primary ? matchVoiceTarget(res.primary, res.alternatives, config) : null;
@@ -333,6 +433,7 @@ async function runVoiceNavigation(button) {
     if (!matched && !canceled) {
       const secondaryRes = await startSpeechRecognition({
         lang: secondaryLang,
+        onInterim: handleInterim,
       }).catch(() => null);
 
       if (secondaryRes && secondaryRes.primary) {
@@ -350,11 +451,11 @@ async function runVoiceNavigation(button) {
       const titleRecognized = isEn ? "Command Recognized!" : "কমান্ড সনাক্ত হয়েছে!";
       const statusRecognized = isEn
         ? `Heard: "${spoken}". Navigating...`
-        : `শোনা গেছে: "${spoken}". নিয়ে যাচ্ছি...`;
+        : `শোনা গেছে: "${spoken}"। নিয়ে যাচ্ছি...`;
 
       showVoiceModal(titleRecognized, statusRecognized, config, lang);
       
-      const confirmSpeech = isEn ? "Command accepted. Navigating now." : "কমান্ড গ্রহণ করা হয়েছে। নেভিগেট করা হচ্ছে।";
+      const confirmSpeech = isEn ? "Command accepted. Navigating now." : "কমান্ড গ্রহণ করা হয়েছে। নিয়ে যাচ্ছি।";
       speakText(confirmSpeech, primaryLang);
 
       setTimeout(() => {
@@ -383,7 +484,7 @@ async function runVoiceNavigation(button) {
 
     setTimeout(() => {
       if (!canceled) hideVoiceModal();
-    }, 4000);
+    }, 4500);
   } catch (error) {
     if (!canceled) {
       const titleError = isEn ? "Voice Navigation" : "ভয়েস নেভিগেশন";
@@ -394,7 +495,7 @@ async function runVoiceNavigation(button) {
       showVoiceModal(titleError, statusError, config, lang);
       setTimeout(() => {
         if (!canceled) hideVoiceModal();
-      }, 4000);
+      }, 4500);
     }
   }
 }

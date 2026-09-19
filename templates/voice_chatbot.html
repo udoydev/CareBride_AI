@@ -381,7 +381,85 @@
             }
         }
 
+        let recognition = null;
+
         async function startRecording() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            // Prefer native SpeechRecognition in browser for guaranteed zero-dependency reliability
+            if (SpeechRec) {
+                try {
+                    recognition = new SpeechRec();
+                    recognition.continuous = false;
+                    recognition.interimResults = true;
+                    recognition.lang = currentLanguage === 'bn' ? 'bn-BD' : 'en-US';
+
+                    updateStatus(true, currentLanguage === 'bn' ? "লাইভ ভয়েস শুনছি... কথা বলুন" : "Listening live... Speak now");
+                    isRecording = true;
+                    micIcon.innerText = "⏹️";
+                    micBtnText.innerText = currentLanguage === 'bn' ? "থামুন (Stop)" : "Stop Mic (OFF)";
+                    micBtn.classList.add('pulse-red');
+
+                    // Audio visualizer hook via getUserMedia
+                    try {
+                        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const source = audioContext.createMediaStreamSource(mediaStream);
+                        scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+                        scriptProcessor.onaudioprocess = (e) => {
+                            if (!isRecording) return;
+                            animateVisualizer(e.inputBuffer.getChannelData(0));
+                        };
+                        source.connect(scriptProcessor);
+                        scriptProcessor.connect(audioContext.destination);
+                    } catch (e) {
+                        console.warn("Visualizer mic not available:", e);
+                    }
+
+                    recognition.onresult = (event) => {
+                        let interim = "";
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            if (event.results[i].isFinal) {
+                                lastTranscribedText = event.results[i][0].transcript;
+                            } else {
+                                interim += event.results[i][0].transcript;
+                            }
+                        }
+                        if (lastTranscribedText || interim) {
+                            const current = lastTranscribedText || interim;
+                            const liveTextElem = document.getElementById('recognized-live-text');
+                            if (liveTextElem) {
+                                liveTextElem.innerText = current;
+                            } else {
+                                appendTranscription({
+                                    speaker: 1,
+                                    language: currentLanguage,
+                                    original: current,
+                                    text: current
+                                });
+                            }
+                        }
+                    };
+
+                    recognition.onerror = (err) => {
+                        console.warn("Speech recognition error:", err.error);
+                        updateStatus(false, "Recognition error: " + (err.error || 'Check mic'));
+                    };
+
+                    recognition.onend = () => {
+                        if (isRecording) {
+                            stopRecording();
+                        }
+                    };
+
+                    recognition.start();
+                    return;
+                } catch (recErr) {
+                    console.warn("SpeechRec error, falling back to websocket:", recErr);
+                }
+            }
+
+            // Fallback to WebSocket if Web Speech API is not supported
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
@@ -429,7 +507,7 @@
 
                 ws.onerror = (err) => {
                     console.error("WebSocket Error:", err);
-                    updateStatus(false, "Connection Disconnected");
+                    updateStatus(false, "Connection Offline");
                 };
 
                 ws.onclose = () => {
@@ -438,17 +516,22 @@
 
             } catch (err) {
                 alert("Microphone access error: " + err.message);
+                updateStatus(false, "Microphone Error");
             }
         }
 
         function stopRecording() {
             isRecording = false;
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+                recognition = null;
+            }
             if (scriptProcessor) {
                 scriptProcessor.disconnect();
                 scriptProcessor = null;
             }
             if (audioContext) {
-                audioContext.close();
+                try { audioContext.close(); } catch(e) {}
                 audioContext = null;
             }
             if (mediaStream) {
@@ -456,8 +539,11 @@
                 mediaStream = null;
             }
             if (ws) {
-                ws.send(JSON.stringify({ type: "finish" }));
-                ws.close();
+                try {
+                    ws.send(JSON.stringify({ type: "finish" }));
+                    ws.close();
+                } catch(e) {}
+                ws = null;
             }
 
             updateStatus(false, currentLanguage === 'bn' ? "মাইক্রোফোন বন্ধ" : "Microphone OFF");
