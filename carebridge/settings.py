@@ -21,27 +21,26 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
 
-# Ensure .env is read into os.environ before DATABASES is configured
-env_file = BASE_DIR / '.env'
+# Load environment variables (.env)
+load_dotenv(BASE_DIR / ".env")
+env_file = BASE_DIR / ".env"
 if env_file.exists():
-    with open(env_file, 'r', encoding='utf-8') as f:
+    with open(env_file, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, val = line.split('=', 1)
-                os.environ[key.strip()] = val.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SECRET_KEY = 'django-insecure-#n_63m^237fjg5n&t(e-d2v4u%$68ged54tq*4!u1r5)nof3g0'
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-#n_63m^237fjg5n&t(e-d2v4u%$68ged54tq*4!u1r5)nof3g0")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t", "yes")
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
 
 
 
@@ -104,11 +103,24 @@ JAZZMIN_SETTINGS = {
         "auth.user": "fas fa-user",
         "accounts.doctor": "fas fa-user-doctor",
         "accounts.patient": "fas fa-user-injured",
+        "accounts.aiprovider": "fas fa-brain",
+        "accounts.news": "fas fa-newspaper",
+        "accounts.sitesettings": "fas fa-sliders-h",
+        "accounts.appnotification": "fas fa-bell",
+        "doctors.doctorschedule": "fas fa-calendar-alt",
+        "doctors.appointment": "fas fa-calendar-check",
+        "patient.chatsession": "fas fa-comments",
+        "patient.chatmessage": "fas fa-comment-dots",
+        "patient.healthmetric": "fas fa-heartbeat",
+        "patient.medicalhistory": "fas fa-notes-medical",
+        "patient.patienthealthreport": "fas fa-file-medical",
+        "patient.patientvisit": "fas fa-stethoscope",
         "prescriptions.prescription": "fas fa-file-prescription",
         "prescriptions.prescriptionitem": "fas fa-pills",
         "prescriptions.medicine": "fas fa-capsules",
-        "reminders.reminderschedule": "fas fa-bell",
-        "followups.followup": "fas fa-calendar-check",
+        "prescriptions.aiprescriptionscan": "fas fa-camera",
+        "prescriptions.reminderschedule": "fas fa-clock",
+        "prescriptions.followup": "fas fa-calendar-plus",
     },
 }
 
@@ -263,16 +275,6 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Load .env variables
-env_file = BASE_DIR / '.env'
-if env_file.exists():
-    with open(env_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, val = line.split('=', 1)
-                os.environ[key.strip()] = val.strip()
-
 # Email Configuration (Gmail SMTP)
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
@@ -282,9 +284,18 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'mdimran095m@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'fsqvtfqocoopccpb')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'CareBridge AI <mdimran095m@gmail.com>')
 
-# AI Configuration
+# AI & Voice Engine Configuration
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'gemini')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
 OPENROUTER_SITE_URL = os.getenv('OPENROUTER_SITE_URL', 'https://carebridge.ai')
 OPENROUTER_SITE_TITLE = os.getenv('OPENROUTER_SITE_TITLE', 'CareBridge AI')
+
+# Sonex Labs Voice AI Configuration
+SONEX_API_KEY = os.getenv('SONEX_API_KEY') or os.getenv('SONIOX_API_KEY', '')
+SONIOX_API_KEY = SONEX_API_KEY
+SONIOX_VOICE_SERVICE_URL = os.getenv('SONIOX_VOICE_SERVICE_URL', 'http://localhost:5000')
 
