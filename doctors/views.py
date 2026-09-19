@@ -1301,10 +1301,19 @@ def appointment_list(request):
 
     if filter_type == "date" and filter_value:
         appointments = appointments.filter(appointment_date=filter_value)
-    elif filter_type == "month" and filter_month and filter_year:
-        appointments = appointments.filter(appointment_date__startswith=f"{filter_year}-{filter_month}")
+    elif filter_type == "month" and filter_month:
+        try:
+            m_val = int(filter_month)
+            appointments = appointments.filter(appointment_date__month=m_val)
+            if filter_year:
+                appointments = appointments.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
     elif filter_type == "year" and filter_year:
-        appointments = appointments.filter(appointment_date__startswith=filter_year)
+        try:
+            appointments = appointments.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
 
     paginator = Paginator(appointments, 10)
     page_number = request.GET.get("page")
@@ -1347,21 +1356,19 @@ def appointment_list(request):
         min_date=Min("appointment_date"),
         max_date=Max("appointment_date"),
     )
-    years = []
-    months = []
-    if date_aggregates["min_date"] and date_aggregates["max_date"]:
-        min_year = date_aggregates["min_date"].year
-        max_year = date_aggregates["max_date"].year
-        years = list(range(min_year, max_year + 1))
-        months = [
-            ("01", "January"), ("02", "February"), ("03", "March"), ("04", "April"),
-            ("05", "May"), ("06", "June"), ("07", "July"), ("08", "August"),
-            ("09", "September"), ("10", "October"), ("11", "November"), ("12", "December"),
-        ]
+    current_year = today.year
+    min_year = date_aggregates["min_date"].year if date_aggregates.get("min_date") else current_year - 2
+    max_year = date_aggregates["max_date"].year if date_aggregates.get("max_date") else current_year + 1
+    years = sorted(list(range(min(min_year, current_year), max(max_year, current_year) + 1)), reverse=True)
+    months = [
+        ("01", "January"), ("02", "February"), ("03", "March"), ("04", "April"),
+        ("05", "May"), ("06", "June"), ("07", "July"), ("08", "August"),
+        ("09", "September"), ("10", "October"), ("11", "November"), ("12", "December"),
+    ]
 
     selected_month = ""
     selected_year = ""
-    if filter_type == "month" and filter_month and filter_year:
+    if filter_type == "month" and filter_month:
         selected_month = filter_month
         selected_year = filter_year
     elif filter_type == "year" and filter_year:

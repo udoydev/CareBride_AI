@@ -1,7 +1,9 @@
+import re
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q, Value
+from django.db.models.functions import Concat
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import never_cache_auth
@@ -11,31 +13,41 @@ from doctors.models import DoctorSchedule
 
 @never_cache_auth
 @login_required
-@never_cache_auth
-@login_required
 def doctor_list(request):
     query = request.GET.get("q", "").strip()
+    clean_query = re.sub(r'^(?:Dr\.?\s*|Doctor\s*)+', '', query, flags=re.IGNORECASE).strip()
     category = (request.GET.get("category") or request.GET.get("specialty") or "").strip()
     district_filter = request.GET.get("district", "").strip()
     sort_by = request.GET.get("sort", "name").strip()
 
-    doctors_qs = Doctor.objects.select_related("user").filter(is_verified=True)
+    doctors_qs = Doctor.objects.select_related("user").filter(is_verified=True).annotate(
+        full_name_clean=Concat('user__first_name', Value(' '), 'user__last_name'),
+        full_name_dr=Concat(Value('Dr. '), 'user__first_name', Value(' '), 'user__last_name')
+    )
 
     if query:
         doctors_qs = doctors_qs.filter(
-            Q(user__first_name__icontains=query)
-            | Q(user__last_name__icontains=query)
-            | Q(specialty__icontains=query)
-            | Q(hospital_name__icontains=query)
-            | Q(clinic_name__icontains=query)
+            Q(full_name_clean__icontains=clean_query if clean_query else query)
+            | Q(full_name_dr__icontains=query)
+            | Q(user__first_name__icontains=clean_query if clean_query else query)
+            | Q(user__last_name__icontains=clean_query if clean_query else query)
             | Q(user__email__icontains=query)
+            | Q(specialty__icontains=query)
+            | Q(clinic_name__icontains=query)
+            | Q(location_text__icontains=query)
+            | Q(designation__icontains=query)
+            | Q(degrees__icontains=query)
+            | Q(bio__icontains=query)
         )
 
-    if category and category.lower() not in ["all", "সকল ডিপার্টমেন্ট", "সকল ক্যাটাগরি"]:
+    if category and category.lower() not in ["all", "সকল ডিপার্টমেন্ট", "সকল ক্যাটাগরি", "all departments"]:
         doctors_qs = doctors_qs.filter(specialty__icontains=category)
 
     if district_filter:
-        doctors_qs = doctors_qs.filter(user__patient_profile__district=district_filter)
+        doctors_qs = doctors_qs.filter(
+            Q(location_text__icontains=district_filter)
+            | Q(clinic_name__icontains=district_filter)
+        )
 
     if sort_by == "experience":
         doctors_qs = doctors_qs.order_by("-experience_years")

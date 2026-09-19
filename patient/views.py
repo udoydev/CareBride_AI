@@ -905,8 +905,8 @@ def doctor_list(request):
             Q(degrees__icontains=query) |
             Q(bio__icontains=query)
         )
-    if category and category not in ["All", "সকল ক্যাটাগরি", "All Departments", "সকল ডিপার্টমেন্ট"]:
-        doctors = doctors.filter(specialty__iexact=category)
+    if category and category.lower() not in ["all", "সকল ক্যাটাগরি", "all departments", "সকল ডিপার্টমেন্ট"]:
+        doctors = doctors.filter(specialty__icontains=category)
 
     # Calculate Most Visited Doctors suggestions
     most_visited = Doctor.objects.select_related("user").filter(
@@ -915,9 +915,16 @@ def doctor_list(request):
         visit_count=Count("appointments")
     ).order_by("-visit_count", "-experience_years", "-id")[:4]
 
-    categories = ["All"] + sorted(list(
-        set(filter(None, Doctor.objects.filter(is_verified=True).values_list("specialty", flat=True)))
-    ))
+    raw_specs = Doctor.objects.filter(is_verified=True).values_list("specialty", flat=True).distinct()
+    categories_set = set()
+    for spec in raw_specs:
+        if spec and spec.strip():
+            for s in spec.split(","):
+                clean_s = s.strip()
+                if clean_s:
+                    categories_set.add(clean_s)
+
+    categories = ["All"] + sorted(list(categories_set))
 
     paginator = Paginator(doctors, 24)
     page_number = request.GET.get("page")
@@ -1182,10 +1189,19 @@ def appointments(request):
 
     if filter_type == "date" and filter_value:
         apts_qs = apts_qs.filter(appointment_date=filter_value)
-    elif filter_type == "month" and filter_month and filter_year:
-        apts_qs = apts_qs.filter(appointment_date__startswith=f"{filter_year}-{filter_month}")
+    elif filter_type == "month" and filter_month:
+        try:
+            m_val = int(filter_month)
+            apts_qs = apts_qs.filter(appointment_date__month=m_val)
+            if filter_year:
+                apts_qs = apts_qs.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
     elif filter_type == "year" and filter_year:
-        apts_qs = apts_qs.filter(appointment_date__startswith=filter_year)
+        try:
+            apts_qs = apts_qs.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
 
     today = timezone.localdate()
     for apt in apts_qs.filter(appointment_date__lt=today, status__in=["pending", "confirmed"]):

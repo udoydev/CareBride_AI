@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Min, Max, Q
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 
@@ -20,23 +20,60 @@ def appointments(request):
         messages.error(request, "Only patient profiles can view appointment list.")
         return redirect("home")
 
-    status_filter = request.GET.get("status", "all").strip()
+    status_filter = request.GET.get("status", "").strip()
+    filter_type = request.GET.get("filter_type", "").strip()
+    filter_value = request.GET.get("filter_value", "").strip()
+    filter_month = request.GET.get("filter_month", "").strip()
+    filter_year = request.GET.get("filter_year", "").strip()
 
     base_qs = Appointment.objects.filter(patient=patient).select_related("doctor__user", "doctor").order_by("-appointment_date", "-start_time")
 
     from doctors.views import _auto_mark_missed_today
     _auto_mark_missed_today(patient=patient)
 
-    if status_filter == "upcoming":
-        base_qs = base_qs.filter(status__in=["pending", "confirmed"])
-    elif status_filter == "cancellation_pending":
-        base_qs = base_qs.filter(status="cancellation_pending")
-    elif status_filter == "cancelled":
-        base_qs = base_qs.filter(status="cancelled")
-    elif status_filter == "completed":
-        base_qs = base_qs.filter(status="completed")
-    elif status_filter == "missed":
-        base_qs = base_qs.filter(status="missed")
+    if status_filter:
+        if status_filter == "upcoming":
+            base_qs = base_qs.filter(status__in=["pending", "confirmed"])
+        elif status_filter in ["pending", "confirmed", "completed", "cancelled", "missed", "cancellation_pending"]:
+            base_qs = base_qs.filter(status=status_filter)
+
+    # Date / Month / Year Filtering
+    if filter_type == "date" and filter_value:
+        base_qs = base_qs.filter(appointment_date=filter_value)
+    elif filter_type == "month" and filter_month:
+        try:
+            m_val = int(filter_month)
+            base_qs = base_qs.filter(appointment_date__month=m_val)
+            if filter_year:
+                base_qs = base_qs.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
+    elif filter_type == "year" and filter_year:
+        try:
+            base_qs = base_qs.filter(appointment_date__year=int(filter_year))
+        except ValueError:
+            pass
+
+    # Build years and months dropdowns based on patient appointments
+    all_apts = Appointment.objects.filter(patient=patient)
+    date_aggregates = all_apts.aggregate(
+        min_date=Min("appointment_date"),
+        max_date=Max("appointment_date"),
+    )
+
+    current_year = timezone.localdate().year
+    min_year = date_aggregates["min_date"].year if date_aggregates.get("min_date") else current_year - 2
+    max_year = date_aggregates["max_date"].year if date_aggregates.get("max_date") else current_year + 1
+    years = list(range(min(min_year, current_year), max(max_year, current_year) + 1))
+
+    months = [
+        ("01", "January"), ("02", "February"), ("03", "March"), ("04", "April"),
+        ("05", "May"), ("06", "June"), ("07", "July"), ("08", "August"),
+        ("09", "September"), ("10", "October"), ("11", "November"), ("12", "December"),
+    ]
+
+    selected_month = filter_month if filter_type == "month" else ""
+    selected_year = filter_year if (filter_type in ["month", "year"]) else ""
 
     paginator = Paginator(base_qs, 10)
     page_number = request.GET.get("page")
@@ -63,6 +100,14 @@ def appointments(request):
         "status_filter": status_filter,
         "today": today,
         "page_obj": page_obj,
+        "filter_type": filter_type,
+        "filter_value": filter_value,
+        "filter_month": filter_month,
+        "filter_year": filter_year,
+        "years": sorted(years, reverse=True),
+        "months": months,
+        "selected_month": selected_month,
+        "selected_year": selected_year,
     })
 
 

@@ -96,8 +96,8 @@ def appointment_list(request):
     status_filter = request.GET.get("status", "all").strip()
     filter_type = request.GET.get("filter_type", "quick").strip()
     filter_value = request.GET.get("filter_value", "").strip()
-    filter_month = request.GET.get("month", "").strip()
-    filter_year = request.GET.get("year", "").strip()
+    filter_month = (request.GET.get("filter_month") or request.GET.get("month", "")).strip()
+    filter_year = (request.GET.get("filter_year") or request.GET.get("year", "")).strip()
 
     base_qs = Appointment.objects.filter(doctor=doctor).select_related("patient__user", "patient").order_by("-appointment_date", "-start_time")
 
@@ -105,6 +105,10 @@ def appointment_list(request):
         base_qs = base_qs.filter(appointment_date=today)
     elif status_filter == "upcoming":
         base_qs = base_qs.filter(appointment_date__gte=today, status__in=["pending", "confirmed"])
+    elif status_filter == "confirmed":
+        base_qs = base_qs.filter(status="confirmed")
+    elif status_filter == "pending_verification":
+        base_qs = base_qs.filter(payment_status="pending_verification").exclude(status="cancelled")
     elif status_filter == "cancellation_pending":
         base_qs = base_qs.filter(status="cancellation_pending")
     elif status_filter == "cancelled":
@@ -123,10 +127,25 @@ def appointment_list(request):
             base_qs = base_qs.filter(appointment_date__gte=start_d)
         if end_d:
             base_qs = base_qs.filter(appointment_date__lte=end_d)
-    elif filter_type == "month" and filter_month and filter_year:
+    elif filter_type == "date" and filter_value:
         try:
-            base_qs = base_qs.filter(appointment_date__year=int(filter_year), appointment_date__month=int(filter_month))
-        except ValueError:
+            base_qs = base_qs.filter(appointment_date=filter_value)
+        except Exception:
+            pass
+    elif filter_type == "month" and filter_month:
+        try:
+            m_val = int(filter_month)
+            if filter_year:
+                y_val = int(filter_year)
+                base_qs = base_qs.filter(appointment_date__year=y_val, appointment_date__month=m_val)
+            else:
+                base_qs = base_qs.filter(appointment_date__month=m_val)
+        except (ValueError, TypeError):
+            pass
+    elif filter_type == "year" and filter_year:
+        try:
+            base_qs = base_qs.filter(appointment_date__year=int(filter_year))
+        except (ValueError, TypeError):
             pass
 
     search_q = request.GET.get("q", "").strip()
@@ -144,8 +163,11 @@ def appointment_list(request):
 
     stats = {
         "all": all_apts.count(),
+        "total": all_apts.count(),
         "today": all_apts.filter(appointment_date=today).count(),
         "upcoming": all_apts.filter(appointment_date__gte=today, status__in=["pending", "confirmed"]).count(),
+        "confirmed": all_apts.filter(status="confirmed").count(),
+        "pending_verification": pending_verifs.count(),
         "cancellation_pending": all_apts.filter(status="cancellation_pending").count(),
         "completed": all_apts.filter(status="completed").count(),
         "missed": all_apts.filter(status="missed").count(),
